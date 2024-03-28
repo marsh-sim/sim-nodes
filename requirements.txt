@@ -1,5 +1,6 @@
 autopep8==2.1.0
 future==1.0.0
+labjack-ljm==1.23.0
 lxml==5.1.0
 pycodestyle==2.11.1
 pygame==2.5.2
