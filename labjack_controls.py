@@ -18,56 +18,38 @@ class LJMReader(threading.Thread):
     def __init__(self, period, **kwargs):
         super().__init__()
 
-        try:
-            # LabJack Type: defaults to T4
-            self.LJType = kwargs['LJType']
-            if self.LJType not in ('T4', 'T7', 'T8'):
-                raise ValueError
-        except ValueError:
+        # initialize the config with default values
+        config = {
+            'LJType': 'T4',
+            'LJConnection': 'ETHERNET',
+            'aScanListNames': ['AIN0', 'AIN1', 'AIN2', 'AIN3'],
+            'serverAddress': ('192.168.1.2', 9011),
+            'ScanRate': 256  # corresponding to 1000 Hz
+        }
+        config.update(kwargs)  # overwrite with any kwargs passed
+
+        self.LJType = config['LJType']
+        """LabJack Type, defaults to T4"""
+        if self.LJType not in ('T4', 'T7', 'T8'):
             print('LJMReader: unrecognised LabJack type. Aborting...', file=sys.stderr)
             sys.exit(100)
-        except KeyError:
-            self.LJType = 'T4'
-            pass
 
-        try:
-            self.LJConnection = kwargs['LJConnection']
-            # LabJack Connection: defaults to ETHERNET
-            if self.LJConnection not in ('USB', 'ETHERNET', 'ANY'):
-                raise ValueError
-        except ValueError:
+        self.LJConnection = config['LJConnection']
+        """LabJack Connection, defaults to ETHERNET"""
+        if self.LJConnection not in ('USB', 'ETHERNET', 'ANY'):
             print(
                 'LJMReader: unrecognised LabJack connection type. Aborting...', file=sys.stderr)
             sys.exit(101)
-        except KeyError:
-            self.LJConnection = 'ETHERNET'
-            pass
 
-        try:
-            self.aScanListNames = kwargs['aScanListNames']
-            # LabJack signals to be output. For now, no check on channel name
-            # is perfomed, so it is up to the user to get it right
-        except KeyError:
-            # By default, we output AIN0-3
-            self.aScanListNames = ['AIN0', 'AIN1', 'AIN2', 'AIN3']
-            pass
+        self.aScanListNames = config['aScanListNames']
+        """LabJack signals to be output. For now, no check on channel name
+        is perfomed, so it is up to the user to get it right"""
 
-        try:
-            # Address of the server to send the reads to
-            self.serverAddress = kwargs['serverAddress']
-            # here we should do more checks, but we'll trust the user for now...
-        except KeyError:
-            # Defaults to rpc-lnx2 and port 9011
-            self.serverAddress = ('192.168.1.2', 9011)
-            pass
+        self.serverAddress = config['serverAddress']
+        """Address of the server to send the reads to,
+        defaults to rpc-lnx2 and port 9011"""
 
-        try:
-            # same as above
-            self.ScanRate = kwargs['ScanRate']
-        except KeyError:
-            # defaults to 1000 Hz
-            self.ScanRate = 256
-            pass
+        self.ScanRate = config['ScanRate']
 
         self.LJhandle = ljm.openS(self.LJType, self.LJConnection, 'ANY')
         if self.LJhandle:
@@ -144,7 +126,7 @@ class LJMReader(threading.Thread):
         curSkip = aData.count(-9999.0)
         if curSkip:
             print("LJMReader: WARNING {} skipped samples at read #{}".format(
-                curSkip, curRead), file=sys.stderr)
+                curSkip, self.i), file=sys.stderr)
 
         # Send data to socket
         # AIN0 = aData[0]
