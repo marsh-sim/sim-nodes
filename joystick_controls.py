@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 
+"""
+Node providing MANUAL_CONTROL messages based on USB HID Joystick device.
+
+Axis assignment and reversal can be configured in runtime with Parameter microservice.
+
+Default parameters are for Thrustmaster T-Flight HOTAS X with yaw on throttle.
+(see https://www.thrustmaster.com/products/t-flight-hotas-x/)
+"""
+
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from collections import OrderedDict
 import pygame

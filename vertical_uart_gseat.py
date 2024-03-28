@@ -16,6 +16,7 @@ import serial
 from time import time
 
 import mavlink_all as mavlink
+from utils.model_utils import STD_G
 
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 parser.add_argument('device',
@@ -37,8 +38,6 @@ mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
 mav.srcSystem = 1  # default system
 mav.srcComponent = mavlink.MARSH_COMP_ID_GSEAT
 print(f'Sending to {connection_string}')
-
-STD_G = 9.80665
 
 # create parameters database, all parameters are float to simplify code
 params: OrderedDict[str, float] = OrderedDict()

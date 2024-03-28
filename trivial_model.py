@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
-from dataclasses import dataclass
-from math import cos, radians, sin
-from time import time
-from typing import Tuple
+"""
+Trivial flight model:
+- aircraft not moving, at 0 position
+- roll and pitch in a limited range, directly following controls
+- acceleration pointing down (considering roll and pitch), with magnitude dependent on throttle input
+"""
 
+from argparse import ArgumentParser
+from math import cos, radians, sin
 from pymavlink import mavutil
+from time import time
+
 import mavlink_all as mavlink
+from utils.model_utils import *
 
 parser = ArgumentParser()
 parser.add_argument('-m', '--manager',
@@ -19,37 +25,6 @@ mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
 mav.srcSystem = 1  # default system
 mav.srcComponent = mavlink.MARSH_COMP_ID_FLIGHT_MODEL
 print(f'Sending to {connection_string}')
-
-STD_G = 9.80665
-
-
-def euler_to_quaternion(roll: float, pitch: float, yaw: float) -> Tuple[float, float, float, float]:
-    """
-    adapted from mavlink_conversions.h
-    """
-    cosPhi_2 = cos(roll / 2)
-    sinPhi_2 = sin(roll / 2)
-    cosTheta_2 = cos(pitch / 2)
-    sinTheta_2 = sin(pitch / 2)
-    cosPsi_2 = cos(yaw / 2)
-    sinPsi_2 = sin(yaw / 2)
-    q1 = (cosPhi_2 * cosTheta_2 * cosPsi_2 +
-          sinPhi_2 * sinTheta_2 * sinPsi_2)
-    q2 = (sinPhi_2 * cosTheta_2 * cosPsi_2 -
-          cosPhi_2 * sinTheta_2 * sinPsi_2)
-    q3 = (cosPhi_2 * sinTheta_2 * cosPsi_2 +
-          sinPhi_2 * cosTheta_2 * sinPsi_2)
-    q4 = (cosPhi_2 * cosTheta_2 * sinPsi_2 -
-          sinPhi_2 * sinTheta_2 * cosPsi_2)
-    return q1, q2, q3, q4
-
-
-@dataclass
-class Controls:
-    pitch = 0.0  # positive nose down
-    roll = 0.0  # positive roll right
-    thrust = 0.0  # positive go up
-    yaw = 0.0  # positive turn right
 
 
 def simulate(_previous_state: mavlink.MAVLink_sim_state_message, controls: Controls, _delta_time: float) -> mavlink.MAVLink_sim_state_message:
@@ -137,18 +112,7 @@ while True:
                 manager_connected = True
                 manager_timeout = time() + timeout_interval
         elif message.get_type() == 'MANUAL_CONTROL':
-            manual_control: mavlink.MAVLink_manual_control_message = message
-            controls = Controls()
-            # assign only valid axes
-            if -1000 <= manual_control.x <= 1000:
-                controls.pitch = manual_control.x / 1000.0
-            if -1000 <= manual_control.y <= 1000:
-                controls.roll = manual_control.y / 1000.0
-            if -1000 <= manual_control.z <= 1000:
-                controls.thrust = manual_control.z / 1000.0
-            if -1000 <= manual_control.r <= 1000:
-                controls.yaw = manual_control.r / 1000.0
-            last_controls = controls
+            last_controls = Controls.from_message(message)
             last_controls_time = time()
 
     if manager_connected and time() > manager_timeout:
