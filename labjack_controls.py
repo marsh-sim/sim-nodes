@@ -1,32 +1,75 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-# Original code: https://github.com/labjack/labjack-ljm-python/blob/master/Examples/More/Stream/stream_basic.py
-# Adapted into thread by Andrea Zanoni
+"""
+Node providing MANUAL_CONTROL messages based on USB HID LabJack T4 device measuring analog voltages.
 
+The linear mapping between voltages and axis values can be configured in runtime with Parameter microservice.
+
+Based on https://github.com/labjack/labjack-ljm-python/blob/master/Examples/More/Stream/stream_basic.py
+Adapted for RPC platform by Andrea Zanoni
+"""
+
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from collections import OrderedDict
+from typing import Optional, Tuple
 from labjack import ljm
+from pymavlink import mavutil
 import socket
 import struct
-
 import sys
-
 import threading
 import time
+from queue import Empty, Queue
+
+import mavlink_all as mavlink
+
+
+def main():
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-m', '--manager',
+                        help='MARSH Manager IP addr', default='127.0.0.1')
+    args = parser.parse_args()
+    # assign to typed variables for convenience
+    args_manager: str = args.manager
+
+    queue = Queue()
+
+    ljmr = LJMReader(queue, 1/256.)
+    node = ControlsNode(queue, args_manager)
+
+    print('Starting threads')
+    ljmr.start()
+    node.start()
+
+    while True:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            print('Stopping all threads')
+            ljmr.should_stop.set()
+            node.should_stop.set()
+            break
+
+    print('Waiting on threads to finish')
+    ljmr.join()
+    node.join()
 
 
 class LJMReader(threading.Thread):
-    def __init__(self, period, **kwargs):
+    def __init__(self, queue: Queue, period: float, **kwargs):
         super().__init__()
+
+        self.queue = queue
 
         # initialize the config with default values
         config = {
             'LJType': 'T4',
             'LJConnection': 'ETHERNET',
             'aScanListNames': ['AIN0', 'AIN1', 'AIN2', 'AIN3'],
-            'serverAddress': ('192.168.1.2', 9011),
             'ScanRate': 256  # corresponding to 1000 Hz
         }
-        config.update(kwargs)  # overwrite with any kwargs passed
+        config.update(kwargs)  # override with any kwargs passed
 
         self.LJType = config['LJType']
         """LabJack Type, defaults to T4"""
@@ -45,11 +88,9 @@ class LJMReader(threading.Thread):
         """LabJack signals to be output. For now, no check on channel name
         is perfomed, so it is up to the user to get it right"""
 
-        self.serverAddress = config['serverAddress']
-        """Address of the server to send the reads to,
-        defaults to rpc-lnx2 and port 9011"""
-
         self.ScanRate = config['ScanRate']
+
+        self.should_stop = threading.Event()
 
         self.LJhandle = ljm.openS(self.LJType, self.LJConnection, 'ANY')
         if self.LJhandle:
@@ -94,7 +135,6 @@ class LJMReader(threading.Thread):
             self.period = period
             self.i = 0
             self.t0 = time.time()
-            self.start()
 
         except ljm.LJMError:
             ljme = sys.exc_info()[1]
@@ -114,9 +154,12 @@ class LJMReader(threading.Thread):
             time.sleep(delta)
 
     def run(self):
-        while True:
+        while not self.should_stop.is_set():
             self.read_and_send()
             self.sleep()
+
+        print("LJMReader: closing the handle")
+        ljm.close(self.LJhandle)
 
     def read_and_send(self):
         ret = ljm.eStreamRead(self.LJhandle)
@@ -128,14 +171,152 @@ class LJMReader(threading.Thread):
             print("LJMReader: WARNING {} skipped samples at read #{}".format(
                 curSkip, self.i), file=sys.stderr)
 
-        # Send data to socket
-        # AIN0 = aData[0]
-        # AIN1 = aData[1]
-        # AIN2 = aData[2]
-        # AIN3 = aData[3]
-
-        buf_out = struct.pack('d'*len(aData), *aData)
-        self.s.sendto(buf_out, self.serverAddress)
+        axes = tuple([(v if v != -9999.9 else None) for v in aData[:4]])
+        self.queue.put(axes)
 
 
-ljmr = LJMReader(1/256.)
+class ControlsNode(threading.Thread):
+    def __init__(self, queue: Queue, manager_addr: str, **kwargs):
+        super().__init__()
+
+        self.queue = queue
+        self.manager_addr = manager_addr
+        self.should_stop = threading.Event()
+
+    def run(self):
+        # create MAVLink connection
+        connection_string = f'udpout:{self.manager_addr}:24400'
+        mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
+        mav.srcSystem = 1  # default system
+        mav.srcComponent = mavlink.MARSH_COMP_ID_CONTROLS
+        print(f'Sending to {connection_string}')
+
+        # create parameters database, all parameters are float to simplify code
+        # default values for Thrustmaster T-Flight HOTAS X with yaw on throttle
+        params: OrderedDict[str, float] = OrderedDict()
+        params['PTCH_V_MIN'] = 0.633
+        params['PTCH_V_MAX'] = 0.065
+        params['ROLL_V_MIN'] = 3.153
+        params['ROLL_V_MAX'] = 3.850
+        params['THR_V_MIN'] = 1.635
+        params['THR_V_MAX'] = 3.850
+        params['YAW_V_MIN'] = 0.0  # TODO: calibrate pedals
+        params['YAW_V_MAX'] = 5.0
+
+        for k in params.keys():
+            assert len(k) <= 16, 'parameter names must fit into param_id field'
+
+        def send_param(index: int, name=''):
+            """
+            convenience function to send PARAM_VALUE
+            pass index -1 to use name instead
+
+            silently returns on invalid index or name
+            """
+            param_id = bytearray(16)
+
+            if index >= 0:
+                if index >= len(params):
+                    return
+
+                # HACK: is there a nicer way to get items from OrderedDict by order?
+                name = list(params.keys())[index]
+            else:
+                if name not in params:
+                    return
+
+                index = list(params.keys()).index(name)
+            name_bytes = name.encode('utf8')
+            param_id[:len(name_bytes)] = name_bytes
+
+            mav.param_value_send(param_id, params[name], mavlink.MAV_PARAM_TYPE_REAL32,
+                                 len(params), index)
+
+        # controlling when messages should be sent
+        heartbeat_next = 0.0
+        heartbeat_interval = 1.0
+        control_next = 0.0
+        control_interval = 0.02
+
+        # monitoring connection to manager with heartbeat
+        timeout_interval = 5.0
+        manager_timeout = 0.0
+        manager_connected = False
+
+        # the loop goes as fast as it can, relying on the variables above for timing
+        while not self.should_stop.is_set():
+            if time.time() >= heartbeat_next:
+                mav.heartbeat_send(
+                    mavlink.MAV_TYPE_GENERIC,
+                    mavlink.MAV_AUTOPILOT_INVALID,
+                    mavlink.MAV_MODE_FLAG_TEST_ENABLED,
+                    0,
+                    mavlink.MAV_STATE_ACTIVE
+                )
+                heartbeat_next = time.time() + heartbeat_interval
+
+            voltages: Optional[Tuple[float, float, float, float]] = None
+            try:
+                voltages = self.queue.get(block=False)
+            except Empty:
+                pass
+
+            if voltages is not None:
+                axes = [0x7FFF] * 4  # set each axis to invalid (INT16_MAX)
+                v0, v1, v2, v3 = voltages
+
+                # assign axis values based on voltages scaled with parameters
+                for i, (prefix, voltage) in enumerate(zip(['PTCH', 'ROLL', 'THR', 'YAW'], [v2, v1, v0, v3])):
+                    if voltage is None:
+                        continue
+
+                    v_min = params[f'{prefix}_V_MIN']
+                    v_max = params[f'{prefix}_V_MAX']
+                    value = (voltage - v_min) / (v_max - v_min)  # 0 to 1
+                    value = (value - 0.5) * 2.0  # -1 to 1
+
+                    # scale to the range expected in message
+                    axes[i] = round(1000 * max(-1, min(1, value)))
+
+                # no buttons are used
+                buttons = 0
+
+                mav.manual_control_send(
+                    mav.srcSystem,
+                    axes[0], axes[1], axes[2], axes[3],
+                    buttons,
+                )
+                control_next = time.time() + control_interval
+
+            # handle incoming messages
+            while (message := mav.file.recv_msg()) is not None:
+                message: mavlink.MAVLink_message
+                if message.get_type() == 'HEARTBEAT':
+                    if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                        if not manager_connected:
+                            print('Connected to simulation manager')
+                        manager_connected = True
+                        manager_timeout = time.time() + timeout_interval
+                elif message.get_type() in ['PARAM_REQUEST_READ', 'PARAM_REQUEST_LIST', 'PARAM_SET']:
+                    # check that this is relevant to us
+                    if message.target_system == mav.srcSystem and message.target_component == mav.srcComponent:
+                        if message.get_type() == 'PARAM_REQUEST_READ':
+                            m: mavlink.MAVLink_param_request_read_message = message
+                            send_param(m.param_index, m.param_id)
+                        elif message.get_type() == 'PARAM_REQUEST_LIST':
+                            for i in range(len(params)):
+                                send_param(i)
+                        elif message.get_type() == 'PARAM_SET':
+                            m: mavlink.MAVLink_param_set_message = message
+                            # check that parameter is defined and sent as float
+                            if m.param_id in params and m.param_type == mavlink.MAV_PARAM_TYPE_REAL32:
+                                params[m.param_id] = m.param_value
+                            send_param(-1, m.param_id)
+
+            if manager_connected and time.time() > manager_timeout:
+                manager_connected = False
+                print('Lost connection to simulation manager')
+
+
+if __name__ == '__main__':
+    main()
