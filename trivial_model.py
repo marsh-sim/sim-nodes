@@ -7,7 +7,7 @@ Trivial flight model:
 - acceleration pointing down (considering roll and pitch), with magnitude dependent on throttle input
 """
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from math import cos, radians, sin
 from pymavlink import mavutil
 from time import time
@@ -15,12 +15,17 @@ from time import time
 import mavlink_all as mavlink
 from utils.model_utils import *
 
-parser = ArgumentParser()
+parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 parser.add_argument('-m', '--manager',
                     help='MARSH Manager IP addr', default='127.0.0.1')
+parser.add_argument('--no-heartbeat', action='store_false', dest='heartbeat',
+                    help='toggle sending HEARTBEAT messages for testing Manager with unregistered clients')
 args = parser.parse_args()
+# assign to typed variables for convenience
+args_manager: str = args.manager
+args_heartbeat: bool = args.heartbeat
 
-connection_string = f'udpout:{args.manager}:24400'
+connection_string = f'udpout:{args_manager}:24400'
 mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
 mav.srcSystem = 1  # default system
 mav.srcComponent = mavlink.MARSH_COMP_ID_FLIGHT_MODEL
@@ -78,7 +83,7 @@ manager_connected = False
 
 # the loop goes as fast as it can, relying on the variables above for timing
 while True:
-    if time() >= heartbeat_next:
+    if args_heartbeat and time() >= heartbeat_next:
         mav.heartbeat_send(
             mavlink.MAV_TYPE_GENERIC,
             mavlink.MAV_AUTOPILOT_INVALID,
