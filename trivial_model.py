@@ -103,22 +103,26 @@ while True:
         state_next = time() + state_interval
 
     # handle incoming messages
-    while (message := mav.file.recv_msg()) is not None:
-        message: mavlink.MAVLink_message
-        if message.get_type() == 'HEARTBEAT':
-            # the following line only helps with type hints
-            heartbeat: mavlink.MAVLink_heartbeat_message = message
+    try:
+        while (message := mav.file.recv_msg()) is not None:
+            message: mavlink.MAVLink_message
+            if message.get_type() == 'HEARTBEAT':
+                # the following line only helps with type hints
+                heartbeat: mavlink.MAVLink_heartbeat_message = message
 
-            if heartbeat.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
-                if not manager_connected:
-                    # example of showing text for enum
-                    state = mavlink.enums['MAV_STATE'][heartbeat.system_status]
-                    print('Connected to simulation manager in state', state.name)
-                manager_connected = True
-                manager_timeout = time() + timeout_interval
-        elif message.get_type() == 'MANUAL_CONTROL':
-            last_controls = Controls.from_message(message)
-            last_controls_time = time()
+                if heartbeat.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                    if not manager_connected:
+                        # example of showing text for enum
+                        state = mavlink.enums['MAV_STATE'][heartbeat.system_status]
+                        print('Connected to simulation manager in state', state.name)
+                    manager_connected = True
+                    manager_timeout = time() + timeout_interval
+            elif message.get_type() == 'MANUAL_CONTROL':
+                last_controls = Controls.from_message(message)
+                last_controls_time = time()
+    except ConnectionResetError:
+        # thrown on Windows when there is no peer listening
+        pass
 
     if manager_connected and time() > manager_timeout:
         manager_connected = False

@@ -289,29 +289,33 @@ class ControlsNode(threading.Thread):
                 control_next = time.time() + control_interval
 
             # handle incoming messages
-            while (message := mav.file.recv_msg()) is not None:
-                message: mavlink.MAVLink_message
-                if message.get_type() == 'HEARTBEAT':
-                    if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
-                        if not manager_connected:
-                            print('Connected to simulation manager')
-                        manager_connected = True
-                        manager_timeout = time.time() + timeout_interval
-                elif message.get_type() in ['PARAM_REQUEST_READ', 'PARAM_REQUEST_LIST', 'PARAM_SET']:
-                    # check that this is relevant to us
-                    if message.target_system == mav.srcSystem and message.target_component == mav.srcComponent:
-                        if message.get_type() == 'PARAM_REQUEST_READ':
-                            m: mavlink.MAVLink_param_request_read_message = message
-                            send_param(m.param_index, m.param_id)
-                        elif message.get_type() == 'PARAM_REQUEST_LIST':
-                            for i in range(len(params)):
-                                send_param(i)
-                        elif message.get_type() == 'PARAM_SET':
-                            m: mavlink.MAVLink_param_set_message = message
-                            # check that parameter is defined and sent as float
-                            if m.param_id in params and m.param_type == mavlink.MAV_PARAM_TYPE_REAL32:
-                                params[m.param_id] = m.param_value
-                            send_param(-1, m.param_id)
+            try:
+                while (message := mav.file.recv_msg()) is not None:
+                    message: mavlink.MAVLink_message
+                    if message.get_type() == 'HEARTBEAT':
+                        if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                            if not manager_connected:
+                                print('Connected to simulation manager')
+                            manager_connected = True
+                            manager_timeout = time.time() + timeout_interval
+                    elif message.get_type() in ['PARAM_REQUEST_READ', 'PARAM_REQUEST_LIST', 'PARAM_SET']:
+                        # check that this is relevant to us
+                        if message.target_system == mav.srcSystem and message.target_component == mav.srcComponent:
+                            if message.get_type() == 'PARAM_REQUEST_READ':
+                                m: mavlink.MAVLink_param_request_read_message = message
+                                send_param(m.param_index, m.param_id)
+                            elif message.get_type() == 'PARAM_REQUEST_LIST':
+                                for i in range(len(params)):
+                                    send_param(i)
+                            elif message.get_type() == 'PARAM_SET':
+                                m: mavlink.MAVLink_param_set_message = message
+                                # check that parameter is defined and sent as float
+                                if m.param_id in params and m.param_type == mavlink.MAV_PARAM_TYPE_REAL32:
+                                    params[m.param_id] = m.param_value
+                                send_param(-1, m.param_id)
+            except ConnectionResetError:
+                # thrown on Windows when there is no peer listening
+                pass
 
             if manager_connected and time.time() > manager_timeout:
                 manager_connected = False
