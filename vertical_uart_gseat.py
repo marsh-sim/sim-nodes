@@ -43,6 +43,8 @@ print(f'Sending to {connection_string}')
 params: OrderedDict[str, float] = OrderedDict()
 params['ACCEL_Z_MIN'] = 0.8 * STD_G
 params['ACCEL_Z_MAX'] = 1.2 * STD_G
+params['OUT_MIN'] = 0.4
+params['OUT_MAX'] = 0.9
 
 for k in params.keys():
     assert len(k) <= 16, 'parameter names must fit into param_id field'
@@ -78,10 +80,17 @@ def send_param(index: int, name=''):
 def vertical_output(zacc: float) -> float:
     zmin = params['ACCEL_Z_MIN']
     zmax = params['ACCEL_Z_MAX']
+    out_min = params['OUT_MIN']
+    out_max = params['OUT_MAX']
     if zmin == zmax:
         print('ERROR: Parameters ACCEL_Z_MIN and ACCEL_Z_MAX have same value')
         return 0.5
-    return max(0, min(1, (zacc - zmin)/(zmax - zmin)))
+    if out_min == out_max:
+        print('ERROR: Parameters OUT_MIN and OUT_MAX have same value')
+        return 0.5
+
+    raw_value = max(0, min(1, (zacc - zmin)/(zmax - zmin)))
+    return out_min + raw_value * (out_max - out_min)
 
 
 last_state = mavlink.MAVLink_sim_state_message(
@@ -98,7 +107,7 @@ timeout_interval = 5.0
 manager_timeout = 0.0
 manager_connected = False
 
-with serial.Serial(args_device, 230400, timeout=0.01) as ser:
+with serial.Serial(args_device, 57600, timeout=0.01) as ser:
     print('Opened {} with baud {}'.format(ser.name, ser.baudrate))
 
     # the loop goes as fast as it can, relying on the variables above for timing

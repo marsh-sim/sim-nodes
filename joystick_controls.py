@@ -23,10 +23,13 @@ parser.add_argument('-i', '--input-index', type=int,
                     help='index of input device to use', default=0)
 parser.add_argument('-m', '--manager',
                     help='MARSH Manager IP addr', default='127.0.0.1')
+parser.add_argument('-t', '--time-interval', type=float,
+                    help='interval between sent messages, in seconds', default=0.02)
 args = parser.parse_args()
 # assign to typed variables for convenience
 args_manager: str = args.manager
 args_input_index: int = args.input_index
+args_time_interval: float = args.time_interval
 
 pygame.init()
 joystick.init()
@@ -102,7 +105,7 @@ def send_param(index: int, name=''):
 heartbeat_next = 0.0
 heartbeat_interval = 1.0
 control_next = 0.0
-control_interval = 0.02
+control_interval = args_time_interval
 
 # monitoring connection to manager with heartbeat
 timeout_interval = 5.0
