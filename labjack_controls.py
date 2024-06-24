@@ -200,8 +200,8 @@ class ControlsNode(threading.Thread):
         params['PTCH_V_MAX'] = 0.3413
         params['ROLL_V_MIN'] = 1.683
         params['ROLL_V_MAX'] = 0.591
-        params['THR_V_MIN'] = 1.260
-        params['THR_V_MAX'] = 3.000
+        params['THR_V_MIN'] = 4.505
+        params['THR_V_MAX'] = 1.378
         params['YAW_V_MIN'] = 0.896
         params['YAW_V_MAX'] = 1.941
 
