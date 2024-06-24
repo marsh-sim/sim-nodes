@@ -4,18 +4,20 @@
 Trivial flight model:
 - aircraft not moving, at 0 position
 - roll and pitch in a limited range, directly following controls
-- acceleration pointing down (considering roll and pitch), with magnitude dependent on throttle input
+- acceleration pointing down (considering roll and pitch),
+  with magnitude dependent on throttle input
 """
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentParser
 from math import cos, radians, sin
 from pymavlink import mavutil
 from time import time
 
 import mavlink_all as mavlink
+from utils import NodeFormatter
 from utils.model_utils import *
 
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
 parser.add_argument('-m', '--manager',
                     help='MARSH Manager IP addr', default='127.0.0.1')
 parser.add_argument('--no-heartbeat', action='store_false', dest='heartbeat',

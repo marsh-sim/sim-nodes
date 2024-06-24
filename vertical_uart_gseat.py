@@ -4,21 +4,23 @@
 Node for controlling a simple G-Seat connected on UART.
 Developed for the https://gitlab.polimi.it/DAER/frame-sim/haptic-seat device
 
-The control is sent as a decimal number from 0.0000 to 1.0000, followed by a newline (LF) character.
-The value is based on vertical acceleration in SIM_STATE message.
-The linear mapping between acceleration and control value can be configured in runtime with Parameter microservice.
+The control is sent as a decimal number from 0.0000 to 1.0000, followed by
+a newline (LF) character. The value is based on vertical acceleration
+in SIM_STATE message. The linear mapping between acceleration and control
+value can be configured in runtime with Parameter microservice.
 """
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentParser
 from collections import OrderedDict
 from pymavlink import mavutil
 import serial
 from time import time
 
 import mavlink_all as mavlink
+from utils import NodeFormatter
 from utils.model_utils import STD_G
 
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
 parser.add_argument('device',
                     help='serial device to open (e.g. COM5 on Windows)')
 parser.add_argument('-m', '--manager',

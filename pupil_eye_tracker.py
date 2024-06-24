@@ -7,7 +7,7 @@ For details about data received from the device, see:
 https://docs.pupil-labs.com/core/developer/#gaze-datum-format
 """
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentParser
 from math import nan, sqrt
 import msgpack
 from pymavlink import mavutil
@@ -16,8 +16,9 @@ from typing import Any, Dict
 import zmq
 
 import mavlink_all as mavlink
+from utils import NodeFormatter
 
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
 parser.add_argument('-m', '--manager',
                     help='MARSH Manager IP addr', default='127.0.0.1')
 parser.add_argument('-r', '--pupil-remote',

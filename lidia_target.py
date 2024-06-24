@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
 
 """
-Node setting target values for lidia instrument display (https://pypi.org/project/lidia/)
+Node setting target values for lidia instrument display
+(https://pypi.org/project/lidia/)
 
 The data corresponds to the AircraftState class which is defined here:
 https://gitlab.com/Maarrk/lidia/-/blob/main/src/lidia/aircraft.py
 
-The message V2_EXTENSION used here can be used for tunneling other binary data through MARSH.
-The receiving node must subscribe to this message id and recognize the payload
-based on the message_type field, which is a uint16 identifier.
+The message V2_EXTENSION used here can be used for tunneling other binary data
+through MARSH. The receiving node must subscribe to this message id
+and recognize the payload based on the message_type field, which is a uint16
+identifier.
 """
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentParser
 from math import radians
 from msgpack import packb
 from pymavlink import mavutil
 from typing import Optional
 
 import mavlink_all as mavlink
+from utils import NodeFormatter
 
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
 parser.add_argument('-m', '--manager',
                     help='MARSH Manager IP addr', default='127.0.0.1')
 parser.add_argument('-a', '--alt', type=float,

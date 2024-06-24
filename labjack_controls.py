@@ -2,15 +2,15 @@
 # -*- coding:utf-8 -*-
 
 """
-Node providing MANUAL_CONTROL messages based on USB HID LabJack T4 device measuring analog voltages.
-
-The linear mapping between voltages and axis values can be configured in runtime with Parameter microservice.
+Node providing MANUAL_CONTROL messages based on USB HID LabJack T4 device
+measuring analog voltages. The linear mapping between voltages and axis values
+can be configured in runtime with Parameter microservice.
 
 Based on https://github.com/labjack/labjack-ljm-python/blob/master/Examples/More/Stream/stream_basic.py
 Adapted for RPC platform by Andrea Zanoni
 """
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentParser
 from collections import OrderedDict
 from typing import Optional, Tuple
 from labjack import ljm
@@ -23,10 +23,11 @@ import time
 from queue import Empty, Queue
 
 import mavlink_all as mavlink
+from utils import NodeFormatter
 
 
 def main():
-    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+    parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
     parser.add_argument('-m', '--manager',
                         help='MARSH Manager IP addr', default='127.0.0.1')
     args = parser.parse_args()

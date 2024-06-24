@@ -3,22 +3,21 @@
 """
 Node providing MANUAL_CONTROL messages based on USB HID Joystick device.
 
-Axis assignment and reversal can be configured in runtime with Parameter microservice.
+Axis assignment and reversal can be configured in runtime with parameters.
 
 Default parameters are for Thrustmaster T-Flight HOTAS X with yaw on throttle.
 (see https://www.thrustmaster.com/products/t-flight-hotas-x/)
 """
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentParser
 from collections import OrderedDict
-import pygame
-from pygame import joystick
 from pymavlink import mavutil
 from time import time
 
 import mavlink_all as mavlink
+from utils import NodeFormatter
 
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
 parser.add_argument('-i', '--input-index', type=int,
                     help='index of input device to use', default=0)
 parser.add_argument('-m', '--manager',
@@ -31,6 +30,8 @@ args_manager: str = args.manager
 args_input_index: int = args.input_index
 args_time_interval: float = args.time_interval
 
+import pygame  # noqa - prints on import
+from pygame import joystick  # noqa - prints on import
 pygame.init()
 joystick.init()
 
