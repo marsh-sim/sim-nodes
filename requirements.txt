@@ -7,4 +7,5 @@ pycodestyle==2.11.1
 pygame==2.5.2
 pymavlink==2.4.41
 pyserial==3.5
+pyzmq==25.1.2
 tomli==2.0.1

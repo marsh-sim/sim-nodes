@@ -972,7 +972,16 @@ enums["MAV_CMD"][206].param[5] = """Empty"""
 enums["MAV_CMD"][206].param[6] = """Empty"""
 enums["MAV_CMD"][206].param[7] = """Empty"""
 MAV_CMD_DO_FENCE_ENABLE = 207
-enums["MAV_CMD"][207] = EnumEntry("MAV_CMD_DO_FENCE_ENABLE", """Mission command to enable the geofence""")
+enums["MAV_CMD"][207] = EnumEntry(
+    "MAV_CMD_DO_FENCE_ENABLE",
+    """
+          Enable the geofence.
+          This can be used in a mission or via the command protocol.
+          The persistence/lifetime of the setting is undefined.
+          Depending on flight stack implementation it may persist until superseded, or it may revert to a system default at the end of a mission.
+          Flight stacks typically reset the setting to system defaults on reboot.
+    """,
+)
 enums["MAV_CMD"][207].param[1] = """enable? (0=disable, 1=enable, 2=disable_floor_only)"""
 enums["MAV_CMD"][207].param[2] = """Fence types to enable or disable as a bitmask. A value of 0 indicates that all fences should be enabled or disabled. This parameter is ignored if param 1 has the value 2"""
 enums["MAV_CMD"][207].param[3] = """Empty"""
@@ -1623,7 +1632,7 @@ enums["MAV_CMD"][2000] = EnumEntry(
 
           When used in a mission, an autopilot should execute the MAV_CMD for a specified local camera (param1 = 1-6), or resend it as a command if it is intended for a MAVLink camera (param1 = 7 - 255), setting the command's target_component as the param1 value (and setting param1 in the command to zero).
           If the param1 is 0 the autopilot should do both.
-          
+
           When sent in a command the target MAVLink address is set using target_component.
           If addressed specifically to an autopilot: param1 should be used in the same way as it is for missions (though command should NACK with MAV_RESULT_DENIED if a specified local camera does not exist).
           If addressed to a MAVLink camera, param 1 can be used to address all cameras (0), or to separately address 1 to 7 individual sensors. Other values should be NACKed with MAV_RESULT_DENIED.
@@ -1641,7 +1650,7 @@ MAV_CMD_IMAGE_STOP_CAPTURE = 2001
 enums["MAV_CMD"][2001] = EnumEntry(
     "MAV_CMD_IMAGE_STOP_CAPTURE",
     """Stop image capture sequence.
-        
+
           Param1 (id) may be used to specify the target camera: 0: all cameras, 1 to 6: autopilot-connected cameras, 7-255: MAVLink camera component ID.
           It is needed in order to target specific cameras connected to the autopilot, or specific sensors in a multi-sensor camera (neither of which have a distinct MAVLink component ID).
           It is also needed to specify the target camera in missions.
@@ -1684,7 +1693,7 @@ MAV_CMD_CAMERA_TRACK_POINT = 2004
 enums["MAV_CMD"][2004] = EnumEntry("MAV_CMD_CAMERA_TRACK_POINT", """If the camera supports point visual tracking (CAMERA_CAP_FLAGS_HAS_TRACKING_POINT is set), this command allows to initiate the tracking.""")
 enums["MAV_CMD"][2004].param[1] = """Point to track x value (normalized 0..1, 0 is left, 1 is right)."""
 enums["MAV_CMD"][2004].param[2] = """Point to track y value (normalized 0..1, 0 is top, 1 is bottom)."""
-enums["MAV_CMD"][2004].param[3] = """Point radius (normalized 0..1, 0 is image left, 1 is image right)."""
+enums["MAV_CMD"][2004].param[3] = """Point radius (normalized 0..1, 0 is one pixel, 1 is full image width)."""
 enums["MAV_CMD"][2004].param[4] = """Reserved (default:0)"""
 enums["MAV_CMD"][2004].param[5] = """Reserved (default:0)"""
 enums["MAV_CMD"][2004].param[6] = """Reserved (default:0)"""
@@ -3545,7 +3554,7 @@ enums["MAV_SYS_STATUS_SENSOR_EXTENDED"][2] = EnumEntry("MAV_SYS_STATUS_SENSOR_EX
 # MAV_FRAME
 enums["MAV_FRAME"] = {}
 MAV_FRAME_GLOBAL = 0
-enums["MAV_FRAME"][0] = EnumEntry("MAV_FRAME_GLOBAL", """Global (WGS84) coordinate frame + MSL altitude. First value / x: latitude, second value / y: longitude, third value / z: positive altitude over mean sea level (MSL).""")
+enums["MAV_FRAME"][0] = EnumEntry("MAV_FRAME_GLOBAL", """Global (WGS84) coordinate frame + altitude relative to mean sea level (MSL).""")
 MAV_FRAME_LOCAL_NED = 1
 enums["MAV_FRAME"][1] = EnumEntry("MAV_FRAME_LOCAL_NED", """NED local tangent frame (x: North, y: East, z: Down) with origin fixed relative to earth.""")
 MAV_FRAME_MISSION = 2
@@ -3555,21 +3564,14 @@ enums["MAV_FRAME"][3] = EnumEntry(
     "MAV_FRAME_GLOBAL_RELATIVE_ALT",
     """
           Global (WGS84) coordinate frame + altitude relative to the home position.
-          First value / x: latitude, second value / y: longitude, third value / z: positive altitude with 0 being at the altitude of the home position.
         """,
 )
 MAV_FRAME_LOCAL_ENU = 4
 enums["MAV_FRAME"][4] = EnumEntry("MAV_FRAME_LOCAL_ENU", """ENU local tangent frame (x: East, y: North, z: Up) with origin fixed relative to earth.""")
 MAV_FRAME_GLOBAL_INT = 5
-enums["MAV_FRAME"][5] = EnumEntry("MAV_FRAME_GLOBAL_INT", """Global (WGS84) coordinate frame (scaled) + MSL altitude. First value / x: latitude in degrees*1E7, second value / y: longitude in degrees*1E7, third value / z: positive altitude over mean sea level (MSL).""")
+enums["MAV_FRAME"][5] = EnumEntry("MAV_FRAME_GLOBAL_INT", """Global (WGS84) coordinate frame (scaled) + altitude relative to mean sea level (MSL).""")
 MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6
-enums["MAV_FRAME"][6] = EnumEntry(
-    "MAV_FRAME_GLOBAL_RELATIVE_ALT_INT",
-    """
-          Global (WGS84) coordinate frame (scaled) + altitude relative to the home position.
-          First value / x: latitude in degrees*1E7, second value / y: longitude in degrees*1E7, third value / z: positive altitude with 0 being at the altitude of the home position.
-        """,
-)
+enums["MAV_FRAME"][6] = EnumEntry("MAV_FRAME_GLOBAL_RELATIVE_ALT_INT", """Global (WGS84) coordinate frame (scaled) + altitude relative to the home position. """)
 MAV_FRAME_LOCAL_OFFSET_NED = 7
 enums["MAV_FRAME"][7] = EnumEntry("MAV_FRAME_LOCAL_OFFSET_NED", """NED local tangent frame (x: North, y: East, z: Down) with origin that travels with the vehicle.""")
 MAV_FRAME_BODY_NED = 8
@@ -3577,9 +3579,9 @@ enums["MAV_FRAME"][8] = EnumEntry("MAV_FRAME_BODY_NED", """Same as MAV_FRAME_LOC
 MAV_FRAME_BODY_OFFSET_NED = 9
 enums["MAV_FRAME"][9] = EnumEntry("MAV_FRAME_BODY_OFFSET_NED", """This is the same as MAV_FRAME_BODY_FRD.""")
 MAV_FRAME_GLOBAL_TERRAIN_ALT = 10
-enums["MAV_FRAME"][10] = EnumEntry("MAV_FRAME_GLOBAL_TERRAIN_ALT", """Global (WGS84) coordinate frame with AGL altitude (at the waypoint coordinate). First value / x: latitude in degrees, second value / y: longitude in degrees, third value / z: positive altitude in meters with 0 being at ground level in terrain model.""")
+enums["MAV_FRAME"][10] = EnumEntry("MAV_FRAME_GLOBAL_TERRAIN_ALT", """Global (WGS84) coordinate frame with AGL altitude (altitude at ground level).""")
 MAV_FRAME_GLOBAL_TERRAIN_ALT_INT = 11
-enums["MAV_FRAME"][11] = EnumEntry("MAV_FRAME_GLOBAL_TERRAIN_ALT_INT", """Global (WGS84) coordinate frame (scaled) with AGL altitude (at the waypoint coordinate). First value / x: latitude in degrees*1E7, second value / y: longitude in degrees*1E7, third value / z: positive altitude in meters with 0 being at ground level in terrain model.""")
+enums["MAV_FRAME"][11] = EnumEntry("MAV_FRAME_GLOBAL_TERRAIN_ALT_INT", """Global (WGS84) coordinate frame (scaled) with AGL altitude (altitude at ground level).""")
 MAV_FRAME_BODY_FRD = 12
 enums["MAV_FRAME"][12] = EnumEntry("MAV_FRAME_BODY_FRD", """FRD local frame aligned to the vehicle's attitude (x: Forward, y: Right, z: Down) with an origin that travels with vehicle.""")
 MAV_FRAME_RESERVED_13 = 13
@@ -7633,6 +7635,19 @@ enums["MARSH_COMPONENT"][33] = EnumEntry("MARSH_COMP_ID_CONTROL_LOADING", """Com
 MARSH_COMPONENT_ENUM_END = 34
 enums["MARSH_COMPONENT"][34] = EnumEntry("MARSH_COMPONENT_ENUM_END", """""")
 
+# MARSH_MODE_FLAGS
+enums["MARSH_MODE_FLAGS"] = {}
+MARSH_MODE_SINGLE_MESSAGE = 16777216
+enums["MARSH_MODE_FLAGS"][16777216] = EnumEntry(
+    "MARSH_MODE_SINGLE_MESSAGE",
+    """Request Manager to only send one specific message, advised for very resource limited nodes or with control flow limitations like Simulink.
+          That message id should be in the lower three bytes of the mode, which can be done by adding it to the flags.""",
+)
+MARSH_MODE_ALL_MESSAGES = 33554432
+enums["MARSH_MODE_FLAGS"][33554432] = EnumEntry("MARSH_MODE_ALL_MESSAGES", """Request Manager to send every message going out to any of the clients.""")
+MARSH_MODE_FLAGS_ENUM_END = 33554433
+enums["MARSH_MODE_FLAGS"][33554433] = EnumEntry("MARSH_MODE_FLAGS_ENUM_END", """""")
+
 # CONTROL_AXIS
 enums["CONTROL_AXIS"] = {}
 CONTROL_AXIS_PITCH = 0
@@ -8186,6 +8201,8 @@ MAVLINK_MSG_ID_AIRLINK_EYE_TURN_INIT = 52005
 MAVLINK_MSG_ID_CONTROL_LOADING_AXIS = 24401
 MAVLINK_MSG_ID_MOTION_PLATFORM_STATE = 24402
 MAVLINK_MSG_ID_REXROTH_MOTION_PLATFORM = 24403
+MAVLINK_MSG_ID_MOTION_CUE_EXTRA = 24404
+MAVLINK_MSG_ID_EYE_TRACKING_DATA = 24405
 
 
 class MAVLink_sensor_offsets_message(MAVLink_message):
@@ -15571,7 +15588,7 @@ class MAVLink_sim_state_message(MAVLink_message):
     fieldtypes = ["float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "int32_t", "int32_t"]
     fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {}
-    fieldunits_by_name: Dict[str, str] = {"xacc": "m/s/s", "yacc": "m/s/s", "zacc": "m/s/s", "xgyro": "rad/s", "ygyro": "rad/s", "zgyro": "rad/s", "lat": "deg", "lon": "deg", "alt": "m", "vn": "m/s", "ve": "m/s", "vd": "m/s", "lat_int": "degE7", "lon_int": "degE7"}
+    fieldunits_by_name: Dict[str, str] = {"roll": "rad", "pitch": "rad", "yaw": "rad", "xacc": "m/s/s", "yacc": "m/s/s", "zacc": "m/s/s", "xgyro": "rad/s", "ygyro": "rad/s", "zgyro": "rad/s", "lat": "deg", "lon": "deg", "alt": "m", "vn": "m/s", "ve": "m/s", "vd": "m/s", "lat_int": "degE7", "lon_int": "degE7"}
     native_format = bytearray(b"<fffffffffffffffffffffii")
     orders = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
     lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
@@ -25081,6 +25098,103 @@ class MAVLink_rexroth_motion_platform_message(MAVLink_message):
 setattr(MAVLink_rexroth_motion_platform_message, "name", mavlink_msg_deprecated_name_property())
 
 
+class MAVLink_motion_cue_extra_message(MAVLink_message):
+    """
+    These values are an extra cue that should be added to
+    accelerations and rotations etc. resulting from aircraft state,
+    with the resulting cue being the sum of the latest aircraft and
+    extra values. An example use case would be a cockpit shaker.
+    """
+
+    id = MAVLINK_MSG_ID_MOTION_CUE_EXTRA
+    msgname = "MOTION_CUE_EXTRA"
+    fieldnames = ["time_boot_ms", "vel_pitch", "vel_roll", "vel_yaw", "acc_x", "acc_y", "acc_z"]
+    ordered_fieldnames = ["time_boot_ms", "vel_pitch", "vel_roll", "vel_yaw", "acc_x", "acc_y", "acc_z"]
+    fieldtypes = ["uint32_t", "float", "float", "float", "float", "float", "float"]
+    fielddisplays_by_name: Dict[str, str] = {}
+    fieldenums_by_name: Dict[str, str] = {}
+    fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "vel_pitch": "rad/s", "vel_roll": "rad/s", "vel_yaw": "rad/s", "acc_x": "m/s/s", "acc_y": "m/s/s", "acc_z": "m/s/s"}
+    native_format = bytearray(b"<Iffffff")
+    orders = [0, 1, 2, 3, 4, 5, 6]
+    lengths = [1, 1, 1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0, 0, 0]
+    crc_extra = 86
+    unpacker = struct.Struct("<Iffffff")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, time_boot_ms: int, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float):
+        MAVLink_message.__init__(self, MAVLink_motion_cue_extra_message.id, MAVLink_motion_cue_extra_message.msgname)
+        self._fieldnames = MAVLink_motion_cue_extra_message.fieldnames
+        self._instance_field = MAVLink_motion_cue_extra_message.instance_field
+        self._instance_offset = MAVLink_motion_cue_extra_message.instance_offset
+        self.time_boot_ms = time_boot_ms
+        self.vel_pitch = vel_pitch
+        self.vel_roll = vel_roll
+        self.vel_yaw = vel_yaw
+        self.acc_x = acc_x
+        self.acc_y = acc_y
+        self.acc_z = acc_z
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_boot_ms, self.vel_pitch, self.vel_roll, self.vel_yaw, self.acc_x, self.acc_y, self.acc_z), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_motion_cue_extra_message, "name", mavlink_msg_deprecated_name_property())
+
+
+class MAVLink_eye_tracking_data_message(MAVLink_message):
+    """
+    Data for tracking of pilot eye gaze. In multi-crew situations,
+    additional trackers should connect with different system id.
+    """
+
+    id = MAVLINK_MSG_ID_EYE_TRACKING_DATA
+    msgname = "EYE_TRACKING_DATA"
+    fieldnames = ["time_usec", "gaze_origin_x", "gaze_origin_y", "gaze_origin_z", "gaze_direction_x", "gaze_direction_y", "gaze_direction_z", "video_gaze_x", "video_gaze_y", "surface_id", "surface_gaze_x", "surface_gaze_y"]
+    ordered_fieldnames = ["time_usec", "gaze_origin_x", "gaze_origin_y", "gaze_origin_z", "gaze_direction_x", "gaze_direction_y", "gaze_direction_z", "video_gaze_x", "video_gaze_y", "surface_gaze_x", "surface_gaze_y", "surface_id"]
+    fieldtypes = ["uint64_t", "float", "float", "float", "float", "float", "float", "float", "float", "uint8_t", "float", "float"]
+    fielddisplays_by_name: Dict[str, str] = {}
+    fieldenums_by_name: Dict[str, str] = {}
+    fieldunits_by_name: Dict[str, str] = {"time_usec": "us", "gaze_origin_x": "m", "gaze_origin_y": "m", "gaze_origin_z": "m"}
+    native_format = bytearray(b"<QffffffffffB")
+    orders = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 9, 10]
+    lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    crc_extra = 121
+    unpacker = struct.Struct("<QffffffffffB")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, time_usec: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float):
+        MAVLink_message.__init__(self, MAVLink_eye_tracking_data_message.id, MAVLink_eye_tracking_data_message.msgname)
+        self._fieldnames = MAVLink_eye_tracking_data_message.fieldnames
+        self._instance_field = MAVLink_eye_tracking_data_message.instance_field
+        self._instance_offset = MAVLink_eye_tracking_data_message.instance_offset
+        self.time_usec = time_usec
+        self.gaze_origin_x = gaze_origin_x
+        self.gaze_origin_y = gaze_origin_y
+        self.gaze_origin_z = gaze_origin_z
+        self.gaze_direction_x = gaze_direction_x
+        self.gaze_direction_y = gaze_direction_y
+        self.gaze_direction_z = gaze_direction_z
+        self.video_gaze_x = video_gaze_x
+        self.video_gaze_y = video_gaze_y
+        self.surface_id = surface_id
+        self.surface_gaze_x = surface_gaze_x
+        self.surface_gaze_y = surface_gaze_y
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_usec, self.gaze_origin_x, self.gaze_origin_y, self.gaze_origin_z, self.gaze_direction_x, self.gaze_direction_y, self.gaze_direction_z, self.video_gaze_x, self.video_gaze_y, self.surface_gaze_x, self.surface_gaze_y, self.surface_id), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_eye_tracking_data_message, "name", mavlink_msg_deprecated_name_property())
+
+
 mavlink_map: Dict[int, Type[MAVLink_message]] = {
     MAVLINK_MSG_ID_SENSOR_OFFSETS: MAVLink_sensor_offsets_message,
     MAVLINK_MSG_ID_SET_MAG_OFFSETS: MAVLink_set_mag_offsets_message,
@@ -25444,6 +25558,8 @@ mavlink_map: Dict[int, Type[MAVLink_message]] = {
     MAVLINK_MSG_ID_CONTROL_LOADING_AXIS: MAVLink_control_loading_axis_message,
     MAVLINK_MSG_ID_MOTION_PLATFORM_STATE: MAVLink_motion_platform_state_message,
     MAVLINK_MSG_ID_REXROTH_MOTION_PLATFORM: MAVLink_rexroth_motion_platform_message,
+    MAVLINK_MSG_ID_MOTION_CUE_EXTRA: MAVLink_motion_cue_extra_message,
+    MAVLINK_MSG_ID_EYE_TRACKING_DATA: MAVLink_eye_tracking_data_message,
 }
 
 
@@ -30793,10 +30909,10 @@ class MAVLink(object):
         time_boot_ms              : Timestamp (time since system boot). The rationale for the timestamp in the setpoint is to allow the system to compensate for the transport delay of the setpoint. This allows the system to compensate processing latency. [ms] (type:uint32_t)
         target_system             : System ID (type:uint8_t)
         target_component          : Component ID (type:uint8_t)
-        coordinate_frame          : Valid options are: MAV_FRAME_GLOBAL_INT = 5, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT = 11 (type:uint8_t, values:MAV_FRAME)
+        coordinate_frame          : Valid options are: MAV_FRAME_GLOBAL = 0, MAV_FRAME_GLOBAL_RELATIVE_ALT = 3, MAV_FRAME_GLOBAL_TERRAIN_ALT = 10 (MAV_FRAME_GLOBAL_INT, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT are allowed synonyms, but have been deprecated) (type:uint8_t, values:MAV_FRAME)
         type_mask                 : Bitmap to indicate which dimensions should be ignored by the vehicle. (type:uint16_t, values:POSITION_TARGET_TYPEMASK)
-        lat_int                   : X Position in WGS84 frame [degE7] (type:int32_t)
-        lon_int                   : Y Position in WGS84 frame [degE7] (type:int32_t)
+        lat_int                   : Latitude in WGS84 frame [degE7] (type:int32_t)
+        lon_int                   : Longitude in WGS84 frame [degE7] (type:int32_t)
         alt                       : Altitude (MSL, Relative to home, or AGL - depending on frame) [m] (type:float)
         vx                        : X velocity in NED frame [m/s] (type:float)
         vy                        : Y velocity in NED frame [m/s] (type:float)
@@ -30820,10 +30936,10 @@ class MAVLink(object):
         time_boot_ms              : Timestamp (time since system boot). The rationale for the timestamp in the setpoint is to allow the system to compensate for the transport delay of the setpoint. This allows the system to compensate processing latency. [ms] (type:uint32_t)
         target_system             : System ID (type:uint8_t)
         target_component          : Component ID (type:uint8_t)
-        coordinate_frame          : Valid options are: MAV_FRAME_GLOBAL_INT = 5, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT = 11 (type:uint8_t, values:MAV_FRAME)
+        coordinate_frame          : Valid options are: MAV_FRAME_GLOBAL = 0, MAV_FRAME_GLOBAL_RELATIVE_ALT = 3, MAV_FRAME_GLOBAL_TERRAIN_ALT = 10 (MAV_FRAME_GLOBAL_INT, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT are allowed synonyms, but have been deprecated) (type:uint8_t, values:MAV_FRAME)
         type_mask                 : Bitmap to indicate which dimensions should be ignored by the vehicle. (type:uint16_t, values:POSITION_TARGET_TYPEMASK)
-        lat_int                   : X Position in WGS84 frame [degE7] (type:int32_t)
-        lon_int                   : Y Position in WGS84 frame [degE7] (type:int32_t)
+        lat_int                   : Latitude in WGS84 frame [degE7] (type:int32_t)
+        lon_int                   : Longitude in WGS84 frame [degE7] (type:int32_t)
         alt                       : Altitude (MSL, Relative to home, or AGL - depending on frame) [m] (type:float)
         vx                        : X velocity in NED frame [m/s] (type:float)
         vy                        : Y velocity in NED frame [m/s] (type:float)
@@ -30845,10 +30961,10 @@ class MAVLink(object):
         vehicle is being controlled this way.
 
         time_boot_ms              : Timestamp (time since system boot). The rationale for the timestamp in the setpoint is to allow the system to compensate for the transport delay of the setpoint. This allows the system to compensate processing latency. [ms] (type:uint32_t)
-        coordinate_frame          : Valid options are: MAV_FRAME_GLOBAL_INT = 5, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT = 11 (type:uint8_t, values:MAV_FRAME)
+        coordinate_frame          : Valid options are: MAV_FRAME_GLOBAL = 0, MAV_FRAME_GLOBAL_RELATIVE_ALT = 3, MAV_FRAME_GLOBAL_TERRAIN_ALT = 10 (MAV_FRAME_GLOBAL_INT, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT are allowed synonyms, but have been deprecated) (type:uint8_t, values:MAV_FRAME)
         type_mask                 : Bitmap to indicate which dimensions should be ignored by the vehicle. (type:uint16_t, values:POSITION_TARGET_TYPEMASK)
-        lat_int                   : X Position in WGS84 frame [degE7] (type:int32_t)
-        lon_int                   : Y Position in WGS84 frame [degE7] (type:int32_t)
+        lat_int                   : Latitude in WGS84 frame [degE7] (type:int32_t)
+        lon_int                   : Longitude in WGS84 frame [degE7] (type:int32_t)
         alt                       : Altitude (MSL, AGL or relative to home altitude, depending on frame) [m] (type:float)
         vx                        : X velocity in NED frame [m/s] (type:float)
         vy                        : Y velocity in NED frame [m/s] (type:float)
@@ -30870,10 +30986,10 @@ class MAVLink(object):
         vehicle is being controlled this way.
 
         time_boot_ms              : Timestamp (time since system boot). The rationale for the timestamp in the setpoint is to allow the system to compensate for the transport delay of the setpoint. This allows the system to compensate processing latency. [ms] (type:uint32_t)
-        coordinate_frame          : Valid options are: MAV_FRAME_GLOBAL_INT = 5, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT = 11 (type:uint8_t, values:MAV_FRAME)
+        coordinate_frame          : Valid options are: MAV_FRAME_GLOBAL = 0, MAV_FRAME_GLOBAL_RELATIVE_ALT = 3, MAV_FRAME_GLOBAL_TERRAIN_ALT = 10 (MAV_FRAME_GLOBAL_INT, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT are allowed synonyms, but have been deprecated) (type:uint8_t, values:MAV_FRAME)
         type_mask                 : Bitmap to indicate which dimensions should be ignored by the vehicle. (type:uint16_t, values:POSITION_TARGET_TYPEMASK)
-        lat_int                   : X Position in WGS84 frame [degE7] (type:int32_t)
-        lon_int                   : Y Position in WGS84 frame [degE7] (type:int32_t)
+        lat_int                   : Latitude in WGS84 frame [degE7] (type:int32_t)
+        lon_int                   : Longitude in WGS84 frame [degE7] (type:int32_t)
         alt                       : Altitude (MSL, AGL or relative to home altitude, depending on frame) [m] (type:float)
         vx                        : X velocity in NED frame [m/s] (type:float)
         vy                        : Y velocity in NED frame [m/s] (type:float)
@@ -31401,9 +31517,9 @@ class MAVLink(object):
         q2                        : True attitude quaternion component 2, x (0 in null-rotation) (type:float)
         q3                        : True attitude quaternion component 3, y (0 in null-rotation) (type:float)
         q4                        : True attitude quaternion component 4, z (0 in null-rotation) (type:float)
-        roll                      : Attitude roll expressed as Euler angles, not recommended except for human-readable outputs (type:float)
-        pitch                     : Attitude pitch expressed as Euler angles, not recommended except for human-readable outputs (type:float)
-        yaw                       : Attitude yaw expressed as Euler angles, not recommended except for human-readable outputs (type:float)
+        roll                      : Attitude roll expressed as Euler angles, not recommended except for human-readable outputs [rad] (type:float)
+        pitch                     : Attitude pitch expressed as Euler angles, not recommended except for human-readable outputs [rad] (type:float)
+        yaw                       : Attitude yaw expressed as Euler angles, not recommended except for human-readable outputs [rad] (type:float)
         xacc                      : X acceleration [m/s/s] (type:float)
         yacc                      : Y acceleration [m/s/s] (type:float)
         zacc                      : Z acceleration [m/s/s] (type:float)
@@ -31432,9 +31548,9 @@ class MAVLink(object):
         q2                        : True attitude quaternion component 2, x (0 in null-rotation) (type:float)
         q3                        : True attitude quaternion component 3, y (0 in null-rotation) (type:float)
         q4                        : True attitude quaternion component 4, z (0 in null-rotation) (type:float)
-        roll                      : Attitude roll expressed as Euler angles, not recommended except for human-readable outputs (type:float)
-        pitch                     : Attitude pitch expressed as Euler angles, not recommended except for human-readable outputs (type:float)
-        yaw                       : Attitude yaw expressed as Euler angles, not recommended except for human-readable outputs (type:float)
+        roll                      : Attitude roll expressed as Euler angles, not recommended except for human-readable outputs [rad] (type:float)
+        pitch                     : Attitude pitch expressed as Euler angles, not recommended except for human-readable outputs [rad] (type:float)
+        yaw                       : Attitude yaw expressed as Euler angles, not recommended except for human-readable outputs [rad] (type:float)
         xacc                      : X acceleration [m/s/s] (type:float)
         yacc                      : Y acceleration [m/s/s] (type:float)
         zacc                      : Z acceleration [m/s/s] (type:float)
@@ -38602,3 +38718,81 @@ class MAVLink(object):
 
         """
         self.send(self.rexroth_motion_platform_encode(time_boot_ms, frame_count, motion_status, error_code, actuator1, actuator2, actuator3, actuator4, actuator5, actuator6, platform_setpoint_x, platform_setpoint_y, platform_setpoint_z, platform_setpoint_pitch, platform_setpoint_roll, platform_setpoint_yaw, effect_setpoint_x, effect_setpoint_y, effect_setpoint_z, effect_setpoint_pitch, effect_setpoint_roll, effect_setpoint_yaw), force_mavlink1=force_mavlink1)
+
+    def motion_cue_extra_encode(self, time_boot_ms: int, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float) -> MAVLink_motion_cue_extra_message:
+        """
+        These values are an extra cue that should be added to accelerations
+        and rotations etc. resulting from aircraft state, with the
+        resulting cue being the sum of the latest aircraft and extra
+        values. An example use case would be a cockpit shaker.
+
+        time_boot_ms              : Timestamp (time since system boot). [ms] (type:uint32_t)
+        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
+        vel_roll                  : Roll velocity, positive right. [rad/s] (type:float)
+        vel_yaw                   : Yaw velocity, positive right. [rad/s] (type:float)
+        acc_x                     : X axis (surge) acceleration, positive forward. [m/s/s] (type:float)
+        acc_y                     : Y axis (sway) acceleration, positive right. [m/s/s] (type:float)
+        acc_z                     : Z axis (heave) acceleration, positive down. [m/s/s] (type:float)
+
+        """
+        return MAVLink_motion_cue_extra_message(time_boot_ms, vel_pitch, vel_roll, vel_yaw, acc_x, acc_y, acc_z)
+
+    def motion_cue_extra_send(self, time_boot_ms: int, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, force_mavlink1: bool = False) -> None:
+        """
+        These values are an extra cue that should be added to accelerations
+        and rotations etc. resulting from aircraft state, with the
+        resulting cue being the sum of the latest aircraft and extra
+        values. An example use case would be a cockpit shaker.
+
+        time_boot_ms              : Timestamp (time since system boot). [ms] (type:uint32_t)
+        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
+        vel_roll                  : Roll velocity, positive right. [rad/s] (type:float)
+        vel_yaw                   : Yaw velocity, positive right. [rad/s] (type:float)
+        acc_x                     : X axis (surge) acceleration, positive forward. [m/s/s] (type:float)
+        acc_y                     : Y axis (sway) acceleration, positive right. [m/s/s] (type:float)
+        acc_z                     : Z axis (heave) acceleration, positive down. [m/s/s] (type:float)
+
+        """
+        self.send(self.motion_cue_extra_encode(time_boot_ms, vel_pitch, vel_roll, vel_yaw, acc_x, acc_y, acc_z), force_mavlink1=force_mavlink1)
+
+    def eye_tracking_data_encode(self, time_usec: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float) -> MAVLink_eye_tracking_data_message:
+        """
+        Data for tracking of pilot eye gaze. In multi-crew situations,
+        additional trackers should connect with different system id.
+
+        time_usec                 : Timestamp (time since system boot). [us] (type:uint64_t)
+        gaze_origin_x             : X axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
+        gaze_origin_y             : Y axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
+        gaze_origin_z             : Z axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
+        gaze_direction_x          : X axis of gaze direction vector, expected to be normalized to unit magnitude, NaN if unknown. The reference system should match origin point. (type:float)
+        gaze_direction_y          : Y axis of gaze direction vector, expected to be normalized to unit magnitude, NaN if unknown. The reference system should match origin point. (type:float)
+        gaze_direction_z          : Z axis of gaze direction vector, expected to be normalized to unit magnitude, NaN if unknown. The reference system should match origin point. (type:float)
+        video_gaze_x              : Gaze focal point on video feed x value (normalized 0..1, 0 is left, 1 is right), NaN if unknown (type:float)
+        video_gaze_y              : Gaze focal point on video feed y value (normalized 0..1, 0 is top, 1 is bottom), NaN if unknown (type:float)
+        surface_id                : Identifier of surface for 2D gaze point, or an identified region when surface point is invalid. Set to zero if unknown/unused. (type:uint8_t)
+        surface_gaze_x            : Gaze focal point on surface x value (normalized 0..1, 0 is left, 1 is right), NaN if unknown (type:float)
+        surface_gaze_y            : Gaze focal point on surface y value (normalized 0..1, 0 is top, 1 is bottom), NaN if unknown (type:float)
+
+        """
+        return MAVLink_eye_tracking_data_message(time_usec, gaze_origin_x, gaze_origin_y, gaze_origin_z, gaze_direction_x, gaze_direction_y, gaze_direction_z, video_gaze_x, video_gaze_y, surface_id, surface_gaze_x, surface_gaze_y)
+
+    def eye_tracking_data_send(self, time_usec: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float, force_mavlink1: bool = False) -> None:
+        """
+        Data for tracking of pilot eye gaze. In multi-crew situations,
+        additional trackers should connect with different system id.
+
+        time_usec                 : Timestamp (time since system boot). [us] (type:uint64_t)
+        gaze_origin_x             : X axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
+        gaze_origin_y             : Y axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
+        gaze_origin_z             : Z axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
+        gaze_direction_x          : X axis of gaze direction vector, expected to be normalized to unit magnitude, NaN if unknown. The reference system should match origin point. (type:float)
+        gaze_direction_y          : Y axis of gaze direction vector, expected to be normalized to unit magnitude, NaN if unknown. The reference system should match origin point. (type:float)
+        gaze_direction_z          : Z axis of gaze direction vector, expected to be normalized to unit magnitude, NaN if unknown. The reference system should match origin point. (type:float)
+        video_gaze_x              : Gaze focal point on video feed x value (normalized 0..1, 0 is left, 1 is right), NaN if unknown (type:float)
+        video_gaze_y              : Gaze focal point on video feed y value (normalized 0..1, 0 is top, 1 is bottom), NaN if unknown (type:float)
+        surface_id                : Identifier of surface for 2D gaze point, or an identified region when surface point is invalid. Set to zero if unknown/unused. (type:uint8_t)
+        surface_gaze_x            : Gaze focal point on surface x value (normalized 0..1, 0 is left, 1 is right), NaN if unknown (type:float)
+        surface_gaze_y            : Gaze focal point on surface y value (normalized 0..1, 0 is top, 1 is bottom), NaN if unknown (type:float)
+
+        """
+        self.send(self.eye_tracking_data_encode(time_usec, gaze_origin_x, gaze_origin_y, gaze_origin_z, gaze_direction_x, gaze_direction_y, gaze_direction_z, video_gaze_x, video_gaze_y, surface_id, surface_gaze_x, surface_gaze_y), force_mavlink1=force_mavlink1)
