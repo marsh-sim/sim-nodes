@@ -42,6 +42,7 @@ subscribe_port = pupil_remote.recv_string()
 subscriber = ctx.socket(zmq.SUB)
 subscriber.connect(f'tcp://{args_pupil_remote}:{subscribe_port}')
 subscriber.subscribe('gaze.')
+subscriber.subscribe('surfaces.')
 
 # create MAVLink connection
 connection_string = f'udpout:{args_manager}:24400'
@@ -61,6 +62,8 @@ heartbeat_interval = 1.0
 timeout_interval = 5.0
 manager_timeout = 0.0
 manager_connected = False
+
+max_surf_len = 0
 
 # the loop goes as fast as it can, relying on the variables above for timing
 while True:
@@ -100,12 +103,23 @@ while True:
             0, nan, nan,  # no surface tracking for now
         )
         print(
-            f'gaze {len(pupil_message["base_data"])} {pupil_message["base_data"][0]["timestamp"]:.6f}  {pupil_message["base_data"][1]["timestamp"]:.6f}')
+            f'gaze {len(pupil_message["base_data"])} {pupil_message["timestamp"]:.6f}')
 
     # TODO: Decide how to put in the corresponding gaze messages or decide that it's missing
-    elif topic == 'gaze.3d.1._on_surface':
+    # The surface tracker publishes gaze on surface data in batches of no more than 10, also tested with more surfaces visible
+    # The used timestamps are consistently all the gaze data in-between
+    #
+    # Based on these, assume there will be no surface data for a given gaze:
+    #   - if it's older than 10 samples
+    #   - if there was surface data for a newer gaze
+    elif topic.startswith("surface"):
+        max_surf_len = max(max_surf_len, len(
+            pupil_message['gaze_on_surfaces']))
         print(
-            f'surf {len(pupil_message["base_data"])} {pupil_message["base_data"][0]["timestamp"]:.6f}  {pupil_message["base_data"][1]["timestamp"]:.6f}')
+            f'surf {len(pupil_message["gaze_on_surfaces"])} {pupil_message["timestamp"]} max len: {max_surf_len}')
+        for gaze_message in pupil_message['gaze_on_surfaces']:
+            print(
+                f'    gaze {len(gaze_message["base_data"])} {gaze_message["base_data"][1]:.6f} {gaze_message["base_data"][0]}')
 
     # handle incoming MAVLink messages
     try:
