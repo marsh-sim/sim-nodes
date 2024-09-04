@@ -52,7 +52,7 @@ for k in params.keys():
     assert len(k) <= 16, 'parameter names must fit into param_id field'
 
 
-def send_param(index: int, name=''):
+def send_param(index: int, name: str=''):
     """
     convenience function to send PARAM_VALUE
     pass index -1 to use name instead
@@ -75,7 +75,7 @@ def send_param(index: int, name=''):
     name_bytes = name.encode('utf8')
     param_id[:len(name_bytes)] = name_bytes
 
-    mav.param_value_send(param_id, params[name], mavlink.MAV_PARAM_TYPE_REAL32,
+    mav.param_value_send(bytes(param_id), params[name], mavlink.MAV_PARAM_TYPE_REAL32,
                          len(params), index)
 
 
@@ -91,12 +91,13 @@ def vertical_output(zacc: float) -> float:
         print('ERROR: Parameters OUT_MIN and OUT_MAX have same value')
         return 0.5
 
-    raw_value = max(0, min(1, (zacc - zmin)/(zmax - zmin)))
+    # zacc is negative for stationary vehicle, flip to do all math on positive values
+    raw_value = max(0, min(1, (-zacc - zmin)/(zmax - zmin)))
     return out_min + raw_value * (out_max - out_min)
 
 
 last_state = mavlink.MAVLink_sim_state_message(
-    1, 0, 0, 0, 0, 0, 0, 0, 0, STD_G, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    1, 0, 0, 0, 0, 0, 0, 0, 0, -STD_G, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 # controlling when messages should be sent
 heartbeat_next = 0.0
@@ -137,7 +138,7 @@ with serial.Serial(args_device, 57600, timeout=0.01) as ser:
         # handle incoming messages
         try:
             while (message := mav.file.recv_msg()) is not None:
-                message: mavlink.MAVLink_message
+                message: 'mavlink.MAVLink_message'  # pyright couldn't handle this annotation without quoting
                 if message.get_type() == 'HEARTBEAT':
                     if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
                         if not manager_connected:

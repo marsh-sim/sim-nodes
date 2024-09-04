@@ -76,7 +76,7 @@ def loop(mav: mavlink.MAVLink, args_heartbeat: bool):
     last_controls = Controls()
     last_controls_time = time()
     last_state = mavlink.MAVLink_sim_state_message(
-        1, 0, 0, 0, 0, 0, 0, 0, 0, STD_G, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        1, 0, 0, 0, 0, 0, 0, 0, 0, -STD_G, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     last_state_time = time()
 
     # controlling when messages should be sent
