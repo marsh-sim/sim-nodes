@@ -1,0 +1,8 @@
+[tool.basedpyright]
+
+# Make basedpyright language server chill out about pymavlink's dynamic types
+reportAny = false
+reportAssignmentType = false
+reportUnknownMemberType = false
+reportMissingTypeStubs = false
+reportUnusedCallResult = false
