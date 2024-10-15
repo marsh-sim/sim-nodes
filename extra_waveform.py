@@ -15,6 +15,7 @@ import mavlink_all as mavlink
 from utils import check_number, NodeFormatter
 from utils.pcg import PCG
 
+
 def main():
     parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
 
@@ -63,9 +64,11 @@ def main():
 
     # validate arguments
     if F_MIN >= F_MAX:
-        parser.error("Minimum frequency must be smaller than maximum frequency")
+        parser.error(
+            "Minimum frequency must be smaller than maximum frequency")
     if SEED > 2**24 - 1:
-        parser.error("Random generator seed must be exactly representable in 32-bit float")
+        parser.error(
+            "Random generator seed must be exactly representable in 32-bit float")
 
     connection_string = f'udpout:{args_manager}:24400'
     mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
@@ -95,7 +98,6 @@ def main():
         if k.endswith('CONST'):
             readonly_params.add(k)
 
-    
     # controlling when messages should be sent
     heartbeat_next = 0.0
     heartbeat_interval = 1.0
@@ -108,6 +110,15 @@ def main():
     manager_connected = False
 
     start_time = time()
+
+    # linear soft start
+    amplitude_x = RampValue(0.0)
+    amplitude_y = RampValue(0.0)
+    amplitude_z = RampValue(0.0)
+    amplitude_x.set(0.0, params['ACC_RMS_X'])
+    amplitude_y.set(0.0, params['ACC_RMS_Y'])
+    amplitude_z.set(0.0, params['ACC_RMS_Z'])
+
     # the loop goes as fast as it can, relying on the variables above for timing
     while True:
         if time() >= heartbeat_next:
@@ -124,10 +135,9 @@ def main():
             sample_time = time() - start_time
             sig_x, sig_y, sig_z = signal.sample(sample_time)
 
-            # TODO: Amplitude interpolation with ramp time
-            acc_x = sig_x * params['ACC_RMS_X']
-            acc_y = sig_y * params['ACC_RMS_Y']
-            acc_z = sig_z * params['ACC_RMS_Z']
+            acc_x = sig_x * amplitude_x.get(params['RAMP_TIME'], sample_time)
+            acc_y = sig_y * amplitude_y.get(params['RAMP_TIME'], sample_time)
+            acc_z = sig_z * amplitude_z.get(params['RAMP_TIME'], sample_time)
 
             mav.motion_cue_extra_send(
                 round(sample_time * 1000),
@@ -162,6 +172,19 @@ def main():
                                 # don't write to read-only parameters but report the value
                                 if m.param_id not in readonly_params:
                                     params[m.param_id] = m.param_value
+
+                                    # update the interpolated amplitudes
+                                    sample_time = time() - start_time
+                                    if m.param_id == 'ACC_RMS_X':
+                                        amplitude_x.set(
+                                            sample_time, m.param_value)
+                                    elif m.param_id == 'ACC_RMS_Y':
+                                        amplitude_y.set(
+                                            sample_time, m.param_value)
+                                    elif m.param_id == 'ACC_RMS_Z':
+                                        amplitude_z.set(
+                                            sample_time, m.param_value)
+
                             send_param(mav, params, -1, m.param_id)
         except ConnectionResetError:
             # thrown on Windows when there is no peer listening
@@ -172,7 +195,7 @@ def main():
             print('Lost connection to simulation manager')
 
 
-def send_param(mav: mavlink.MAVLink, params: OrderedDict[str, float], index: int, name: str=''):
+def send_param(mav: mavlink.MAVLink, params: OrderedDict[str, float], index: int, name: str = ''):
     """
     convenience function to send PARAM_VALUE
     pass index -1 to use name instead
@@ -198,6 +221,7 @@ def send_param(mav: mavlink.MAVLink, params: OrderedDict[str, float], index: int
     mav.param_value_send(bytes(param_id), params[name], mavlink.MAV_PARAM_TYPE_REAL32,
                          len(params), index)
 
+
 class Multisine:
     def __init__(self, rng: PCG, n: int, f_min: float, f_max: float):
         # Generate the signal
@@ -220,6 +244,37 @@ class Multisine:
         arguments = time * self.angular_frequencies + self.phases
         signals = np.sum(self.amplitudes * np.sin(arguments), axis=1)
         return signals[0], signals[1], signals[2]
-   
+
+
+class RampValue:
+    """
+    Linearly change the output to new value over ramp_time
+    """
+
+    def __init__(self, value: float):
+        self.start_value = value
+        self.target_value = value
+        self.ramp_fraction = 1.0
+        self.last_update_time: float | None = None
+
+    def _lerp(self) -> float:
+        return self.start_value + (self.target_value - self.start_value) * self.ramp_fraction
+
+    def set(self, time: float, value: float):
+        self.start_value = self._lerp()  # set to last output
+        # now interpolate to new value
+        self.target_value = value
+        self.ramp_fraction = 0.0
+        self.last_update_time = time
+
+    def get(self, ramp_time: float, time: float) -> float:
+        if self.ramp_fraction < 1.0 and self.last_update_time is not None:
+            # update ramp fraction
+            ramp_change = (time - self.last_update_time) / ramp_time
+            self.ramp_fraction = min(1.0, self.ramp_fraction + ramp_change)
+        self.last_update_time = time
+        return self._lerp()
+
+
 if __name__ == '__main__':
     main()
