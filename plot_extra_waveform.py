@@ -10,7 +10,7 @@ parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
 parser.add_argument('-t', '--time-interval', type=lambda s: check_number(float, s, True),
                     help='how much time between sending messages, in seconds', default=0.01)
 parser.add_argument('-T', '--plotted-time', type=lambda s: check_number(float, s, True),
-                    help='how much time to plot, in seconds', default=300)
+                    help='how much time to plot, in seconds', default=30)
 parser.add_argument('-N', '--waveform-number', type=lambda s: check_number(int, s, True),
                     help='how many sine waves to use in the signal generation', default=71)
 parser.add_argument('-f', '--min-frequency', type=lambda s: check_number(float, s, True),
@@ -19,6 +19,10 @@ parser.add_argument('-F', '--max-frequency', type=lambda s: check_number(float, 
                     help='maximal frequency of the generated signal, in Hertz', default=7.5)
 parser.add_argument('--seed', type=lambda s: check_number(int, s),
                     help='random number generator initial seed, between 0 and 2^24-1', default=0)
+axis = parser.add_mutually_exclusive_group()
+axis.add_argument('--x-only', action='store_true', help='only plot X axis')
+axis.add_argument('--y-only', action='store_true', help='only plot Y axis')
+axis.add_argument('--z-only', action='store_true', help='only plot Z axis')
 args = parser.parse_args()
 
 pcg = PCG(args.seed)
@@ -32,8 +36,13 @@ z = np.zeros_like(time)
 for i, t in enumerate(time):
     x[i], y[i], z[i] = signal.sample(t)
 
-plt.plot(time, x, 'r', label='X')
-plt.plot(time, y, 'g', label='Y')
-plt.plot(time, z, 'b', label='Z')
+if not (args.y_only or args.z_only):
+    plt.plot(time, x, 'r', label=f'X (RMS {np.sqrt(np.mean(x**2)):.3f})')
+if not (args.x_only or args.z_only):
+    plt.plot(time, y, 'g', label=f'Y (RMS {np.sqrt(np.mean(y**2)):.3f})')
+if not (args.x_only or args.y_only):
+    plt.plot(time, z, 'b', label=f'Z (RMS {np.sqrt(np.mean(z**2)):.3f})')
 plt.legend()
+plt.xlabel("Time, s")
+plt.ylabel("Acceleration, m/s^2")
 plt.show()
