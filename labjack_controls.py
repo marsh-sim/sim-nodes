@@ -196,12 +196,12 @@ class ControlsNode(threading.Thread):
         # create parameters database, all parameters are float to simplify code
         # default values for inceptors on RPC platform
         params: OrderedDict[str, float] = OrderedDict()
-        params['PTCH_V_MIN'] = 1.394
-        params['PTCH_V_MAX'] = 0.3413
-        params['ROLL_V_MIN'] = 1.683
-        params['ROLL_V_MAX'] = 0.591
-        params['THR_V_MIN'] = 4.505
-        params['THR_V_MAX'] = 1.378
+        params['PTCH_V_MIN'] = 1.4164
+        params['PTCH_V_MAX'] = 0.7820
+        params['ROLL_V_MIN'] = 1.4920
+        params['ROLL_V_MAX'] = 0.7820
+        params['THR_V_MIN'] = 0.0100
+        params['THR_V_MAX'] = 2.6650
         params['YAW_V_MIN'] = 0.896
         params['YAW_V_MAX'] = 1.941
 

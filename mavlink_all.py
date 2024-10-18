@@ -7650,10 +7650,10 @@ enums["MARSH_MODE_FLAGS"][33554433] = EnumEntry("MARSH_MODE_FLAGS_ENUM_END", """
 
 # CONTROL_AXIS
 enums["CONTROL_AXIS"] = {}
-CONTROL_AXIS_PITCH = 0
-enums["CONTROL_AXIS"][0] = EnumEntry("CONTROL_AXIS_PITCH", """Pitch axis, with positive values corresponding to stick forward movement, causing the vehicle to move nose down. For helicopters this is longitudinal cyclic.""")
-CONTROL_AXIS_ROLL = 1
-enums["CONTROL_AXIS"][1] = EnumEntry("CONTROL_AXIS_ROLL", """Roll axis, with positive values corresponding to stick right movement, causing the vehicle to roll right. For helicopters this is lateral cyclic.""")
+CONTROL_AXIS_ROLL = 0
+enums["CONTROL_AXIS"][0] = EnumEntry("CONTROL_AXIS_ROLL", """Roll axis, with positive values corresponding to stick right movement, causing the vehicle to roll right. For helicopters this is lateral cyclic.""")
+CONTROL_AXIS_PITCH = 1
+enums["CONTROL_AXIS"][1] = EnumEntry("CONTROL_AXIS_PITCH", """Pitch axis, with positive values corresponding to stick forward movement, causing the vehicle to move nose down. For helicopters this is longitudinal cyclic.""")
 CONTROL_AXIS_THRUST = 2
 enums["CONTROL_AXIS"][2] = EnumEntry("CONTROL_AXIS_THRUST", """Main thrust, with positive values corresponding to going faster and higher. For helicopters this is collective.""")
 CONTROL_AXIS_YAW = 3
@@ -24983,22 +24983,22 @@ class MAVLink_motion_platform_state_message(MAVLink_message):
 
     id = MAVLINK_MSG_ID_MOTION_PLATFORM_STATE
     msgname = "MOTION_PLATFORM_STATE"
-    fieldnames = ["time_boot_ms", "health", "mode", "x", "y", "z", "pitch", "roll", "yaw", "vel_x", "vel_y", "vel_z", "vel_pitch", "vel_roll", "vel_yaw", "acc_x", "acc_y", "acc_z", "acc_pitch", "acc_roll", "acc_yaw"]
-    ordered_fieldnames = ["time_boot_ms", "x", "y", "z", "pitch", "roll", "yaw", "vel_x", "vel_y", "vel_z", "vel_pitch", "vel_roll", "vel_yaw", "acc_x", "acc_y", "acc_z", "acc_pitch", "acc_roll", "acc_yaw", "health", "mode"]
+    fieldnames = ["time_boot_ms", "health", "mode", "x", "y", "z", "roll", "pitch", "yaw", "vel_x", "vel_y", "vel_z", "vel_roll", "vel_pitch", "vel_yaw", "acc_x", "acc_y", "acc_z", "acc_roll", "acc_pitch", "acc_yaw"]
+    ordered_fieldnames = ["time_boot_ms", "x", "y", "z", "roll", "pitch", "yaw", "vel_x", "vel_y", "vel_z", "vel_roll", "vel_pitch", "vel_yaw", "acc_x", "acc_y", "acc_z", "acc_roll", "acc_pitch", "acc_yaw", "health", "mode"]
     fieldtypes = ["uint32_t", "uint8_t", "uint8_t", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float"]
     fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {"health": "MOTION_PLATFORM_HEALTH", "mode": "MOTION_PLATFORM_MODE"}
-    fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "x": "m", "y": "m", "z": "m", "pitch": "rad", "roll": "rad", "yaw": "rad", "vel_x": "m/s", "vel_y": "m/s", "vel_z": "m/s", "vel_pitch": "rad/s", "vel_roll": "rad/s", "vel_yaw": "rad/s", "acc_x": "m/s/s", "acc_y": "m/s/s", "acc_z": "m/s/s"}
+    fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "x": "m", "y": "m", "z": "m", "roll": "rad", "pitch": "rad", "yaw": "rad", "vel_x": "m/s", "vel_y": "m/s", "vel_z": "m/s", "vel_roll": "rad/s", "vel_pitch": "rad/s", "vel_yaw": "rad/s", "acc_x": "m/s/s", "acc_y": "m/s/s", "acc_z": "m/s/s"}
     native_format = bytearray(b"<IffffffffffffffffffBB")
     orders = [0, 19, 20, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
     lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     array_lengths = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    crc_extra = 50
+    crc_extra = 88
     unpacker = struct.Struct("<IffffffffffffffffffBB")
     instance_field = None
     instance_offset = -1
 
-    def __init__(self, time_boot_ms: int, health: int, mode: int, x: float, y: float, z: float, pitch: float, roll: float, yaw: float, vel_x: float, vel_y: float, vel_z: float, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, acc_pitch: float, acc_roll: float, acc_yaw: float):
+    def __init__(self, time_boot_ms: int, health: int, mode: int, x: float, y: float, z: float, roll: float, pitch: float, yaw: float, vel_x: float, vel_y: float, vel_z: float, vel_roll: float, vel_pitch: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, acc_roll: float, acc_pitch: float, acc_yaw: float):
         MAVLink_message.__init__(self, MAVLink_motion_platform_state_message.id, MAVLink_motion_platform_state_message.msgname)
         self._fieldnames = MAVLink_motion_platform_state_message.fieldnames
         self._instance_field = MAVLink_motion_platform_state_message.instance_field
@@ -25009,24 +25009,24 @@ class MAVLink_motion_platform_state_message(MAVLink_message):
         self.x = x
         self.y = y
         self.z = z
-        self.pitch = pitch
         self.roll = roll
+        self.pitch = pitch
         self.yaw = yaw
         self.vel_x = vel_x
         self.vel_y = vel_y
         self.vel_z = vel_z
-        self.vel_pitch = vel_pitch
         self.vel_roll = vel_roll
+        self.vel_pitch = vel_pitch
         self.vel_yaw = vel_yaw
         self.acc_x = acc_x
         self.acc_y = acc_y
         self.acc_z = acc_z
-        self.acc_pitch = acc_pitch
         self.acc_roll = acc_roll
+        self.acc_pitch = acc_pitch
         self.acc_yaw = acc_yaw
 
     def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_boot_ms, self.x, self.y, self.z, self.pitch, self.roll, self.yaw, self.vel_x, self.vel_y, self.vel_z, self.vel_pitch, self.vel_roll, self.vel_yaw, self.acc_x, self.acc_y, self.acc_z, self.acc_pitch, self.acc_roll, self.acc_yaw, self.health, self.mode), force_mavlink1=force_mavlink1)
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_boot_ms, self.x, self.y, self.z, self.roll, self.pitch, self.yaw, self.vel_x, self.vel_y, self.vel_z, self.vel_roll, self.vel_pitch, self.vel_yaw, self.acc_x, self.acc_y, self.acc_z, self.acc_roll, self.acc_pitch, self.acc_yaw, self.health, self.mode), force_mavlink1=force_mavlink1)
 
 
 # Define name on the class for backwards compatibility (it is now msgname).
@@ -25046,22 +25046,22 @@ class MAVLink_rexroth_motion_platform_message(MAVLink_message):
 
     id = MAVLINK_MSG_ID_REXROTH_MOTION_PLATFORM
     msgname = "REXROTH_MOTION_PLATFORM"
-    fieldnames = ["time_boot_ms", "frame_count", "motion_status", "error_code", "actuator1", "actuator2", "actuator3", "actuator4", "actuator5", "actuator6", "platform_setpoint_x", "platform_setpoint_y", "platform_setpoint_z", "platform_setpoint_pitch", "platform_setpoint_roll", "platform_setpoint_yaw", "effect_setpoint_x", "effect_setpoint_y", "effect_setpoint_z", "effect_setpoint_pitch", "effect_setpoint_roll", "effect_setpoint_yaw"]
-    ordered_fieldnames = ["time_boot_ms", "frame_count", "motion_status", "actuator1", "actuator2", "actuator3", "actuator4", "actuator5", "actuator6", "platform_setpoint_x", "platform_setpoint_y", "platform_setpoint_z", "platform_setpoint_pitch", "platform_setpoint_roll", "platform_setpoint_yaw", "effect_setpoint_x", "effect_setpoint_y", "effect_setpoint_z", "effect_setpoint_pitch", "effect_setpoint_roll", "effect_setpoint_yaw", "error_code"]
+    fieldnames = ["time_boot_ms", "frame_count", "motion_status", "error_code", "actuator1", "actuator2", "actuator3", "actuator4", "actuator5", "actuator6", "platform_setpoint_x", "platform_setpoint_y", "platform_setpoint_z", "platform_setpoint_roll", "platform_setpoint_pitch", "platform_setpoint_yaw", "effect_setpoint_x", "effect_setpoint_y", "effect_setpoint_z", "effect_setpoint_roll", "effect_setpoint_pitch", "effect_setpoint_yaw"]
+    ordered_fieldnames = ["time_boot_ms", "frame_count", "motion_status", "actuator1", "actuator2", "actuator3", "actuator4", "actuator5", "actuator6", "platform_setpoint_x", "platform_setpoint_y", "platform_setpoint_z", "platform_setpoint_roll", "platform_setpoint_pitch", "platform_setpoint_yaw", "effect_setpoint_x", "effect_setpoint_y", "effect_setpoint_z", "effect_setpoint_roll", "effect_setpoint_pitch", "effect_setpoint_yaw", "error_code"]
     fieldtypes = ["uint32_t", "uint32_t", "uint32_t", "uint8_t", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float"]
     fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {"error_code": "REXROTH_MOTION_PLATFORM_ERROR"}
-    fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "actuator1": "m", "actuator2": "m", "actuator3": "m", "actuator4": "m", "actuator5": "m", "actuator6": "m", "platform_setpoint_x": "m", "platform_setpoint_y": "m", "platform_setpoint_z": "m", "platform_setpoint_pitch": "rad", "platform_setpoint_roll": "rad", "platform_setpoint_yaw": "rad", "effect_setpoint_x": "m", "effect_setpoint_y": "m", "effect_setpoint_z": "m", "effect_setpoint_pitch": "rad", "effect_setpoint_roll": "rad", "effect_setpoint_yaw": "rad"}
+    fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "actuator1": "m", "actuator2": "m", "actuator3": "m", "actuator4": "m", "actuator5": "m", "actuator6": "m", "platform_setpoint_x": "m", "platform_setpoint_y": "m", "platform_setpoint_z": "m", "platform_setpoint_roll": "rad", "platform_setpoint_pitch": "rad", "platform_setpoint_yaw": "rad", "effect_setpoint_x": "m", "effect_setpoint_y": "m", "effect_setpoint_z": "m", "effect_setpoint_roll": "rad", "effect_setpoint_pitch": "rad", "effect_setpoint_yaw": "rad"}
     native_format = bytearray(b"<IIIffffffffffffffffffB")
     orders = [0, 1, 2, 21, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     array_lengths = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    crc_extra = 178
+    crc_extra = 96
     unpacker = struct.Struct("<IIIffffffffffffffffffB")
     instance_field = None
     instance_offset = -1
 
-    def __init__(self, time_boot_ms: int, frame_count: int, motion_status: int, error_code: int, actuator1: float, actuator2: float, actuator3: float, actuator4: float, actuator5: float, actuator6: float, platform_setpoint_x: float, platform_setpoint_y: float, platform_setpoint_z: float, platform_setpoint_pitch: float, platform_setpoint_roll: float, platform_setpoint_yaw: float, effect_setpoint_x: float, effect_setpoint_y: float, effect_setpoint_z: float, effect_setpoint_pitch: float, effect_setpoint_roll: float, effect_setpoint_yaw: float):
+    def __init__(self, time_boot_ms: int, frame_count: int, motion_status: int, error_code: int, actuator1: float, actuator2: float, actuator3: float, actuator4: float, actuator5: float, actuator6: float, platform_setpoint_x: float, platform_setpoint_y: float, platform_setpoint_z: float, platform_setpoint_roll: float, platform_setpoint_pitch: float, platform_setpoint_yaw: float, effect_setpoint_x: float, effect_setpoint_y: float, effect_setpoint_z: float, effect_setpoint_roll: float, effect_setpoint_pitch: float, effect_setpoint_yaw: float):
         MAVLink_message.__init__(self, MAVLink_rexroth_motion_platform_message.id, MAVLink_rexroth_motion_platform_message.msgname)
         self._fieldnames = MAVLink_rexroth_motion_platform_message.fieldnames
         self._instance_field = MAVLink_rexroth_motion_platform_message.instance_field
@@ -25079,18 +25079,18 @@ class MAVLink_rexroth_motion_platform_message(MAVLink_message):
         self.platform_setpoint_x = platform_setpoint_x
         self.platform_setpoint_y = platform_setpoint_y
         self.platform_setpoint_z = platform_setpoint_z
-        self.platform_setpoint_pitch = platform_setpoint_pitch
         self.platform_setpoint_roll = platform_setpoint_roll
+        self.platform_setpoint_pitch = platform_setpoint_pitch
         self.platform_setpoint_yaw = platform_setpoint_yaw
         self.effect_setpoint_x = effect_setpoint_x
         self.effect_setpoint_y = effect_setpoint_y
         self.effect_setpoint_z = effect_setpoint_z
-        self.effect_setpoint_pitch = effect_setpoint_pitch
         self.effect_setpoint_roll = effect_setpoint_roll
+        self.effect_setpoint_pitch = effect_setpoint_pitch
         self.effect_setpoint_yaw = effect_setpoint_yaw
 
     def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_boot_ms, self.frame_count, self.motion_status, self.actuator1, self.actuator2, self.actuator3, self.actuator4, self.actuator5, self.actuator6, self.platform_setpoint_x, self.platform_setpoint_y, self.platform_setpoint_z, self.platform_setpoint_pitch, self.platform_setpoint_roll, self.platform_setpoint_yaw, self.effect_setpoint_x, self.effect_setpoint_y, self.effect_setpoint_z, self.effect_setpoint_pitch, self.effect_setpoint_roll, self.effect_setpoint_yaw, self.error_code), force_mavlink1=force_mavlink1)
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_boot_ms, self.frame_count, self.motion_status, self.actuator1, self.actuator2, self.actuator3, self.actuator4, self.actuator5, self.actuator6, self.platform_setpoint_x, self.platform_setpoint_y, self.platform_setpoint_z, self.platform_setpoint_roll, self.platform_setpoint_pitch, self.platform_setpoint_yaw, self.effect_setpoint_x, self.effect_setpoint_y, self.effect_setpoint_z, self.effect_setpoint_roll, self.effect_setpoint_pitch, self.effect_setpoint_yaw, self.error_code), force_mavlink1=force_mavlink1)
 
 
 # Define name on the class for backwards compatibility (it is now msgname).
@@ -25108,36 +25108,36 @@ class MAVLink_motion_cue_extra_message(MAVLink_message):
 
     id = MAVLINK_MSG_ID_MOTION_CUE_EXTRA
     msgname = "MOTION_CUE_EXTRA"
-    fieldnames = ["time_boot_ms", "vel_pitch", "vel_roll", "vel_yaw", "acc_x", "acc_y", "acc_z"]
-    ordered_fieldnames = ["time_boot_ms", "vel_pitch", "vel_roll", "vel_yaw", "acc_x", "acc_y", "acc_z"]
+    fieldnames = ["time_boot_ms", "vel_roll", "vel_pitch", "vel_yaw", "acc_x", "acc_y", "acc_z"]
+    ordered_fieldnames = ["time_boot_ms", "vel_roll", "vel_pitch", "vel_yaw", "acc_x", "acc_y", "acc_z"]
     fieldtypes = ["uint32_t", "float", "float", "float", "float", "float", "float"]
     fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {}
-    fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "vel_pitch": "rad/s", "vel_roll": "rad/s", "vel_yaw": "rad/s", "acc_x": "m/s/s", "acc_y": "m/s/s", "acc_z": "m/s/s"}
+    fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "vel_roll": "rad/s", "vel_pitch": "rad/s", "vel_yaw": "rad/s", "acc_x": "m/s/s", "acc_y": "m/s/s", "acc_z": "m/s/s"}
     native_format = bytearray(b"<Iffffff")
     orders = [0, 1, 2, 3, 4, 5, 6]
     lengths = [1, 1, 1, 1, 1, 1, 1]
     array_lengths = [0, 0, 0, 0, 0, 0, 0]
-    crc_extra = 86
+    crc_extra = 177
     unpacker = struct.Struct("<Iffffff")
     instance_field = None
     instance_offset = -1
 
-    def __init__(self, time_boot_ms: int, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float):
+    def __init__(self, time_boot_ms: int, vel_roll: float, vel_pitch: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float):
         MAVLink_message.__init__(self, MAVLink_motion_cue_extra_message.id, MAVLink_motion_cue_extra_message.msgname)
         self._fieldnames = MAVLink_motion_cue_extra_message.fieldnames
         self._instance_field = MAVLink_motion_cue_extra_message.instance_field
         self._instance_offset = MAVLink_motion_cue_extra_message.instance_offset
         self.time_boot_ms = time_boot_ms
-        self.vel_pitch = vel_pitch
         self.vel_roll = vel_roll
+        self.vel_pitch = vel_pitch
         self.vel_yaw = vel_yaw
         self.acc_x = acc_x
         self.acc_y = acc_y
         self.acc_z = acc_z
 
     def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_boot_ms, self.vel_pitch, self.vel_roll, self.vel_yaw, self.acc_x, self.acc_y, self.acc_z), force_mavlink1=force_mavlink1)
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_boot_ms, self.vel_roll, self.vel_pitch, self.vel_yaw, self.acc_x, self.acc_y, self.acc_z), force_mavlink1=force_mavlink1)
 
 
 # Define name on the class for backwards compatibility (it is now msgname).
@@ -38587,7 +38587,7 @@ class MAVLink(object):
         """
         self.send(self.control_loading_axis_encode(time_boot_ms, axis, position, velocity, force), force_mavlink1=force_mavlink1)
 
-    def motion_platform_state_encode(self, time_boot_ms: int, health: int, mode: int, x: float, y: float, z: float, pitch: float, roll: float, yaw: float, vel_x: float, vel_y: float, vel_z: float, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, acc_pitch: float, acc_roll: float, acc_yaw: float) -> MAVLink_motion_platform_state_message:
+    def motion_platform_state_encode(self, time_boot_ms: int, health: int, mode: int, x: float, y: float, z: float, roll: float, pitch: float, yaw: float, vel_x: float, vel_y: float, vel_z: float, vel_roll: float, vel_pitch: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, acc_roll: float, acc_pitch: float, acc_yaw: float) -> MAVLink_motion_platform_state_message:
         """
         State report for motion platform used for moving the cockpit with the
         pilot for motion cueing. This is the primary message for
@@ -38599,26 +38599,26 @@ class MAVLink(object):
         x                         : X axis (surge) position, positive forward. [m] (type:float)
         y                         : Y axis (sway) position, positive right. [m] (type:float)
         z                         : Z axis (heave) position, positive down. [m] (type:float)
-        pitch                     : Pitch position, positive nose up. [rad] (type:float)
         roll                      : Roll position, positive right. [rad] (type:float)
+        pitch                     : Pitch position, positive nose up. [rad] (type:float)
         yaw                       : Yaw position, positive right. [rad] (type:float)
         vel_x                     : X axis (surge) velocity, positive forward. [m/s] (type:float)
         vel_y                     : Y axis (sway) velocity, positive right. [m/s] (type:float)
         vel_z                     : Z axis (heave) velocity, positive down. [m/s] (type:float)
-        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
         vel_roll                  : Roll velocity, positive right. [rad/s] (type:float)
+        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
         vel_yaw                   : Yaw velocity, positive right. [rad/s] (type:float)
         acc_x                     : X axis (surge) acceleration, positive forward. [m/s/s] (type:float)
         acc_y                     : Y axis (sway) acceleration, positive right. [m/s/s] (type:float)
         acc_z                     : Z axis (heave) acceleration, positive down. [m/s/s] (type:float)
-        acc_pitch                 : Pitch acceleration, positive nose up. Unit rad/s/s, currently not part of mavschema.xsd (type:float)
         acc_roll                  : Roll acceleration, positive right. Unit rad/s/s, currently not part of mavschema.xsd (type:float)
+        acc_pitch                 : Pitch acceleration, positive nose up. Unit rad/s/s, currently not part of mavschema.xsd (type:float)
         acc_yaw                   : Yaw acceleration, positive right. Unit rad/s/s, currently not part of mavschema.xsd (type:float)
 
         """
-        return MAVLink_motion_platform_state_message(time_boot_ms, health, mode, x, y, z, pitch, roll, yaw, vel_x, vel_y, vel_z, vel_pitch, vel_roll, vel_yaw, acc_x, acc_y, acc_z, acc_pitch, acc_roll, acc_yaw)
+        return MAVLink_motion_platform_state_message(time_boot_ms, health, mode, x, y, z, roll, pitch, yaw, vel_x, vel_y, vel_z, vel_roll, vel_pitch, vel_yaw, acc_x, acc_y, acc_z, acc_roll, acc_pitch, acc_yaw)
 
-    def motion_platform_state_send(self, time_boot_ms: int, health: int, mode: int, x: float, y: float, z: float, pitch: float, roll: float, yaw: float, vel_x: float, vel_y: float, vel_z: float, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, acc_pitch: float, acc_roll: float, acc_yaw: float, force_mavlink1: bool = False) -> None:
+    def motion_platform_state_send(self, time_boot_ms: int, health: int, mode: int, x: float, y: float, z: float, roll: float, pitch: float, yaw: float, vel_x: float, vel_y: float, vel_z: float, vel_roll: float, vel_pitch: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, acc_roll: float, acc_pitch: float, acc_yaw: float, force_mavlink1: bool = False) -> None:
         """
         State report for motion platform used for moving the cockpit with the
         pilot for motion cueing. This is the primary message for
@@ -38630,26 +38630,26 @@ class MAVLink(object):
         x                         : X axis (surge) position, positive forward. [m] (type:float)
         y                         : Y axis (sway) position, positive right. [m] (type:float)
         z                         : Z axis (heave) position, positive down. [m] (type:float)
-        pitch                     : Pitch position, positive nose up. [rad] (type:float)
         roll                      : Roll position, positive right. [rad] (type:float)
+        pitch                     : Pitch position, positive nose up. [rad] (type:float)
         yaw                       : Yaw position, positive right. [rad] (type:float)
         vel_x                     : X axis (surge) velocity, positive forward. [m/s] (type:float)
         vel_y                     : Y axis (sway) velocity, positive right. [m/s] (type:float)
         vel_z                     : Z axis (heave) velocity, positive down. [m/s] (type:float)
-        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
         vel_roll                  : Roll velocity, positive right. [rad/s] (type:float)
+        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
         vel_yaw                   : Yaw velocity, positive right. [rad/s] (type:float)
         acc_x                     : X axis (surge) acceleration, positive forward. [m/s/s] (type:float)
         acc_y                     : Y axis (sway) acceleration, positive right. [m/s/s] (type:float)
         acc_z                     : Z axis (heave) acceleration, positive down. [m/s/s] (type:float)
-        acc_pitch                 : Pitch acceleration, positive nose up. Unit rad/s/s, currently not part of mavschema.xsd (type:float)
         acc_roll                  : Roll acceleration, positive right. Unit rad/s/s, currently not part of mavschema.xsd (type:float)
+        acc_pitch                 : Pitch acceleration, positive nose up. Unit rad/s/s, currently not part of mavschema.xsd (type:float)
         acc_yaw                   : Yaw acceleration, positive right. Unit rad/s/s, currently not part of mavschema.xsd (type:float)
 
         """
-        self.send(self.motion_platform_state_encode(time_boot_ms, health, mode, x, y, z, pitch, roll, yaw, vel_x, vel_y, vel_z, vel_pitch, vel_roll, vel_yaw, acc_x, acc_y, acc_z, acc_pitch, acc_roll, acc_yaw), force_mavlink1=force_mavlink1)
+        self.send(self.motion_platform_state_encode(time_boot_ms, health, mode, x, y, z, roll, pitch, yaw, vel_x, vel_y, vel_z, vel_roll, vel_pitch, vel_yaw, acc_x, acc_y, acc_z, acc_roll, acc_pitch, acc_yaw), force_mavlink1=force_mavlink1)
 
-    def rexroth_motion_platform_encode(self, time_boot_ms: int, frame_count: int, motion_status: int, error_code: int, actuator1: float, actuator2: float, actuator3: float, actuator4: float, actuator5: float, actuator6: float, platform_setpoint_x: float, platform_setpoint_y: float, platform_setpoint_z: float, platform_setpoint_pitch: float, platform_setpoint_roll: float, platform_setpoint_yaw: float, effect_setpoint_x: float, effect_setpoint_y: float, effect_setpoint_z: float, effect_setpoint_pitch: float, effect_setpoint_roll: float, effect_setpoint_yaw: float) -> MAVLink_rexroth_motion_platform_message:
+    def rexroth_motion_platform_encode(self, time_boot_ms: int, frame_count: int, motion_status: int, error_code: int, actuator1: float, actuator2: float, actuator3: float, actuator4: float, actuator5: float, actuator6: float, platform_setpoint_x: float, platform_setpoint_y: float, platform_setpoint_z: float, platform_setpoint_roll: float, platform_setpoint_pitch: float, platform_setpoint_yaw: float, effect_setpoint_x: float, effect_setpoint_y: float, effect_setpoint_z: float, effect_setpoint_roll: float, effect_setpoint_pitch: float, effect_setpoint_yaw: float) -> MAVLink_rexroth_motion_platform_message:
         """
         State report specific for eMotion Motion System by Bosch Rexroth B.V.
         Values applicable to motion platforms in general are sent in
@@ -38671,20 +38671,20 @@ class MAVLink(object):
         platform_setpoint_x        : X axis (surge) platform setpoint, positive forward. [m] (type:float)
         platform_setpoint_y        : Y axis (sway) platform setpoint, positive right. [m] (type:float)
         platform_setpoint_z        : Z axis (heave) platform setpoint, positive down. [m] (type:float)
-        platform_setpoint_pitch        : Pitch platform setpoint, positive nose up. [rad] (type:float)
         platform_setpoint_roll        : Roll platform setpoint, positive right. [rad] (type:float)
+        platform_setpoint_pitch        : Pitch platform setpoint, positive nose up. [rad] (type:float)
         platform_setpoint_yaw        : Yaw platform setpoint, positive right. [rad] (type:float)
         effect_setpoint_x         : X axis (surge) special effect setpoint, positive forward. [m] (type:float)
         effect_setpoint_y         : Y axis (sway) special effect setpoint, positive right. [m] (type:float)
         effect_setpoint_z         : Z axis (heave) special effect setpoint, positive down. [m] (type:float)
-        effect_setpoint_pitch        : Pitch special effect setpoint, positive nose up. [rad] (type:float)
         effect_setpoint_roll        : Roll special effect setpoint, positive right. [rad] (type:float)
+        effect_setpoint_pitch        : Pitch special effect setpoint, positive nose up. [rad] (type:float)
         effect_setpoint_yaw        : Yaw special effect setpoint, positive right. [rad] (type:float)
 
         """
-        return MAVLink_rexroth_motion_platform_message(time_boot_ms, frame_count, motion_status, error_code, actuator1, actuator2, actuator3, actuator4, actuator5, actuator6, platform_setpoint_x, platform_setpoint_y, platform_setpoint_z, platform_setpoint_pitch, platform_setpoint_roll, platform_setpoint_yaw, effect_setpoint_x, effect_setpoint_y, effect_setpoint_z, effect_setpoint_pitch, effect_setpoint_roll, effect_setpoint_yaw)
+        return MAVLink_rexroth_motion_platform_message(time_boot_ms, frame_count, motion_status, error_code, actuator1, actuator2, actuator3, actuator4, actuator5, actuator6, platform_setpoint_x, platform_setpoint_y, platform_setpoint_z, platform_setpoint_roll, platform_setpoint_pitch, platform_setpoint_yaw, effect_setpoint_x, effect_setpoint_y, effect_setpoint_z, effect_setpoint_roll, effect_setpoint_pitch, effect_setpoint_yaw)
 
-    def rexroth_motion_platform_send(self, time_boot_ms: int, frame_count: int, motion_status: int, error_code: int, actuator1: float, actuator2: float, actuator3: float, actuator4: float, actuator5: float, actuator6: float, platform_setpoint_x: float, platform_setpoint_y: float, platform_setpoint_z: float, platform_setpoint_pitch: float, platform_setpoint_roll: float, platform_setpoint_yaw: float, effect_setpoint_x: float, effect_setpoint_y: float, effect_setpoint_z: float, effect_setpoint_pitch: float, effect_setpoint_roll: float, effect_setpoint_yaw: float, force_mavlink1: bool = False) -> None:
+    def rexroth_motion_platform_send(self, time_boot_ms: int, frame_count: int, motion_status: int, error_code: int, actuator1: float, actuator2: float, actuator3: float, actuator4: float, actuator5: float, actuator6: float, platform_setpoint_x: float, platform_setpoint_y: float, platform_setpoint_z: float, platform_setpoint_roll: float, platform_setpoint_pitch: float, platform_setpoint_yaw: float, effect_setpoint_x: float, effect_setpoint_y: float, effect_setpoint_z: float, effect_setpoint_roll: float, effect_setpoint_pitch: float, effect_setpoint_yaw: float, force_mavlink1: bool = False) -> None:
         """
         State report specific for eMotion Motion System by Bosch Rexroth B.V.
         Values applicable to motion platforms in general are sent in
@@ -38706,20 +38706,20 @@ class MAVLink(object):
         platform_setpoint_x        : X axis (surge) platform setpoint, positive forward. [m] (type:float)
         platform_setpoint_y        : Y axis (sway) platform setpoint, positive right. [m] (type:float)
         platform_setpoint_z        : Z axis (heave) platform setpoint, positive down. [m] (type:float)
-        platform_setpoint_pitch        : Pitch platform setpoint, positive nose up. [rad] (type:float)
         platform_setpoint_roll        : Roll platform setpoint, positive right. [rad] (type:float)
+        platform_setpoint_pitch        : Pitch platform setpoint, positive nose up. [rad] (type:float)
         platform_setpoint_yaw        : Yaw platform setpoint, positive right. [rad] (type:float)
         effect_setpoint_x         : X axis (surge) special effect setpoint, positive forward. [m] (type:float)
         effect_setpoint_y         : Y axis (sway) special effect setpoint, positive right. [m] (type:float)
         effect_setpoint_z         : Z axis (heave) special effect setpoint, positive down. [m] (type:float)
-        effect_setpoint_pitch        : Pitch special effect setpoint, positive nose up. [rad] (type:float)
         effect_setpoint_roll        : Roll special effect setpoint, positive right. [rad] (type:float)
+        effect_setpoint_pitch        : Pitch special effect setpoint, positive nose up. [rad] (type:float)
         effect_setpoint_yaw        : Yaw special effect setpoint, positive right. [rad] (type:float)
 
         """
-        self.send(self.rexroth_motion_platform_encode(time_boot_ms, frame_count, motion_status, error_code, actuator1, actuator2, actuator3, actuator4, actuator5, actuator6, platform_setpoint_x, platform_setpoint_y, platform_setpoint_z, platform_setpoint_pitch, platform_setpoint_roll, platform_setpoint_yaw, effect_setpoint_x, effect_setpoint_y, effect_setpoint_z, effect_setpoint_pitch, effect_setpoint_roll, effect_setpoint_yaw), force_mavlink1=force_mavlink1)
+        self.send(self.rexroth_motion_platform_encode(time_boot_ms, frame_count, motion_status, error_code, actuator1, actuator2, actuator3, actuator4, actuator5, actuator6, platform_setpoint_x, platform_setpoint_y, platform_setpoint_z, platform_setpoint_roll, platform_setpoint_pitch, platform_setpoint_yaw, effect_setpoint_x, effect_setpoint_y, effect_setpoint_z, effect_setpoint_roll, effect_setpoint_pitch, effect_setpoint_yaw), force_mavlink1=force_mavlink1)
 
-    def motion_cue_extra_encode(self, time_boot_ms: int, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float) -> MAVLink_motion_cue_extra_message:
+    def motion_cue_extra_encode(self, time_boot_ms: int, vel_roll: float, vel_pitch: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float) -> MAVLink_motion_cue_extra_message:
         """
         These values are an extra cue that should be added to accelerations
         and rotations etc. resulting from aircraft state, with the
@@ -38727,17 +38727,17 @@ class MAVLink(object):
         values. An example use case would be a cockpit shaker.
 
         time_boot_ms              : Timestamp (time since system boot). [ms] (type:uint32_t)
-        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
         vel_roll                  : Roll velocity, positive right. [rad/s] (type:float)
+        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
         vel_yaw                   : Yaw velocity, positive right. [rad/s] (type:float)
         acc_x                     : X axis (surge) acceleration, positive forward. [m/s/s] (type:float)
         acc_y                     : Y axis (sway) acceleration, positive right. [m/s/s] (type:float)
         acc_z                     : Z axis (heave) acceleration, positive down. [m/s/s] (type:float)
 
         """
-        return MAVLink_motion_cue_extra_message(time_boot_ms, vel_pitch, vel_roll, vel_yaw, acc_x, acc_y, acc_z)
+        return MAVLink_motion_cue_extra_message(time_boot_ms, vel_roll, vel_pitch, vel_yaw, acc_x, acc_y, acc_z)
 
-    def motion_cue_extra_send(self, time_boot_ms: int, vel_pitch: float, vel_roll: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, force_mavlink1: bool = False) -> None:
+    def motion_cue_extra_send(self, time_boot_ms: int, vel_roll: float, vel_pitch: float, vel_yaw: float, acc_x: float, acc_y: float, acc_z: float, force_mavlink1: bool = False) -> None:
         """
         These values are an extra cue that should be added to accelerations
         and rotations etc. resulting from aircraft state, with the
@@ -38745,15 +38745,15 @@ class MAVLink(object):
         values. An example use case would be a cockpit shaker.
 
         time_boot_ms              : Timestamp (time since system boot). [ms] (type:uint32_t)
-        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
         vel_roll                  : Roll velocity, positive right. [rad/s] (type:float)
+        vel_pitch                 : Pitch velocity, positive nose up. [rad/s] (type:float)
         vel_yaw                   : Yaw velocity, positive right. [rad/s] (type:float)
         acc_x                     : X axis (surge) acceleration, positive forward. [m/s/s] (type:float)
         acc_y                     : Y axis (sway) acceleration, positive right. [m/s/s] (type:float)
         acc_z                     : Z axis (heave) acceleration, positive down. [m/s/s] (type:float)
 
         """
-        self.send(self.motion_cue_extra_encode(time_boot_ms, vel_pitch, vel_roll, vel_yaw, acc_x, acc_y, acc_z), force_mavlink1=force_mavlink1)
+        self.send(self.motion_cue_extra_encode(time_boot_ms, vel_roll, vel_pitch, vel_yaw, acc_x, acc_y, acc_z), force_mavlink1=force_mavlink1)
 
     def eye_tracking_data_encode(self, time_usec: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float) -> MAVLink_eye_tracking_data_message:
         """
