@@ -7,6 +7,7 @@ Node for sending MOTION_CUE_EXTRA message with a generated waveform
 from argparse import ArgumentParser
 from collections import OrderedDict
 import numpy as np
+from os.path import basename
 from pymavlink import mavutil
 from random import randint
 from time import time
@@ -17,7 +18,13 @@ from utils.pcg import PCG
 
 
 def main():
-    parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
+    parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__, epilog=f'''
+When sending MOTION_CUE_EXTRA, XYZ correspond to accelerations in meters per second squared.
+For MANUAL_SETPOINT, XYZ correspond to roll, pitch in rad/s and normalized thrust.
+
+To reproduce the settings used for control target in BDFT trials, run with:
+{basename(__file__)} -c 72 -o MANUAL_SETPOINT -N 5 -f 0.05 -F 0.2 -x 0.1 -y 0.1 -z 0.05
+These will oscillate around center for each control axis, use --offset-* arguments if needed''')
 
     parser.add_argument('-m', '--manager',
                         help='MARSH Manager IP addr', default='127.0.0.1')
@@ -26,6 +33,8 @@ def main():
                         help='component ID to use', default=mavlink.MAV_COMP_ID_USER47)
     parser.add_argument('-t', '--time-interval', type=lambda s: check_number(float, s),
                         help='how much time between sending messages, in seconds', default=0.01)
+    parser.add_argument('-o', '--output', choices=['MOTION_CUE_EXTRA', 'MANUAL_SETPOINT'],
+                        help='which MAVLink message to send the signal in', default='MOTION_CUE_EXTRA')
 
     parser.add_argument('-N', '--waveform-number', type=lambda s: check_number(int, s, True),
                         help='how many sine waves to use in the signal generation', default=71)
@@ -37,11 +46,17 @@ def main():
                         help='random number generator initial seed, between 0 and 2^24-1')
 
     parser.add_argument('-x', type=lambda s: check_number(float, s),
-                        help='initial amplitude in X axis, in meters per second squared RMS', default=0.0)
+                        help='initial amplitude in X axis, RMS in signal units', default=0.0)
     parser.add_argument('-y', type=lambda s: check_number(float, s),
-                        help='initial amplitude in Y axis, in meters per second squared RMS', default=0.0)
+                        help='initial amplitude in Y axis, RMS in signal units', default=0.0)
     parser.add_argument('-z', type=lambda s: check_number(float, s),
-                        help='initial amplitude in Z axis, in meters per second squared RMS', default=0.0)
+                        help='initial amplitude in Z axis, RMS in signal units', default=0.0)
+    parser.add_argument('--offset-x', type=lambda s: check_number(float, s, True, True),
+                        help='initial offset in X axis, in signal units', default=0.0)
+    parser.add_argument('--offset-y', type=lambda s: check_number(float, s, True, True),
+                        help='initial offset in Y axis, in signal units', default=0.0)
+    parser.add_argument('--offset-z', type=lambda s: check_number(float, s, True, True),
+                        help='initial offset in Z axis, in signal units', default=0.0)
     parser.add_argument('--ramp-time', type=lambda s: check_number(float, s, True),
                         help='how long to interpolate the amplitude towards new value, in seconds', default=5.0)
 
@@ -49,6 +64,7 @@ def main():
     # assign to typed variables for convenience
     args_manager: str = args.manager
     args_component: int = args.component
+    args_output: str = args.output
     args_time_interval: float = args.time_interval
     args_ramp_time: float = args.ramp_time
 
@@ -61,6 +77,9 @@ def main():
     args_x: float = args.x
     args_y: float = args.y
     args_z: float = args.z
+    args_offset_x: float = args.offset_x
+    args_offset_y: float = args.offset_y
+    args_offset_z: float = args.offset_z
 
     # validate arguments
     if F_MIN >= F_MAX:
@@ -81,9 +100,12 @@ def main():
 
     # create parameters database, all parameters are float to simplify code
     params: OrderedDict[str, float] = OrderedDict()
-    params['ACC_RMS_X'] = args_x
-    params['ACC_RMS_Y'] = args_y
-    params['ACC_RMS_Z'] = args_z
+    params['RMS_X'] = args_x
+    params['RMS_Y'] = args_y
+    params['RMS_Z'] = args_z
+    params['OFFSET_X'] = args_offset_x
+    params['OFFSET_Y'] = args_offset_y
+    params['OFFSET_Z'] = args_offset_z
     params['RAMP_TIME'] = args_ramp_time
     params['FREQ_NUM_CONST'] = N
     params['FREQ_MIN_CONST'] = F_MIN
@@ -115,9 +137,15 @@ def main():
     amplitude_x = RampValue(0.0)
     amplitude_y = RampValue(0.0)
     amplitude_z = RampValue(0.0)
-    amplitude_x.set(0.0, params['ACC_RMS_X'])
-    amplitude_y.set(0.0, params['ACC_RMS_Y'])
-    amplitude_z.set(0.0, params['ACC_RMS_Z'])
+    offset_x = RampValue(0.0)
+    offset_y = RampValue(0.0)
+    offset_z = RampValue(0.0)
+    amplitude_x.set(0.0, params['RMS_X'])
+    amplitude_y.set(0.0, params['RMS_Y'])
+    amplitude_z.set(0.0, params['RMS_Z'])
+    offset_x.set(0.0, params['OFFSET_X'])
+    offset_y.set(0.0, params['OFFSET_Y'])
+    offset_z.set(0.0, params['OFFSET_Z'])
 
     # the loop goes as fast as it can, relying on the variables above for timing
     while True:
@@ -135,15 +163,23 @@ def main():
             sample_time = time() - start_time
             sig_x, sig_y, sig_z = signal.sample(sample_time)
 
-            acc_x = sig_x * amplitude_x.get(params['RAMP_TIME'], sample_time)
-            acc_y = sig_y * amplitude_y.get(params['RAMP_TIME'], sample_time)
-            acc_z = sig_z * amplitude_z.get(params['RAMP_TIME'], sample_time)
+            out_x = sig_x * amplitude_x.get(params['RAMP_TIME'], sample_time) + offset_x.get(params['RAMP_TIME'], sample_time)
+            out_y = sig_y * amplitude_y.get(params['RAMP_TIME'], sample_time) + offset_y.get(params['RAMP_TIME'], sample_time)
+            out_z = sig_z * amplitude_z.get(params['RAMP_TIME'], sample_time) + offset_z.get(params['RAMP_TIME'], sample_time)
 
-            mav.motion_cue_extra_send(
-                round(sample_time * 1000),
-                0, 0, 0,  # pitch, roll, yaw velocity
-                acc_x, acc_y, acc_z
-            )
+            if args_output == "MOTION_CUE_EXTRA":
+                mav.motion_cue_extra_send(
+                    round(sample_time * 1000),
+                    0, 0, 0,  # pitch, roll, yaw velocity
+                    out_x, out_y, out_z
+                )
+            elif args_output == "MANUAL_SETPOINT":
+                mav.manual_setpoint_send(
+                    round(sample_time * 1000),
+                    out_x, out_y, 0.0,  # roll, pitch, yaw
+                    (out_z / 2 + 0.5),  # thrust scaled from -1..1 to 0..1
+                    0, 0
+                )
             signal_next = time() + signal_interval
 
         # handle incoming messages
@@ -175,14 +211,23 @@ def main():
 
                                     # update the interpolated amplitudes
                                     sample_time = time() - start_time
-                                    if m.param_id == 'ACC_RMS_X':
+                                    if m.param_id == 'RMS_X':
                                         amplitude_x.set(
                                             sample_time, m.param_value)
-                                    elif m.param_id == 'ACC_RMS_Y':
+                                    elif m.param_id == 'RMS_Y':
                                         amplitude_y.set(
                                             sample_time, m.param_value)
-                                    elif m.param_id == 'ACC_RMS_Z':
+                                    elif m.param_id == 'RMS_Z':
                                         amplitude_z.set(
+                                            sample_time, m.param_value)
+                                    elif m.param_id == 'OFFSET_X':
+                                        offset_x.set(
+                                            sample_time, m.param_value)
+                                    elif m.param_id == 'OFFSET_Y':
+                                        offset_y.set(
+                                            sample_time, m.param_value)
+                                    elif m.param_id == 'OFFSET_Z':
+                                        offset_z.set(
                                             sample_time, m.param_value)
 
                             send_param(mav, params, -1, m.param_id)

@@ -10,7 +10,7 @@ class NodeFormatter(ArgumentDefaultsHelpFormatter, RawDescriptionHelpFormatter):
     """Subclassed from `argparse` formatters to use moultiple features in `formatter_class`"""
     pass
 
-def check_number(t: Any, value: str, positive: bool = False):
+def check_number(t: Any, value: str, allow_zero: bool = False, allow_negative: bool = False):
     """
     Helper function to check numbers passed on the command line.
 
@@ -21,12 +21,13 @@ def check_number(t: Any, value: str, positive: bool = False):
     """
     try:
         number = t(value)
-        if positive:
-            if number <= 0:
-                raise ArgumentTypeError(f"{number} is not a positive number")
-        else:
-            if number < 0:
-                raise ArgumentTypeError(f"{number} is not a non-negative number")
+        if not allow_negative:
+            if allow_zero:
+                if number <= 0:
+                    raise ArgumentTypeError(f"{number} is not a positive number")
+            else:
+                if number < 0:
+                    raise ArgumentTypeError(f"{number} is not a non-negative number")
     except ValueError:
         raise ArgumentTypeError('string "{}" could not be converted to {}'.format(value, t.__name__))
     return number
