@@ -6,11 +6,12 @@ Node for sending MOTION_CUE_EXTRA message with a generated waveform
 
 from argparse import ArgumentParser
 from collections import OrderedDict
+from collections.abc import Sequence
 import numpy as np
-from os.path import basename
 from pymavlink import mavutil
 from random import randint
 from time import time
+from typing import TypeVar
 
 import mavlink_all as mavlink
 from utils import check_number, NodeFormatter
@@ -19,67 +20,76 @@ from utils.pcg import PCG
 
 def main():
     parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__, epilog=f'''
-When sending MOTION_CUE_EXTRA, XYZ correspond to accelerations in meters per second squared.
-For MANUAL_SETPOINT, XYZ correspond to roll, pitch in rad/s and normalized thrust.
+For arguments with multiple default values, they are selected based on the --output argument.
+When sending each output:
+- MOTION_CUE_EXTRA: XYZ correspond to accelerations in meters per second squared.
+- MANUAL_SETPOINT: XYZ correspond to roll, pitch in rad/s and normalized thrust.
+''')
 
-To reproduce the settings used for control target in BDFT trials, run with:
-{basename(__file__)} -c 72 -o MANUAL_SETPOINT -N 5 -f 0.05 -F 0.2 -x 0.1 -y 0.1 -z 0.05
-These will oscillate around center for each control axis, use --offset-* arguments if needed''')
+    output_choices = ['MOTION_CUE_EXTRA', 'MANUAL_SETPOINT']
 
     parser.add_argument('-m', '--manager',
                         help='MARSH Manager IP addr', default='127.0.0.1')
-    # random default, not used for any specific component so far
+    parser.add_argument('-o', '--output', choices=output_choices,
+                        help='which MAVLink message to send the signal in', default=output_choices[0])
     parser.add_argument('-c', '--component', type=lambda s: check_number(int, s, True),
-                        help='component ID to use', default=mavlink.MAV_COMP_ID_USER47)
+                        help='component ID to use', default=[mavlink.MARSH_COMP_ID_VIBRATION_SOURCE, mavlink.MARSH_COMP_ID_PILOT_TARGET])
     parser.add_argument('-t', '--time-interval', type=lambda s: check_number(float, s),
                         help='how much time between sending messages, in seconds', default=0.01)
-    parser.add_argument('-o', '--output', choices=['MOTION_CUE_EXTRA', 'MANUAL_SETPOINT'],
-                        help='which MAVLink message to send the signal in', default='MOTION_CUE_EXTRA')
-
     parser.add_argument('-N', '--waveform-number', type=lambda s: check_number(int, s, True),
-                        help='how many sine waves to use in the signal generation', default=71)
+                        help='how many sine waves to use in the signal generation', default=[71, 5])
     parser.add_argument('-f', '--min-frequency', type=lambda s: check_number(float, s, True),
-                        help='minimal frequency of the generated signal, in Hertz', default=0.5)
+                        help='minimal frequency of the generated signal, in Hertz', default=[0.5, 0.05])
     parser.add_argument('-F', '--max-frequency', type=lambda s: check_number(float, s, True),
-                        help='maximal frequency of the generated signal, in Hertz', default=7.5)
+                        help='maximal frequency of the generated signal, in Hertz', default=[7.5, 0.2])
     parser.add_argument('--seed', type=lambda s: check_number(int, s),
                         help='random number generator initial seed, between 0 and 2^24-1')
 
     parser.add_argument('-x', type=lambda s: check_number(float, s),
-                        help='initial amplitude in X axis, RMS in signal units', default=0.0)
+                        help='initial amplitude in X axis, RMS in signal units', default=[0.0, 0.05])
     parser.add_argument('-y', type=lambda s: check_number(float, s),
-                        help='initial amplitude in Y axis, RMS in signal units', default=0.0)
+                        help='initial amplitude in Y axis, RMS in signal units', default=[0.0, 0.05])
     parser.add_argument('-z', type=lambda s: check_number(float, s),
-                        help='initial amplitude in Z axis, RMS in signal units', default=0.0)
+                        help='initial amplitude in Z axis, RMS in signal units', default=[0.0, 0.025])
     parser.add_argument('--offset-x', type=lambda s: check_number(float, s, True, True),
                         help='initial offset in X axis, in signal units', default=0.0)
     parser.add_argument('--offset-y', type=lambda s: check_number(float, s, True, True),
                         help='initial offset in Y axis, in signal units', default=0.0)
     parser.add_argument('--offset-z', type=lambda s: check_number(float, s, True, True),
-                        help='initial offset in Z axis, in signal units', default=0.0)
+                        help='initial offset in Z axis, in signal units', default=[0.0, 0.5])
     parser.add_argument('--ramp-time', type=lambda s: check_number(float, s, True),
                         help='how long to interpolate the amplitude towards new value, in seconds', default=5.0)
 
     args = parser.parse_args()
-    # assign to typed variables for convenience
+    # assign all arguments to typed variables for convenience
     args_manager: str = args.manager
-    args_component: int = args.component
     args_output: str = args.output
+
+    T = TypeVar('T')
+    def select_default(arg_value: Sequence[T] | T) -> T:
+        if isinstance(arg_value, Sequence):
+            return arg_value[output_choices.index(args_output)]  # pyright:ignore[reportUnknownVariableType]
+        else:
+            return arg_value
+    
+    args_component: int = select_default(args.component)
     args_time_interval: float = args.time_interval
     args_ramp_time: float = args.ramp_time
 
-    N: int = args.waveform_number
-    F_MIN: float = args.min_frequency
-    F_MAX: float = args.max_frequency
+    N: int = select_default(args.waveform_number)
+    F_MIN: float = select_default(args.min_frequency)
+    F_MAX: float = select_default(args.max_frequency)
     # limit the range of automatic random seed to make them easier to remember
     SEED: int = args.seed if (args.seed is not None) else randint(0, 10000)
 
-    args_x: float = args.x
-    args_y: float = args.y
-    args_z: float = args.z
-    args_offset_x: float = args.offset_x
-    args_offset_y: float = args.offset_y
-    args_offset_z: float = args.offset_z
+    print(N, F_MIN, F_MAX)
+
+    args_x: float = select_default(args.x)
+    args_y: float = select_default(args.y)
+    args_z: float = select_default(args.z)
+    args_offset_x: float = select_default(args.offset_x)
+    args_offset_y: float = select_default(args.offset_y)
+    args_offset_z: float = select_default(args.offset_z)
 
     # validate arguments
     if F_MIN >= F_MAX:
