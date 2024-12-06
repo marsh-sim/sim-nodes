@@ -7632,8 +7632,12 @@ MARSH_COMP_ID_EYE_TRACKER = 32
 enums["MARSH_COMPONENT"][32] = EnumEntry("MARSH_COMP_ID_EYE_TRACKER", """Component providing gaze data of pilot eyes.""")
 MARSH_COMP_ID_CONTROL_LOADING = 33
 enums["MARSH_COMPONENT"][33] = EnumEntry("MARSH_COMP_ID_CONTROL_LOADING", """Component measuring and actuating forces on pilot control inputs.""")
-MARSH_COMPONENT_ENUM_END = 34
-enums["MARSH_COMPONENT"][34] = EnumEntry("MARSH_COMPONENT_ENUM_END", """""")
+MARSH_COMP_ID_VIBRATION_SOURCE = 34
+enums["MARSH_COMPONENT"][34] = EnumEntry("MARSH_COMP_ID_VIBRATION_SOURCE", """Component providing vibrations for system identification, road rumble, gusts, etc.""")
+MARSH_COMP_ID_PILOT_TARGET = 35
+enums["MARSH_COMPONENT"][35] = EnumEntry("MARSH_COMP_ID_PILOT_TARGET", """Component providing target for the pilot to follow like controls positions, aircraft state, ILS path etc.""")
+MARSH_COMPONENT_ENUM_END = 36
+enums["MARSH_COMPONENT"][36] = EnumEntry("MARSH_COMPONENT_ENUM_END", """""")
 
 # MARSH_MODE_FLAGS
 enums["MARSH_MODE_FLAGS"] = {}
