@@ -14,7 +14,7 @@ identifier.
 """
 
 from argparse import ArgumentParser
-from math import radians
+from math import nan, radians
 from msgpack import packb
 from pymavlink import mavutil
 from typing import Optional
@@ -41,7 +41,7 @@ args_yaw: Optional[float] = args.yaw
 connection_string = f'udpout:{args_manager}:24400'
 mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
 mav.srcSystem = 1  # default system
-mav.srcComponent = mavlink.MAV_COMP_ID_USER50  # some component unused by MARSH
+mav.srcComponent = mavlink.MARSH_COMP_ID_PILOT_TARGET
 print(f'Sending to {connection_string}')
 
 # register in manager to be able to affect other nodes
@@ -53,19 +53,23 @@ mav.heartbeat_send(
     mavlink.MAV_STATE_ACTIVE
 )
 
-state = {'trgt': {'instr': {}, }}
+type_mask = 0b0000_1101_1111_1111  # ignore all, don't use force instead of acceleration
+
+yaw = nan
 if args_yaw is not None:
-    state['trgt']['att'] = [0, 0, radians(args_yaw)]
+    yaw = radians(args_yaw)
+    type_mask ^= mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE  # flip the bit to not ignored
+z = nan
 if args_alt is not None:
-    state['trgt']['instr']['alt'] = args_alt
+    z = -args_alt * 0.3048  # convert from feet to meters
+    type_mask ^= mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE  # flip the bit to not ignored
+vx = nan
 if args_ias is not None:
-    state['trgt']['instr']['ias'] = args_ias
+    vx = args_ias * 1852.0 / 3600.0  # convert from knots to meters per second
+    type_mask ^= mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE  # flip the bit to not ignored
 
-# pack the data with msgpack as expected by lidia
-payload = bytearray(packb(state))
-# pad payload with zeros to maximum length
-payload.extend(bytearray(249 - len(payload)))
-
-# send the payload
-mav.v2_extension_send(0, 0, 0, 44400, payload)
-print('Sent state:', state)
+mav.set_position_target_local_ned_send(
+    1, 1, mavlink.MARSH_COMP_ID_INSTRUMENTS, mavlink.MAV_FRAME_LOCAL_NED, type_mask,
+    nan, nan, z, vx, nan, nan, nan, nan, nan, yaw, nan,
+)
+print(f'Sent target yaw: {yaw} rad, z: {z} m, vx: {vx} m/s')
