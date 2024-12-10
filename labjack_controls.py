@@ -31,19 +31,32 @@ def main():
     parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
     parser.add_argument('-m', '--manager',
                         help='MARSH Manager IP addr', default='127.0.0.1')
+    parser.add_argument('--extra-channel',
+                        help='labjack channel to measure for MOTION_CUE_EXTRA acceleration Z', default=None)
     args = parser.parse_args()
     # assign to typed variables for convenience
     args_manager: str = args.manager
+    args_extra_channel: str | None = args.extra_channel
 
     queue = Queue()
+    extra_queue: Queue | None = None
+    if args_extra_channel is not None:
+        extra_queue = Queue()
 
-    ljmr = LJMReader(
-        queue, 1/256., aScanListNames=['AIN0', 'AIN4', 'AIN5', 'AIN6'])
+    ljmr = LJMReader(queue, 1/256.,
+                     (extra_queue, args_extra_channel) if args_extra_channel is not None else None,
+                     aScanListNames=['AIN0', 'AIN4', 'AIN5', 'AIN6'])
     node = ControlsNode(queue, args_manager)
+
+    extra_node: ExtraNode | None = None
+    if args_extra_channel is not None:
+        extra_node = ExtraNode(extra_queue, args_manager)
 
     print('Starting threads')
     ljmr.start()
     node.start()
+    if extra_node is not None:
+        extra_node.start()
 
     while True:
         try:
@@ -60,10 +73,13 @@ def main():
 
 
 class LJMReader(threading.Thread):
-    def __init__(self, queue: Queue, period: float, **kwargs):
+    def __init__(self, queue: Queue, period: float, extra_signal: tuple[Queue, str] | None = None, **kwargs):
         super().__init__()
 
         self.queue = queue
+        self.extra_queue = None
+        if extra_signal is not None:
+            self.extra_queue = extra_signal[0]
 
         # initialize the config with default values
         config = {
@@ -73,6 +89,9 @@ class LJMReader(threading.Thread):
             'ScanRate': 256  # corresponding to 1000 Hz
         }
         config.update(kwargs)  # override with any kwargs passed
+
+        if extra_signal is not None:
+            config['aScanListNames'].append(extra_signal[1])
 
         self.LJType = config['LJType']
         """LabJack Type, defaults to T4"""
@@ -165,8 +184,7 @@ class LJMReader(threading.Thread):
         ljm.close(self.LJhandle)
 
     def read_and_send(self):
-        ret = ljm.eStreamRead(self.LJhandle)
-        aData = ret[0]
+        aData, _, _ = ljm.eStreamRead(self.LJhandle)
 
         # Skipped samples are indicated with -9999.0 values
         curSkip = aData.count(-9999.0)
@@ -176,6 +194,10 @@ class LJMReader(threading.Thread):
 
         axes = tuple([(v if v != -9999.9 else None) for v in aData[:4]])
         self.queue.put(axes)
+        if self.extra_queue is not None:
+            value = aData[4]
+            if value != -9999.9:
+                self.extra_queue.put(value)
 
 
 class ControlsNode(threading.Thread):
@@ -261,6 +283,93 @@ class ControlsNode(threading.Thread):
                     buttons,
                 )
                 control_next = time.time() + control_interval
+
+            # handle incoming messages
+            try:
+                while (message := mav.file.recv_msg()) is not None:
+                    message: mavlink.MAVLink_message
+                    if message.get_type() == 'HEARTBEAT':
+                        if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                            if not manager_connected:
+                                print('Connected to simulation manager')
+                            manager_connected = True
+                            manager_timeout = time.time() + timeout_interval
+                    elif params.should_handle_message(message):
+                        params.handle_message(mav, message)
+            except ConnectionResetError:
+                # thrown on Windows when there is no peer listening
+                pass
+
+            if manager_connected and time.time() > manager_timeout:
+                manager_connected = False
+                print('Lost connection to simulation manager')
+
+
+class ExtraNode(threading.Thread):
+    def __init__(self, queue: Queue, manager_addr: str, **kwargs):
+        super().__init__()
+
+        self.queue = queue
+        self.manager_addr = manager_addr
+        self.should_stop = threading.Event()
+
+    def run(self):
+        # create MAVLink connection
+        connection_string = f'udpout:{self.manager_addr}:24400'
+        mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
+        mav.srcSystem = 1  # default system
+        mav.srcComponent = mavlink.MARSH_COMP_ID_VIBRATION_SOURCE
+        print(f'Sending to {connection_string}')
+
+        params = ParamDict()
+        params['V_MIN'] = 0.0
+        params['V_MAX'] = 5.0
+        params['ACC_Z_MIN'] = -0.1
+        params['ACC_Z_MAX'] = 0.1
+
+        start_time = time()
+
+        # controlling when messages should be sent
+        heartbeat_next = 0.0
+        heartbeat_interval = 1.0
+
+        # monitoring connection to manager with heartbeat
+        timeout_interval = 5.0
+        manager_timeout = 0.0
+        manager_connected = False
+
+        # the loop goes as fast as it can, relying on the variables above for timing
+        while not self.should_stop.is_set():
+            if time.time() >= heartbeat_next:
+                mav.heartbeat_send(
+                    mavlink.MAV_TYPE_GENERIC,
+                    mavlink.MAV_AUTOPILOT_INVALID,
+                    mavlink.MAV_MODE_FLAG_TEST_ENABLED,
+                    0,
+                    mavlink.MAV_STATE_ACTIVE
+                )
+                heartbeat_next = time.time() + heartbeat_interval
+
+            voltage: Optional[float] = None
+            try:
+                voltage = self.queue.get(block=False)
+            except Empty:
+                pass
+
+            if voltage is not None:
+                v_min = params['V_MIN']
+                v_max = params['V_MAX']
+                acc_z_min = params['ACC_Z_MIN']
+                acc_z_max = params['ACC_Z_MAX']
+                if v_min != v_max:
+                    value = acc_z_min + \
+                        (acc_z_max - acc_z_min) * \
+                        (voltage - v_min) / (v_max - v_min)
+
+                    mav.motion_cue_extra_send(
+                        round((time.time() - start_time) * 1000),
+                        0, 0, 0, 0, 0, value
+                    )
 
             # handle incoming messages
             try:
