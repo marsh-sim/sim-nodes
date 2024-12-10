@@ -15,6 +15,7 @@ from typing import TypeVar
 
 import mavlink_all as mavlink
 from utils import check_number, NodeFormatter
+from utils.param_dict import ParamDict
 from utils.pcg import PCG
 
 
@@ -66,12 +67,14 @@ When sending each output:
     args_output: str = args.output
 
     T = TypeVar('T')
+
     def select_default(arg_value: Sequence[T] | T) -> T:
         if isinstance(arg_value, Sequence):
-            return arg_value[output_choices.index(args_output)]  # pyright:ignore[reportUnknownVariableType]
+            # pyright:ignore[reportUnknownVariableType]
+            return arg_value[output_choices.index(args_output)]
         else:
             return arg_value
-    
+
     args_component: int = select_default(args.component)
     args_time_interval: float = args.time_interval
     args_ramp_time: float = args.ramp_time
@@ -109,7 +112,7 @@ When sending each output:
     signal = Multisine(pcg, N, F_MIN, F_MAX)
 
     # create parameters database, all parameters are float to simplify code
-    params: OrderedDict[str, float] = OrderedDict()
+    params = ParamDict()
     params['RMS_X'] = args_x
     params['RMS_Y'] = args_y
     params['RMS_Z'] = args_z
@@ -123,12 +126,8 @@ When sending each output:
     params['PCG_SEED_CONST'] = SEED
 
     for k in params.keys():
-        assert len(k) <= 16, 'parameter names must fit into param_id field'
-
-    readonly_params: set[str] = set()
-    for k in params.keys():
         if k.endswith('CONST'):
-            readonly_params.add(k)
+            params.readonly_names.add(k)
 
     # controlling when messages should be sent
     heartbeat_next = 0.0
@@ -173,9 +172,13 @@ When sending each output:
             sample_time = time() - start_time
             sig_x, sig_y, sig_z = signal.sample(sample_time)
 
-            out_x = sig_x * amplitude_x.get(params['RAMP_TIME'], sample_time) + offset_x.get(params['RAMP_TIME'], sample_time)
-            out_y = sig_y * amplitude_y.get(params['RAMP_TIME'], sample_time) + offset_y.get(params['RAMP_TIME'], sample_time)
-            out_z = sig_z * amplitude_z.get(params['RAMP_TIME'], sample_time) + offset_z.get(params['RAMP_TIME'], sample_time)
+            ramp_time = params['RAMP_TIME']
+            out_x = sig_x * amplitude_x.get(ramp_time, sample_time) \
+                + offset_x.get(ramp_time, sample_time)
+            out_y = sig_y * amplitude_y.get(ramp_time, sample_time) \
+                + offset_y.get(ramp_time, sample_time)
+            out_z = sig_z * amplitude_z.get(ramp_time, sample_time) \
+                + offset_z.get(ramp_time, sample_time)
 
             if args_output == "MOTION_CUE_EXTRA":
                 mav.motion_cue_extra_send(
@@ -202,45 +205,25 @@ When sending each output:
                             print('Connected to simulation manager')
                         manager_connected = True
                         manager_timeout = time() + timeout_interval
-                elif message.get_type() in ['PARAM_REQUEST_READ', 'PARAM_REQUEST_LIST', 'PARAM_SET']:
-                    # check that this is relevant to us
-                    if message.target_system == mav.srcSystem and message.target_component == mav.srcComponent:
-                        if message.get_type() == 'PARAM_REQUEST_READ':
-                            m: mavlink.MAVLink_param_request_read_message = message
-                            send_param(mav, params, m.param_index, m.param_id)
-                        elif message.get_type() == 'PARAM_REQUEST_LIST':
-                            for i in range(len(params)):
-                                send_param(mav, params, i)
-                        elif message.get_type() == 'PARAM_SET':
-                            m: mavlink.MAVLink_param_set_message = message
-                            # check that parameter is defined and sent as float
-                            if m.param_id in params and m.param_type == mavlink.MAV_PARAM_TYPE_REAL32:
-                                # don't write to read-only parameters but report the value
-                                if m.param_id not in readonly_params:
-                                    params[m.param_id] = m.param_value
+                elif params.should_handle_message(message):
+                    changed = params.handle_message(mav, message)
+                    if changed is not None:
+                        name, value = changed
 
-                                    # update the interpolated amplitudes
-                                    sample_time = time() - start_time
-                                    if m.param_id == 'RMS_X':
-                                        amplitude_x.set(
-                                            sample_time, m.param_value)
-                                    elif m.param_id == 'RMS_Y':
-                                        amplitude_y.set(
-                                            sample_time, m.param_value)
-                                    elif m.param_id == 'RMS_Z':
-                                        amplitude_z.set(
-                                            sample_time, m.param_value)
-                                    elif m.param_id == 'OFFSET_X':
-                                        offset_x.set(
-                                            sample_time, m.param_value)
-                                    elif m.param_id == 'OFFSET_Y':
-                                        offset_y.set(
-                                            sample_time, m.param_value)
-                                    elif m.param_id == 'OFFSET_Z':
-                                        offset_z.set(
-                                            sample_time, m.param_value)
-
-                            send_param(mav, params, -1, m.param_id)
+                        # update the interpolated amplitudes
+                        sample_time = time() - start_time
+                        if name == 'RMS_X':
+                            amplitude_x.set(sample_time, value)
+                        elif name == 'RMS_Y':
+                            amplitude_y.set(sample_time, value)
+                        elif name == 'RMS_Z':
+                            amplitude_z.set(sample_time, value)
+                        elif name == 'OFFSET_X':
+                            offset_x.set(sample_time, value)
+                        elif name == 'OFFSET_Y':
+                            offset_y.set(sample_time, value)
+                        elif name == 'OFFSET_Z':
+                            offset_z.set(sample_time, value)
         except ConnectionResetError:
             # thrown on Windows when there is no peer listening
             pass
@@ -248,33 +231,6 @@ When sending each output:
         if manager_connected and time() > manager_timeout:
             manager_connected = False
             print('Lost connection to simulation manager')
-
-
-def send_param(mav: mavlink.MAVLink, params: OrderedDict[str, float], index: int, name: str = ''):
-    """
-    convenience function to send PARAM_VALUE
-    pass index -1 to use name instead
-
-    silently returns on invalid index or name
-    """
-    param_id = bytearray(16)
-
-    if index >= 0:
-        if index >= len(params):
-            return
-
-        # HACK: is there a nicer way to get items from OrderedDict by order?
-        name = list(params.keys())[index]
-    else:
-        if name not in params:
-            return
-
-        index = list(params.keys()).index(name)
-    name_bytes = name.encode('utf8')
-    param_id[:len(name_bytes)] = name_bytes
-
-    mav.param_value_send(bytes(param_id), params[name], mavlink.MAV_PARAM_TYPE_REAL32,
-                         len(params), index)
 
 
 class Multisine:
