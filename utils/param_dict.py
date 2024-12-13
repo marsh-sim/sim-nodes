@@ -36,7 +36,7 @@ class ParamDict:
     def __setitem__(self, name: str, value: float):
         if len(name) > 16:
             raise KeyError('param name too long')
-        self._data[name] = value
+        self._data[name] = float(value)
 
     def __contains__(self, name: str):
         return self._data.__contains__(name)

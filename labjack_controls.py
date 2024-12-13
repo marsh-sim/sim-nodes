@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 
 """
-Node providing MANUAL_CONTROL messages based on USB HID LabJack T4 device
+Node providing MANUAL_CONTROL messages based on LabJack T4 device
 measuring analog voltages. The linear mapping between voltages and axis values
 can be configured in runtime with Parameter microservice.
 
@@ -322,12 +322,12 @@ class ExtraNode(threading.Thread):
         print(f'Sending to {connection_string}')
 
         params = ParamDict()
-        params['V_MIN'] = 0.0
-        params['V_MAX'] = 5.0
-        params['ACC_Z_MIN'] = -0.1
-        params['ACC_Z_MAX'] = 0.1
+        params['V_MIN'] = -1.0
+        params['V_MAX'] = 1.0
+        params['ACC_Z_MIN'] = -1.0
+        params['ACC_Z_MAX'] = 1.0
 
-        start_time = time()
+        start_time = time.time()
 
         # controlling when messages should be sent
         heartbeat_next = 0.0
