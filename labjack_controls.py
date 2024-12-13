@@ -228,11 +228,11 @@ class ControlsNode(threading.Thread):
         params['YAW_V_MIN'] = 0.896
         params['YAW_V_MAX'] = 1.941
 
+        start_time = time.time()
+
         # controlling when messages should be sent
         heartbeat_next = 0.0
         heartbeat_interval = 1.0
-        control_next = 0.0
-        control_interval = 0.02
 
         # monitoring connection to manager with heartbeat
         timeout_interval = 5.0
@@ -282,7 +282,12 @@ class ControlsNode(threading.Thread):
                     axes[0], axes[1], axes[2], axes[3],
                     buttons,
                 )
-                control_next = time.time() + control_interval
+
+                mav.named_value_float_send(
+                        round((time.time() - start_time) * 1000),
+                        'coll_v\0\0\0\0'.encode(),
+                        v0,  # cf. order in zip() above
+                )
 
             # handle incoming messages
             try:
