@@ -27,6 +27,8 @@ from utils import NodeFormatter
 from utils.param_dict import ParamDict
 
 
+PARAM_FILENAME = 'labjack.param'
+
 def main():
     parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
     parser.add_argument('-m', '--manager',
@@ -228,6 +230,12 @@ class ControlsNode(threading.Thread):
         params['YAW_V_MIN'] = 0.896
         params['YAW_V_MAX'] = 1.941
 
+        try:
+            with open(PARAM_FILENAME, 'r') as param_file:
+                params.load(param_file)
+        except FileNotFoundError:
+            pass
+
         start_time = time.time()
 
         # controlling when messages should be sent
@@ -387,7 +395,10 @@ class ExtraNode(threading.Thread):
                             manager_connected = True
                             manager_timeout = time.time() + timeout_interval
                     elif params.should_handle_message(message):
-                        params.handle_message(mav, message)
+                        changes = params.handle_message(mav, message)
+                        if changes is not None:
+                            with open(PARAM_FILENAME, 'w') as param_file:
+                                params.dump(param_file)
             except ConnectionResetError:
                 # thrown on Windows when there is no peer listening
                 pass

@@ -1,6 +1,9 @@
 # Local copy of the dialect repository (not a submodule)
 mavlink_repo
 
+# Sensor calibration (persist it but it will change a lot)
+labjack.param
+
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
