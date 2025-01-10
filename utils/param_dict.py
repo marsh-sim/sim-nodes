@@ -1,4 +1,7 @@
 from collections import OrderedDict
+from io import StringIO
+from typing import TextIO
+from warnings import warn
 
 import mavlink_all as mavlink
 
@@ -26,7 +29,7 @@ class ParamDict:
             if len(idx) > 16:
                 raise KeyError('param name too long')
             return self._data[idx]
-        elif isinstance(idx, int):
+        elif type(idx) == int:
             if idx >= len(self._data):
                 raise IndexError('param index out of range')
             # HACK: is there a nicer way to get items from OrderedDict by order?
@@ -95,7 +98,7 @@ class ParamDict:
                 raise KeyError('param name too long')
             name = idx
             param_index = list(self._data.keys()).index(name)
-        elif isinstance(idx, int):
+        elif type(idx) == int:
             if idx < 0 or idx >= len(self):
                 raise IndexError('param index out of range')
             param_index = idx
@@ -110,3 +113,62 @@ class ParamDict:
         mav.param_value_send(bytes(param_id), self[name],
                              mavlink.MAV_PARAM_TYPE_REAL32,
                              len(self), param_index)
+
+    def dump(self, fp: TextIO):
+        """Serialize values into a .param text file"""
+        kv = [(k, self[k]) for k in self.keys()]
+        kv.sort()  # .param files are sorted by parameter name
+        for k, v in kv:
+            fp.write(f'{k},{v}\n')
+
+    def dumps(self) -> str:
+        """Serialize values into string like .param text file"""
+        with StringIO() as buffer:
+            self.dump(buffer)
+            return buffer.getvalue()
+
+    def load(self, fp: TextIO):
+        """Read values from .param text file
+
+        All parameter names not defined yet will be appended at the end in the same order as they appear in file"""
+        kv: list[tuple[str, float]] = []
+        for line_num, line in enumerate(fp.readlines()):
+            line = line.strip()
+            if line == '':
+                continue
+
+            if ',' not in line:
+                warn(f'no comma in line {line_num + 1}: {line}')
+                continue
+
+            parts = line.split(',')
+            if len(parts) != 2:
+                warn(f'too many parts in line {line_num + 1}: {line}')
+                continue
+
+            name = parts[0]
+            value: float
+            try:
+                value = float(parts[1])
+            except ValueError:
+                warn(f'could not parse value in line {line_num + 1}: {line}')
+                continue
+
+            kv.append((name, value))
+
+        # Update defined values
+        for name, value in kv:
+            if name not in self:
+                continue
+            self[name] = value
+
+        # Add new values
+        for name, value in kv:
+            if name in self:
+                continue
+            self[name] = value
+
+    def loads(self, s: str):
+        """Read values from .param file text, see also load()"""
+        with StringIO(s) as buffer:
+            self.load(buffer)
