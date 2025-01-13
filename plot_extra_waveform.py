@@ -36,6 +36,7 @@ z = np.zeros_like(time)
 for i, t in enumerate(time):
     x[i], y[i], z[i] = signal.sample(t)
 
+plt.figure('Accelerations')
 if not (args.y_only or args.z_only):
     plt.plot(time, x, 'r', label=f'X (RMS {np.sqrt(np.mean(x**2)):.3f})')
 if not (args.x_only or args.z_only):
@@ -43,6 +44,23 @@ if not (args.x_only or args.z_only):
 if not (args.x_only or args.y_only):
     plt.plot(time, z, 'b', label=f'Z (RMS {np.sqrt(np.mean(z**2)):.3f})')
 plt.legend()
-plt.xlabel("Time, s")
-plt.ylabel("Acceleration, m/s^2")
+plt.xlabel('Time, s')
+plt.ylabel('Acceleration, m/s^2')
+plt.show()
+
+# Numeric integration to show velocities
+vx = np.cumsum(x) * args.time_interval
+vy = np.cumsum(y) * args.time_interval
+vz = np.cumsum(z) * args.time_interval
+
+plt.figure('Velocities')
+if not (args.y_only or args.z_only):
+    plt.plot(time, vx, 'r', label='X')
+if not (args.x_only or args.z_only):
+    plt.plot(time, vy, 'g', label='Y')
+if not (args.x_only or args.y_only):
+    plt.plot(time, vz, 'b', label='Z')
+plt.legend()
+plt.xlabel('Time, s')
+plt.ylabel('Velocity, m/s')
 plt.show()
