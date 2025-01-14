@@ -35,11 +35,14 @@ def main():
                         help='MARSH Manager IP addr', default='127.0.0.1')
     parser.add_argument('--extra-channel',
                         help='labjack channel to measure for MOTION_CUE_EXTRA acceleration Z', default=None)
+    parser.add_argument('--send-voltage', action='store_true',
+                        help='send voltage measured for collective in NAMED_VALUE_FLOAT')
     args = parser.parse_args()
     # assign to typed variables for convenience
     args_manager: str = args.manager
     args_extra_channel: str | None = args.extra_channel
-
+    args_send_voltage: bool = args.send_voltage
+    
     queue = Queue()
     extra_queue: Queue | None = None
     if args_extra_channel is not None:
@@ -48,7 +51,7 @@ def main():
     ljmr = LJMReader(queue, 1/256.,
                      (extra_queue, args_extra_channel) if args_extra_channel is not None else None,
                      aScanListNames=['AIN0', 'AIN4', 'AIN5', 'AIN6'])
-    node = ControlsNode(queue, args_manager)
+    node = ControlsNode(queue, args_manager, args_send_voltage)
 
     extra_node: ExtraNode | None = None
     if args_extra_channel is not None:
@@ -203,11 +206,12 @@ class LJMReader(threading.Thread):
 
 
 class ControlsNode(threading.Thread):
-    def __init__(self, queue: Queue, manager_addr: str, **kwargs):
+    def __init__(self, queue: Queue, manager_addr: str, send_voltage: bool, **kwargs):
         super().__init__()
 
         self.queue = queue
         self.manager_addr = manager_addr
+        self.send_voltage = send_voltage
         self.should_stop = threading.Event()
 
     def run(self):
@@ -295,11 +299,12 @@ class ControlsNode(threading.Thread):
                         buttons,
                     )
 
-                    mav.named_value_float_send(
-                            round((time.time() - start_time) * 1000),
-                            'coll_v\0\0\0\0'.encode(),
-                            v0,  # cf. order in zip() above
-                    )
+                    if self.send_voltage:
+                        mav.named_value_float_send(
+                                round((time.time() - start_time) * 1000),
+                                'coll_v\0\0\0\0'.encode(),
+                                v0,  # cf. order in zip() above
+                        )
                 
                 control_next = time.time() + control_interval
 
