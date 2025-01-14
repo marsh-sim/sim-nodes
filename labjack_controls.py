@@ -221,12 +221,12 @@ class ControlsNode(threading.Thread):
         # create parameters database, all parameters are float to simplify code
         # default values for inceptors on RPC platform
         params = ParamDict()
-        params['PTCH_V_MIN'] = 1.4164
-        params['PTCH_V_MAX'] = 0.7820
-        params['ROLL_V_MIN'] = 1.4920
-        params['ROLL_V_MAX'] = 0.7820
-        params['THR_V_MIN'] = 0.0100
-        params['THR_V_MAX'] = 2.6650
+        params['PTCH_V_MIN'] = 0.9500
+        params['PTCH_V_MAX'] = 0.4502
+        params['ROLL_V_MIN'] = 1.3800
+        params['ROLL_V_MAX'] = 0.9000
+        params['THR_V_MIN'] = 1.4000
+        params['THR_V_MAX'] = 3.8000
         params['YAW_V_MIN'] = 0.896
         params['YAW_V_MAX'] = 1.941
 
@@ -241,6 +241,8 @@ class ControlsNode(threading.Thread):
         # controlling when messages should be sent
         heartbeat_next = 0.0
         heartbeat_interval = 1.0
+        control_next = 0.0
+        control_interval = 0.02
 
         # monitoring connection to manager with heartbeat
         timeout_interval = 5.0
@@ -259,43 +261,47 @@ class ControlsNode(threading.Thread):
                 )
                 heartbeat_next = time.time() + heartbeat_interval
 
-            voltages: Optional[Tuple[float, float, float, float]] = None
-            try:
-                voltages = self.queue.get(block=False)
-            except Empty:
-                pass
+            if time.time() >= control_next:
+                voltages: Optional[Tuple[float, float, float, float]] = None
+                try:
+                    while True:  # get everything from queue
+                        voltages = self.queue.get(block=False)
+                except Empty:
+                    pass
 
-            if voltages is not None:
-                axes = [0x7FFF] * 4  # set each axis to invalid (INT16_MAX)
-                v0, v1, v2, v3 = voltages
+                if voltages is not None:
+                    axes = [0x7FFF] * 4  # set each axis to invalid (INT16_MAX)
+                    v0, v1, v2, v3 = voltages
 
-                # assign axis values based on voltages scaled with parameters
-                for i, (prefix, voltage) in enumerate(zip(['PTCH', 'ROLL', 'THR', 'YAW'], [v2, v1, v0, v3])):
-                    if voltage is None:
-                        continue
+                    # assign axis values based on voltages scaled with parameters
+                    for i, (prefix, voltage) in enumerate(zip(['PTCH', 'ROLL', 'THR', 'YAW'], [v2, v1, v0, v3])):
+                        if voltage is None:
+                            continue
 
-                    v_min = params[f'{prefix}_V_MIN']
-                    v_max = params[f'{prefix}_V_MAX']
-                    value = (voltage - v_min) / (v_max - v_min)  # 0 to 1
-                    value = (value - 0.5) * 2.0  # -1 to 1
+                        v_min = params[f'{prefix}_V_MIN']
+                        v_max = params[f'{prefix}_V_MAX']
+                        value = (voltage - v_min) / (v_max - v_min)  # 0 to 1
+                        value = (value - 0.5) * 2.0  # -1 to 1
 
-                    # scale to the range expected in message
-                    axes[i] = round(1000 * max(-1, min(1, value)))
+                        # scale to the range expected in message
+                        axes[i] = round(1000 * max(-1, min(1, value)))
 
-                # no buttons are used
-                buttons = 0
+                    # no buttons are used
+                    buttons = 0
 
-                mav.manual_control_send(
-                    mav.srcSystem,
-                    axes[0], axes[1], axes[2], axes[3],
-                    buttons,
-                )
+                    mav.manual_control_send(
+                        mav.srcSystem,
+                        axes[0], axes[1], axes[2], axes[3],
+                        buttons,
+                    )
 
-                mav.named_value_float_send(
-                        round((time.time() - start_time) * 1000),
-                        'coll_v\0\0\0\0'.encode(),
-                        v0,  # cf. order in zip() above
-                )
+                    mav.named_value_float_send(
+                            round((time.time() - start_time) * 1000),
+                            'coll_v\0\0\0\0'.encode(),
+                            v0,  # cf. order in zip() above
+                    )
+                
+                control_next = time.time() + control_interval
 
             # handle incoming messages
             try:
