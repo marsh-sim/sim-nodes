@@ -28,6 +28,7 @@ from utils.param_dict import ParamDict
 
 
 PARAM_FILENAME = 'labjack.param'
+LABJACK_SCAN_RATE = 128.0
 
 def main():
     parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
@@ -48,7 +49,7 @@ def main():
     if args_extra_channel is not None:
         extra_queue = Queue()
 
-    ljmr = LJMReader(queue, 1/256.,
+    ljmr = LJMReader(queue, 1/LABJACK_SCAN_RATE,
                      (extra_queue, args_extra_channel) if args_extra_channel is not None else None,
                      aScanListNames=['AIN0', 'AIN4', 'AIN5', 'AIN6'])
     node = ControlsNode(queue, args_manager, args_send_voltage)
@@ -91,7 +92,7 @@ class LJMReader(threading.Thread):
             'LJType': 'T4',
             'LJConnection': 'ETHERNET',
             'aScanListNames': ['AIN0', 'AIN1', 'AIN2', 'AIN3'],
-            'ScanRate': 256  # corresponding to 1000 Hz
+            'ScanRate': LABJACK_SCAN_RATE
         }
         config.update(kwargs)  # override with any kwargs passed
 
