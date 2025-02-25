@@ -290,6 +290,10 @@ class ControlsNode(threading.Thread):
 
                         # scale to the range expected in message
                         axes[i] = round(1000 * max(-1, min(1, value)))
+                        
+                        if prefix == 'THR':
+                            # send collective between 0 and 1000
+                            axes[i] = (axes[i] + 1000) / 2
 
                     # no buttons are used
                     buttons = 0

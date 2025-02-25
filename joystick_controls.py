@@ -133,6 +133,10 @@ while True:
                 # scale to the normalized range
                 axes[i] = round(1000 * max(-1, min(1, value)))
 
+                if prefix == 'THR':
+                    # send collective between 0 and 1000
+                    axes[i] = (axes[i] + 1000) / 2
+
         # set each bit in buttons corresponding to pressed state
         buttons = 0
         for button in range(min(16, device.get_numbuttons())):
