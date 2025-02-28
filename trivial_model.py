@@ -49,11 +49,12 @@ def simulate(_previous_state: mavlink.MAVLink_sim_state_message, controls: Contr
     pitch = MAX_ANGLE * -controls.pitch
     roll = MAX_ANGLE * controls.roll
     yaw = 0.0
+    acc_scale = (controls.thrust - 0.5) * 2  # map collective from 0..1 to -1..1
     q1, q2, q3, q4 = euler_to_quaternion(roll, pitch, yaw)
 
     # for acceleration start with gravity vector and rotate by attitude
     # gravity causes the same effect as accelerating upward, so it's negative Z in NED system
-    acc = [0.0, 0.0, -(MAX_ACCEL * controls.thrust + STD_G)]
+    acc = [0.0, 0.0, -(MAX_ACCEL * acc_scale + STD_G)]
     acc[1] = acc[1] * cos(roll) + acc[2] * sin(roll)
     acc[2] = acc[1] * -sin(roll) + acc[2] * cos(roll)
     acc[0] = acc[0] * cos(pitch) + acc[2] * -sin(pitch)
@@ -91,6 +92,7 @@ def loop(mav: mavlink.MAVLink, args_heartbeat: bool):
     manager_connected = False
 
     # the loop goes as fast as it can, relying on the variables above for timing
+    start_time = time()
     while True:
         if args_heartbeat and time() >= heartbeat_next:
             mav.heartbeat_send(
@@ -101,6 +103,17 @@ def loop(mav: mavlink.MAVLink, args_heartbeat: bool):
                 mavlink.MAV_STATE_ACTIVE
             )
             heartbeat_next = time() + heartbeat_interval
+
+            # since this is constant, no need to send it more often
+            mav.manual_setpoint_send(
+                round((time() - start_time) * 1000),
+                0,  # roll
+                0,  # pitch
+                0,  # yaw
+                0.5,  # collective
+                mavlink.MARSH_MANUAL_SETPOINT_MODE_TRIM,
+                0,  # unused
+            )
 
         if time() >= state_next or last_controls_time > last_state_time:
             # simulate on interval or new controls
