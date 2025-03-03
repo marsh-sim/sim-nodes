@@ -293,7 +293,7 @@ class ControlsNode(threading.Thread):
                         
                         if prefix == 'THR':
                             # send collective between 0 and 1000
-                            axes[i] = (axes[i] + 1000) / 2
+                            axes[i] = round((axes[i] + 1000) / 2)
 
                     # no buttons are used
                     buttons = 0

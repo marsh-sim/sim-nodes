@@ -135,7 +135,7 @@ while True:
 
                 if prefix == 'THR':
                     # send collective between 0 and 1000
-                    axes[i] = (axes[i] + 1000) / 2
+                    axes[i] = round((axes[i] + 1000) / 2)
 
         # set each bit in buttons corresponding to pressed state
         buttons = 0
