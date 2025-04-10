@@ -1,33 +1,37 @@
 #!/usr/bin/env python3
 
-# requires espeak on the system, on Debian derivatives (including Ubuntu, Raspbian):
-# sudo apt install espeak
+"""
+Script for reading out a countdown each second.
+Requires `espeak` command.
+"""
 
-from argparse import ArgumentParser
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from subprocess import Popen
 from time import sleep
 
 before = ["ready", "set", "go"]
-words = ["end", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+words = ["end", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
 
-parser = ArgumentParser()
-parser.add_argument("-c", "--count", type=int, default=5)
+parser = ArgumentParser(description=__doc__, formatter_class=ArgumentDefaultsHelpFormatter)
+parser.add_argument("-c", "--count", type=int, help="seconds to move between states", default=5)
+parser.add_argument("--no-ready", action="store_false", dest="ready", help="say 'ready, set, go' before countdown")
+
 args = parser.parse_args()
 
-if args.count < 1 or args.count > len(words) + 1:
+if args.count < 1 or args.count > len(words):
     parser.error("count out of range")
+time: int = args.count
 
-time = args.count
-for word in before:
-    Popen(["espeak", word])
-    print(word)
-    sleep(1)
-time -= 1
+if args.ready:
+    for word in before:
+        Popen(["espeak", word])
+        print(word)
+        sleep(1)
+    time -= 1
 
 while time >= 0:
-    word = words[time]
-    Popen(["espeak", word])
+    word: str = words[time]
+    Popen(["espeak", word])  # run it independently to not affect the timing
     print(word)
     sleep(1)
     time -= 1
-
