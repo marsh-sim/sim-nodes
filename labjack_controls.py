@@ -164,15 +164,13 @@ class LJMReader(threading.Thread):
             self.i = 0
             self.t0 = time.time()
 
-        except ljm.LJMError:
-            ljme = sys.exc_info()[1]
-            print("LJMReader: LJM ERROR " + ljme, file=sys.stderr)
-            # Close LabJack handle
-            ljm.close(self.LJhandle)
-        except Exception:
-            e = sys.exc_info()[1]
-            print("labjack_stream.py: ERROR {}".format(e))
-            # Close LabJack handle
+        except Exception as e:
+            if isinstance(e, ljm.LJMError):
+                print("LJMReader: LJM ERROR", e, file=sys.stderr)
+            else:
+                print("labjack_stream.py: ERROR {}".format(e))
+                
+            ljm.eStreamStop(self.LJhandle)
             ljm.close(self.LJhandle)
 
     def sleep(self):
@@ -186,6 +184,7 @@ class LJMReader(threading.Thread):
             self.read_and_send()
             self.sleep()
 
+        ljm.eStreamStop(self.LJhandle)
         print("LJMReader: closing the handle")
         ljm.close(self.LJhandle)
 
