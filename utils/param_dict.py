@@ -24,7 +24,7 @@ class ParamDict:
     def __len__(self):
         return self._data.__len__()
 
-    def __getitem__(self, idx: str | int):
+    def __getitem__(self, idx: str | int) -> float:
         if isinstance(idx, str):
             if len(idx) > 16:
                 raise KeyError('param name too long')
@@ -35,6 +35,8 @@ class ParamDict:
             # HACK: is there a nicer way to get items from OrderedDict by order?
             name = list(self._data.keys())[idx]
             return self._data[name]
+        else:
+            raise TypeError('Required parameter name or index')
 
     def __setitem__(self, name: str, value: float):
         if len(name) > 16:

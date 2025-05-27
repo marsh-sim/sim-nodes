@@ -57,7 +57,7 @@ poller.register(subscriber, zmq.POLLIN)
 connection_string = f'udpout:{args_manager}:24400'
 mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
 mav.srcSystem = 1  # default system
-mav.srcComponent = mavlink.MARSH_COMP_ID_EYE_TRACKER
+mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_EYE_TRACKER - mavlink.MARSH_TYPE_MANAGER)
 print(f'Sending to {connection_string}')
 
 
@@ -97,6 +97,7 @@ This buffer keeps the last 10 gaze data messages to add surface data to them bef
 def send_gaze_data(data: GazeData):
     mav.eye_tracking_data_send(
         round((data.timestamp + pupil_time_offset) * 1e6),
+        0,  # default instance
         nan, nan, nan,  # no info about head position
         # direction vector normalized to unit length
         data.direction[0],
@@ -126,7 +127,7 @@ manager_connected = False
 while True:
     if time() >= heartbeat_next:
         mav.heartbeat_send(
-            mavlink.MAV_TYPE_GENERIC,
+            mavlink.MAV_TYPE_EYE_TRACKER,
             mavlink.MAV_AUTOPILOT_INVALID,
             mavlink.MAV_MODE_FLAG_TEST_ENABLED,
             0,
@@ -189,7 +190,8 @@ while True:
         while (message := mav.file.recv_msg()) is not None:
             message: mavlink.MAVLink_message
             if message.get_type() == 'HEARTBEAT':
-                if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                heartbeat: mavlink.MAVLink_heartbeat_message = message
+                if heartbeat.type == mavlink.MARSH_TYPE_MANAGER:
                     if not manager_connected:
                         print('Connected to simulation manager')
                     manager_connected = True

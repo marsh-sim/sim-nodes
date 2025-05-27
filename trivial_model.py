@@ -36,7 +36,7 @@ def main():
     connection_string = f'udpout:{args_manager}:24400'
     mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
     mav.srcSystem = 1  # default system
-    mav.srcComponent = mavlink.MARSH_COMP_ID_FLIGHT_MODEL
+    mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_FLIGHT_MODEL - mavlink.MARSH_TYPE_MANAGER)
     print(f'Sending to {connection_string}')
     loop(mav, args_heartbeat)
 
@@ -96,7 +96,7 @@ def loop(mav: mavlink.MAVLink, args_heartbeat: bool):
     while True:
         if args_heartbeat and time() >= heartbeat_next:
             mav.heartbeat_send(
-                mavlink.MAV_TYPE_GENERIC,
+                mavlink.MARSH_TYPE_FLIGHT_MODEL,
                 mavlink.MAV_AUTOPILOT_INVALID,
                 mavlink.MAV_MODE_FLAG_TEST_ENABLED,
                 0,
@@ -132,7 +132,7 @@ def loop(mav: mavlink.MAVLink, args_heartbeat: bool):
                     # the following line only helps with type hints
                     heartbeat: mavlink.MAVLink_heartbeat_message = message
 
-                    if heartbeat.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                    if heartbeat.type == mavlink.MARSH_TYPE_MANAGER:
                         if not manager_connected:
                             # example of showing text for enum
                             state = mavlink.enums['MAV_STATE'][heartbeat.system_status]

@@ -5,7 +5,6 @@ Node for sending MOTION_CUE_EXTRA message with a generated waveform
 """
 
 from argparse import ArgumentParser
-from collections import OrderedDict
 from collections.abc import Sequence
 import numpy as np
 from pymavlink import mavutil
@@ -28,13 +27,15 @@ When sending each output:
 ''')
 
     output_choices = ['MOTION_CUE_EXTRA', 'MANUAL_SETPOINT']
+    type_choices = [mavlink.MARSH_TYPE_VIBRATION_SOURCE, mavlink.MARSH_TYPE_PILOT_TARGET]
+    component_choices = [mavlink.MAV_COMP_ID_USER1 + (t - mavlink.MARSH_TYPE_MANAGER) for t in type_choices]
 
     parser.add_argument('-m', '--manager',
                         help='MARSH Manager IP addr', default='127.0.0.1')
     parser.add_argument('-o', '--output', choices=output_choices,
                         help='which MAVLink message to send the signal in', default=output_choices[0])
     parser.add_argument('-c', '--component', type=lambda s: check_number(int, s, True),
-                        help='component ID to use', default=[mavlink.MARSH_COMP_ID_VIBRATION_SOURCE, mavlink.MARSH_COMP_ID_PILOT_TARGET])
+                        help='component ID to use', default=component_choices)
     parser.add_argument('-t', '--time-interval', type=lambda s: check_number(float, s),
                         help='how much time between sending messages, in seconds', default=0.01)
     parser.add_argument('-N', '--waveform-number', type=lambda s: check_number(int, s, True),
@@ -70,14 +71,14 @@ When sending each output:
 
     def select_default(arg_value: Sequence[T] | T) -> T:
         if isinstance(arg_value, Sequence):
-            # pyright:ignore[reportUnknownVariableType]
-            return arg_value[output_choices.index(args_output)]
+            return arg_value[output_choices.index(args_output)]  # pyright:ignore[reportUnknownVariableType]
         else:
             return arg_value
 
     args_component: int = select_default(args.component)
     args_time_interval: float = args.time_interval
     args_ramp_time: float = args.ramp_time
+    mav_type: int = type_choices[output_choices.index(args_output)]
 
     N: int = select_default(args.waveform_number)
     F_MIN: float = select_default(args.min_frequency)
@@ -160,7 +161,7 @@ When sending each output:
     while True:
         if time() >= heartbeat_next:
             mav.heartbeat_send(
-                mavlink.MAV_TYPE_GENERIC,
+                mav_type,
                 mavlink.MAV_AUTOPILOT_INVALID,
                 mavlink.MAV_MODE_FLAG_TEST_ENABLED,
                 0,
@@ -200,7 +201,8 @@ When sending each output:
             while (message := mav.file.recv_msg()) is not None:
                 message: mavlink.MAVLink_message
                 if message.get_type() == 'HEARTBEAT':
-                    if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                    heartbeat: mavlink.MAVLink_heartbeat_message = message
+                    if heartbeat.type == mavlink.MARSH_TYPE_MANAGER:
                         if not manager_connected:
                             print('Connected to simulation manager')
                         manager_connected = True

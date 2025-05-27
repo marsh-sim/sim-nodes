@@ -39,7 +39,7 @@ args_interval: float = args.interval
 connection_string = f'udpout:{args_manager}:24400'
 mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
 mav.srcSystem = 1  # default system
-mav.srcComponent = mavlink.MARSH_COMP_ID_GSEAT
+mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_GSEAT - mavlink.MARSH_TYPE_MANAGER)
 print(f'Sending to {connection_string}')
 
 # create parameters database, all parameters are float to simplify code
@@ -93,7 +93,7 @@ with serial.Serial(args_device, 57600, timeout=0.01) as ser:
 
         if time() >= heartbeat_next:
             mav.heartbeat_send(
-                mavlink.MAV_TYPE_GENERIC,
+                mavlink.MARSH_TYPE_GSEAT,
                 mavlink.MAV_AUTOPILOT_INVALID,
                 mavlink.MAV_MODE_FLAG_TEST_ENABLED,
                 0,
@@ -112,7 +112,8 @@ with serial.Serial(args_device, 57600, timeout=0.01) as ser:
                 # pyright couldn't handle this annotation without quoting
                 message: 'mavlink.MAVLink_message'
                 if message.get_type() == 'HEARTBEAT':
-                    if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                    heartbeat: mavlink.MAVLink_heartbeat_message = message
+                    if heartbeat.type == mavlink.MARSH_TYPE_MANAGER:
                         if not manager_connected:
                             print('Connected to simulation manager')
                         manager_connected = True

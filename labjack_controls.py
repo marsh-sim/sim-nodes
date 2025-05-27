@@ -11,7 +11,6 @@ Adapted for RPC platform by Andrea Zanoni
 """
 
 from argparse import ArgumentParser
-from collections import OrderedDict
 from typing import Optional, Tuple
 from labjack import ljm
 from pymavlink import mavutil
@@ -219,7 +218,7 @@ class ControlsNode(threading.Thread):
         connection_string = f'udpout:{self.manager_addr}:24400'
         mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
         mav.srcSystem = 1  # default system
-        mav.srcComponent = mavlink.MARSH_COMP_ID_CONTROLS
+        mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_CONTROLS - mavlink.MARSH_TYPE_MANAGER)
         print(f'Sending to {connection_string}')
 
         # create parameters database, all parameters are float to simplify code
@@ -257,7 +256,7 @@ class ControlsNode(threading.Thread):
         while not self.should_stop.is_set():
             if time.time() >= heartbeat_next:
                 mav.heartbeat_send(
-                    mavlink.MAV_TYPE_GENERIC,
+                    mavlink.MARSH_TYPE_CONTROLS,
                     mavlink.MAV_AUTOPILOT_INVALID,
                     mavlink.MAV_MODE_FLAG_TEST_ENABLED,
                     0,
@@ -317,7 +316,8 @@ class ControlsNode(threading.Thread):
                 while (message := mav.file.recv_msg()) is not None:
                     message: mavlink.MAVLink_message
                     if message.get_type() == 'HEARTBEAT':
-                        if message.get_srcComponent() == mavlink.MARSH_COMP_ID_MANAGER:
+                        heartbeat: mavlink.MAVLink_heartbeat_message = message
+                        if heartbeat.type == mavlink.MARSH_TYPE_MANAGER:
                             if not manager_connected:
                                 print('Connected to simulation manager')
                             manager_connected = True
