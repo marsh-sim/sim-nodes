@@ -325,43 +325,15 @@ class EnumEntry(object):
         self.param: Dict[int, str] = {}
         self.has_location = False
 
+class Enum(Dict[int, EnumEntry]):
+    def __init__(self) -> None:
+        self.bitmask = False
 
-enums: Dict[str, Dict[int, EnumEntry]] = {}
-
-# ACCELCAL_VEHICLE_POS
-enums["ACCELCAL_VEHICLE_POS"] = {}
-ACCELCAL_VEHICLE_POS_LEVEL = 1
-enums["ACCELCAL_VEHICLE_POS"][1] = EnumEntry("ACCELCAL_VEHICLE_POS_LEVEL", """""")
-ACCELCAL_VEHICLE_POS_LEFT = 2
-enums["ACCELCAL_VEHICLE_POS"][2] = EnumEntry("ACCELCAL_VEHICLE_POS_LEFT", """""")
-ACCELCAL_VEHICLE_POS_RIGHT = 3
-enums["ACCELCAL_VEHICLE_POS"][3] = EnumEntry("ACCELCAL_VEHICLE_POS_RIGHT", """""")
-ACCELCAL_VEHICLE_POS_NOSEDOWN = 4
-enums["ACCELCAL_VEHICLE_POS"][4] = EnumEntry("ACCELCAL_VEHICLE_POS_NOSEDOWN", """""")
-ACCELCAL_VEHICLE_POS_NOSEUP = 5
-enums["ACCELCAL_VEHICLE_POS"][5] = EnumEntry("ACCELCAL_VEHICLE_POS_NOSEUP", """""")
-ACCELCAL_VEHICLE_POS_BACK = 6
-enums["ACCELCAL_VEHICLE_POS"][6] = EnumEntry("ACCELCAL_VEHICLE_POS_BACK", """""")
-ACCELCAL_VEHICLE_POS_SUCCESS = 16777215
-enums["ACCELCAL_VEHICLE_POS"][16777215] = EnumEntry("ACCELCAL_VEHICLE_POS_SUCCESS", """""")
-ACCELCAL_VEHICLE_POS_FAILED = 16777216
-enums["ACCELCAL_VEHICLE_POS"][16777216] = EnumEntry("ACCELCAL_VEHICLE_POS_FAILED", """""")
-ACCELCAL_VEHICLE_POS_ENUM_END = 16777217
-enums["ACCELCAL_VEHICLE_POS"][16777217] = EnumEntry("ACCELCAL_VEHICLE_POS_ENUM_END", """""")
-
-# HEADING_TYPE
-enums["HEADING_TYPE"] = {}
-HEADING_TYPE_COURSE_OVER_GROUND = 0
-enums["HEADING_TYPE"][0] = EnumEntry("HEADING_TYPE_COURSE_OVER_GROUND", """""")
-HEADING_TYPE_HEADING = 1
-enums["HEADING_TYPE"][1] = EnumEntry("HEADING_TYPE_HEADING", """""")
-HEADING_TYPE_DEFAULT = 2
-enums["HEADING_TYPE"][2] = EnumEntry("HEADING_TYPE_DEFAULT", """""")
-HEADING_TYPE_ENUM_END = 3
-enums["HEADING_TYPE"][3] = EnumEntry("HEADING_TYPE_ENUM_END", """""")
+enums: Dict[str, Enum] = {}
 
 # MAV_CMD
-enums["MAV_CMD"] = {}
+enums["MAV_CMD"] = Enum()
+enums["MAV_CMD"].bitmask = False
 MAV_CMD_NAV_WAYPOINT = 16
 enums["MAV_CMD"][16] = EnumEntry("MAV_CMD_NAV_WAYPOINT", """Navigate to waypoint. This is intended for use in missions (for guided commands outside of missions use MAV_CMD_DO_REPOSITION).""")
 enums["MAV_CMD"][16].has_location = True
@@ -835,9 +807,15 @@ enums["MAV_CMD"][188].param[7] = """Altitudee. 0: not used."""
 MAV_CMD_DO_LAND_START = 189
 enums["MAV_CMD"][189] = EnumEntry(
     "MAV_CMD_DO_LAND_START",
-    """Mission command to perform a landing. This is used as a marker in a mission to tell the autopilot where a sequence of mission items that represents a landing starts.
-      It may also be sent via a COMMAND_LONG to trigger a landing, in which case the nearest (geographically) landing sequence in the mission will be used.
-      The Latitude/Longitude/Altitude is optional, and may be set to 0 if not needed. If specified then it will be used to help find the closest landing sequence.
+    """Mission item to mark the start of a mission landing pattern, or a command to land with a mission landing pattern.
+
+        When used in a mission, this is a marker for the start of a sequence of mission items that represent a landing pattern.
+        It should be followed by a navigation item that defines the first waypoint of the landing sequence.
+        The start marker positional params are used only for selecting what landing pattern to use if several are defined in the mission (the selected pattern will be the one with the marker position that is closest to the vehicle when a landing is commanded).
+        If the marker item position has zero-values for latitude, longitude, and altitude, then landing pattern selection is instead based on the position of the first waypoint in the landing sequence.
+
+          When sent as a command it triggers a landing using a mission landing pattern.
+          The location parameters are not used in this case, and should be set to 0.
     """,
 )
 enums["MAV_CMD"][189].has_location = True
@@ -845,9 +823,9 @@ enums["MAV_CMD"][189].param[1] = """Empty"""
 enums["MAV_CMD"][189].param[2] = """Empty"""
 enums["MAV_CMD"][189].param[3] = """Empty"""
 enums["MAV_CMD"][189].param[4] = """Empty"""
-enums["MAV_CMD"][189].param[5] = """Latitude"""
-enums["MAV_CMD"][189].param[6] = """Longitude"""
-enums["MAV_CMD"][189].param[7] = """Altitude"""
+enums["MAV_CMD"][189].param[5] = """Latitude for landing sequence selection, or 0 (see description). Ignored in commands (set 0)."""
+enums["MAV_CMD"][189].param[6] = """Longitude for landing sequence selection, or 0 (see description). Ignored in commands (set 0)."""
+enums["MAV_CMD"][189].param[7] = """Altitude for landing sequence selection, or 0 (see description). Ignored in commands (set 0)."""
 MAV_CMD_DO_RALLY_LAND = 190
 enums["MAV_CMD"][190] = EnumEntry("MAV_CMD_DO_RALLY_LAND", """Mission command to perform a landing from a rally point.""")
 enums["MAV_CMD"][190].param[1] = """Break altitude"""
@@ -1007,7 +985,7 @@ enums["MAV_CMD"][207] = EnumEntry(
     """,
 )
 enums["MAV_CMD"][207].param[1] = """enable? (0=disable, 1=enable, 2=disable_floor_only)"""
-enums["MAV_CMD"][207].param[2] = """Fence types to enable or disable as a bitmask. A value of 0 indicates that all fences should be enabled or disabled. This parameter is ignored if param 1 has the value 2"""
+enums["MAV_CMD"][207].param[2] = """Fence types to enable or disable as a bitmask. 0: field is unused/all fences should be enabled or disabled (for compatiblity reasons). Parameter is ignored if param1=2."""
 enums["MAV_CMD"][207].param[3] = """Empty"""
 enums["MAV_CMD"][207].param[4] = """Empty"""
 enums["MAV_CMD"][207].param[5] = """Empty"""
@@ -1052,7 +1030,7 @@ enums["MAV_CMD"][211].param[7] = """Empty"""
 MAV_CMD_DO_AUTOTUNE_ENABLE = 212
 enums["MAV_CMD"][212] = EnumEntry("MAV_CMD_DO_AUTOTUNE_ENABLE", """Enable/disable autotune.""")
 enums["MAV_CMD"][212].param[1] = """Enable (1: enable, 0:disable)."""
-enums["MAV_CMD"][212].param[2] = """Specify which axis are autotuned. 0 indicates autopilot default settings."""
+enums["MAV_CMD"][212].param[2] = """Specify axes for which autotuning is enabled/disabled. 0 indicates the field is unused (for compatiblity reasons). If 0 the autopilot will follow its default behaviour, which is usually to tune all axes."""
 enums["MAV_CMD"][212].param[3] = """Empty."""
 enums["MAV_CMD"][212].param[4] = """Empty."""
 enums["MAV_CMD"][212].param[5] = """Empty."""
@@ -1287,7 +1265,7 @@ enums["MAV_CMD"][300].param[5] = """Reserved (default:0)"""
 enums["MAV_CMD"][300].param[6] = """Reserved (default:0)"""
 enums["MAV_CMD"][300].param[7] = """Reserved (default:0)"""
 MAV_CMD_ACTUATOR_TEST = 310
-enums["MAV_CMD"][310] = EnumEntry("MAV_CMD_ACTUATOR_TEST", """Actuator testing command. This is similar to MAV_CMD_DO_MOTOR_TEST but operates on the level of output functions, i.e. it is possible to test Motor1 independent from which output it is configured on. Autopilots typically refuse this command while armed.""")
+enums["MAV_CMD"][310] = EnumEntry("MAV_CMD_ACTUATOR_TEST", """Actuator testing command. This is similar to MAV_CMD_DO_MOTOR_TEST but operates on the level of output functions, i.e. it is possible to test Motor1 independent from which output it is configured on. Autopilots must NACK this command with MAV_RESULT_TEMPORARILY_REJECTED while armed.""")
 enums["MAV_CMD"][310].param[1] = """Output value: 1 means maximum positive output, 0 to center servos or minimum motor thrust (expected to spin), -1 for maximum negative (if not supported by the motors, i.e. motor is not reversible, smaller than 0 maps to NaN). And NaN maps to disarmed (stop the motors)."""
 enums["MAV_CMD"][310].param[2] = """Timeout after which the test command expires and the output is restored to the previous value. A timeout has to be set for safety reasons. A timeout of 0 means to restore the previous value immediately."""
 enums["MAV_CMD"][310].param[3] = """Reserved (default:0)"""
@@ -1304,6 +1282,19 @@ enums["MAV_CMD"][311].param[4] = """Reserved (default:0)"""
 enums["MAV_CMD"][311].param[5] = """Actuator Output function"""
 enums["MAV_CMD"][311].param[6] = """Reserved (default:0)"""
 enums["MAV_CMD"][311].param[7] = """Reserved (default:0)"""
+MAV_CMD_DUMMY_ALL = 393
+enums["MAV_CMD"][393] = EnumEntry(
+    "MAV_CMD_DUMMY_ALL",
+    """Dummy/temporary MAV_CMD that causes all.xml to correctly import all commands from both ardupilotmega.xml and development.xml (otherwise only one is imported, for the reasons given in https://github.com/ArduPilot/pymavlink/pull/544#discussion_r2069976980).
+          It not be used, and will be removed when the toolchain is fixed.""",
+)
+enums["MAV_CMD"][393].param[1] = """Reserved (default:0)"""
+enums["MAV_CMD"][393].param[2] = """Reserved (default:0)"""
+enums["MAV_CMD"][393].param[3] = """Reserved (default:0)"""
+enums["MAV_CMD"][393].param[4] = """Reserved (default:0)"""
+enums["MAV_CMD"][393].param[5] = """Reserved (default:0)"""
+enums["MAV_CMD"][393].param[6] = """Reserved (default:0)"""
+enums["MAV_CMD"][393].param[7] = """Reserved (default:0)"""
 MAV_CMD_COMPONENT_ARM_DISARM = 400
 enums["MAV_CMD"][400] = EnumEntry("MAV_CMD_COMPONENT_ARM_DISARM", """Arms / Disarms a component""")
 enums["MAV_CMD"][400].param[1] = """0: disarm, 1: arm"""
@@ -1398,10 +1389,10 @@ MAV_CMD_SET_MESSAGE_INTERVAL = 511
 enums["MAV_CMD"][511] = EnumEntry("MAV_CMD_SET_MESSAGE_INTERVAL", """Set the interval between messages for a particular MAVLink message ID. This interface replaces REQUEST_DATA_STREAM.""")
 enums["MAV_CMD"][511].param[1] = """The MAVLink message ID"""
 enums["MAV_CMD"][511].param[2] = """The interval between two messages. -1: disable. 0: request default rate (which may be zero)."""
-enums["MAV_CMD"][511].param[3] = """Use for index ID, if required. Otherwise, the use of this parameter (if any) must be defined in the requested message. By default assumed not used (0)."""
+enums["MAV_CMD"][511].param[3] = """Use for index ID, if required. Otherwise, the use of this parameter (if any) must be defined in the requested message. By default assumed not used (0).  When used as an index ID, 0 means "all instances", "1" means the first instance in the sequence (the emitted message will have an id of 0 if message ids are 0-indexed, or 1 if index numbers start from one)."""
 enums["MAV_CMD"][511].param[4] = """The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0)."""
-enums["MAV_CMD"][511].param[5] = """The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0)."""
-enums["MAV_CMD"][511].param[6] = """The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0)."""
+enums["MAV_CMD"][511].param[5] = """The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0/NaN)."""
+enums["MAV_CMD"][511].param[6] = """The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0/NaN)."""
 enums["MAV_CMD"][511].param[7] = """Target address of message stream (if message has target address fields). 0: Flight-stack default (recommended), 1: address of requestor, 2: broadcast."""
 MAV_CMD_REQUEST_MESSAGE = 512
 enums["MAV_CMD"][512] = EnumEntry("MAV_CMD_REQUEST_MESSAGE", """Request the target system(s) emit a single instance of a specified message (i.e. a "one-shot" version of MAV_CMD_SET_MESSAGE_INTERVAL).""")
@@ -1592,6 +1583,24 @@ enums["MAV_CMD"][610].param[4] = """Reserved (default:NaN)"""
 enums["MAV_CMD"][610].param[5] = """Reserved (default:0)"""
 enums["MAV_CMD"][610].param[6] = """Reserved (default:0)"""
 enums["MAV_CMD"][610].param[7] = """Reserved (default:0)"""
+MAV_CMD_DO_SET_GLOBAL_ORIGIN = 611
+enums["MAV_CMD"][611] = EnumEntry(
+    "MAV_CMD_DO_SET_GLOBAL_ORIGIN",
+    """Sets the GNSS coordinates of the vehicle local origin (0,0,0) position.
+          Vehicle should emit GPS_GLOBAL_ORIGIN irrespective of whether the origin is changed.
+          This enables transform between the local coordinate frame and the global (GNSS) coordinate frame, which may be necessary when (for example) indoor and outdoor settings are connected and the MAV should move from in- to outdoor.
+          This command supersedes SET_GPS_GLOBAL_ORIGIN.
+          Should be sent in a COMMAND_INT (Expected frame is MAV_FRAME_GLOBAL, and this should be assumed when sent in COMMAND_LONG).
+        """,
+)
+enums["MAV_CMD"][611].has_location = True
+enums["MAV_CMD"][611].param[1] = """Empty"""
+enums["MAV_CMD"][611].param[2] = """Empty"""
+enums["MAV_CMD"][611].param[3] = """Empty"""
+enums["MAV_CMD"][611].param[4] = """Empty"""
+enums["MAV_CMD"][611].param[5] = """Latitude"""
+enums["MAV_CMD"][611].param[6] = """Longitude"""
+enums["MAV_CMD"][611].param[7] = """Altitude"""
 MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW = 1000
 enums["MAV_CMD"][1000] = EnumEntry("MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW", """Set gimbal manager pitch/yaw setpoints (low rate command). It is possible to set combinations of the values below. E.g. an angle as well as a desired angular rate can be used to get to this angle at a certain angular rate, or an angular rate only will result in continuous turning. NaN is to be used to signal unset. Note: only the gimbal manager will react to this command - it will be ignored by a gimbal device. Use GIMBAL_MANAGER_SET_PITCHYAW if you need to stream pitch/yaw setpoints at higher rate. """)
 enums["MAV_CMD"][1000].param[1] = """Pitch angle (positive to pitch up, relative to vehicle for FOLLOW mode, relative to world horizon for LOCK mode)."""
@@ -1879,10 +1888,11 @@ MAV_CMD_NAV_FENCE_POLYGON_VERTEX_INCLUSION = 5001
 enums["MAV_CMD"][5001] = EnumEntry(
     "MAV_CMD_NAV_FENCE_POLYGON_VERTEX_INCLUSION",
     """Fence vertex for an inclusion polygon (the polygon must not be self-intersecting). The vehicle must stay within this area. Minimum of 3 vertices required.
+          The vertices for a polygon must be sent sequentially, each with param1 set to the total number of vertices in the polygon.
         """,
 )
 enums["MAV_CMD"][5001].has_location = True
-enums["MAV_CMD"][5001].param[1] = """Polygon vertex count"""
+enums["MAV_CMD"][5001].param[1] = """Polygon vertex count. This is the number of vertices in the current polygon (all vertices will have the same number)."""
 enums["MAV_CMD"][5001].param[2] = """Vehicle must be inside ALL inclusion zones in a single group, vehicle must be inside at least one group, must be the same for all points in each polygon"""
 enums["MAV_CMD"][5001].param[3] = """Reserved"""
 enums["MAV_CMD"][5001].param[4] = """Reserved"""
@@ -1893,10 +1903,11 @@ MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION = 5002
 enums["MAV_CMD"][5002] = EnumEntry(
     "MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION",
     """Fence vertex for an exclusion polygon (the polygon must not be self-intersecting). The vehicle must stay outside this area. Minimum of 3 vertices required.
+          The vertices for a polygon must be sent sequentially, each with param1 set to the total number of vertices in the polygon.                
         """,
 )
 enums["MAV_CMD"][5002].has_location = True
-enums["MAV_CMD"][5002].param[1] = """Polygon vertex count"""
+enums["MAV_CMD"][5002].param[1] = """Polygon vertex count. This is the number of vertices in the current polygon (all vertices will have the same number)."""
 enums["MAV_CMD"][5002].param[2] = """Reserved"""
 enums["MAV_CMD"][5002].param[3] = """Reserved"""
 enums["MAV_CMD"][5002].param[4] = """Reserved"""
@@ -2611,8 +2622,43 @@ enums["MAV_CMD"][60072].param[7] = """User defined"""
 MAV_CMD_ENUM_END = 60073
 enums["MAV_CMD"][60073] = EnumEntry("MAV_CMD_ENUM_END", """""")
 
+# ACCELCAL_VEHICLE_POS
+enums["ACCELCAL_VEHICLE_POS"] = Enum()
+enums["ACCELCAL_VEHICLE_POS"].bitmask = False
+ACCELCAL_VEHICLE_POS_LEVEL = 1
+enums["ACCELCAL_VEHICLE_POS"][1] = EnumEntry("ACCELCAL_VEHICLE_POS_LEVEL", """""")
+ACCELCAL_VEHICLE_POS_LEFT = 2
+enums["ACCELCAL_VEHICLE_POS"][2] = EnumEntry("ACCELCAL_VEHICLE_POS_LEFT", """""")
+ACCELCAL_VEHICLE_POS_RIGHT = 3
+enums["ACCELCAL_VEHICLE_POS"][3] = EnumEntry("ACCELCAL_VEHICLE_POS_RIGHT", """""")
+ACCELCAL_VEHICLE_POS_NOSEDOWN = 4
+enums["ACCELCAL_VEHICLE_POS"][4] = EnumEntry("ACCELCAL_VEHICLE_POS_NOSEDOWN", """""")
+ACCELCAL_VEHICLE_POS_NOSEUP = 5
+enums["ACCELCAL_VEHICLE_POS"][5] = EnumEntry("ACCELCAL_VEHICLE_POS_NOSEUP", """""")
+ACCELCAL_VEHICLE_POS_BACK = 6
+enums["ACCELCAL_VEHICLE_POS"][6] = EnumEntry("ACCELCAL_VEHICLE_POS_BACK", """""")
+ACCELCAL_VEHICLE_POS_SUCCESS = 16777215
+enums["ACCELCAL_VEHICLE_POS"][16777215] = EnumEntry("ACCELCAL_VEHICLE_POS_SUCCESS", """""")
+ACCELCAL_VEHICLE_POS_FAILED = 16777216
+enums["ACCELCAL_VEHICLE_POS"][16777216] = EnumEntry("ACCELCAL_VEHICLE_POS_FAILED", """""")
+ACCELCAL_VEHICLE_POS_ENUM_END = 16777217
+enums["ACCELCAL_VEHICLE_POS"][16777217] = EnumEntry("ACCELCAL_VEHICLE_POS_ENUM_END", """""")
+
+# HEADING_TYPE
+enums["HEADING_TYPE"] = Enum()
+enums["HEADING_TYPE"].bitmask = False
+HEADING_TYPE_COURSE_OVER_GROUND = 0
+enums["HEADING_TYPE"][0] = EnumEntry("HEADING_TYPE_COURSE_OVER_GROUND", """""")
+HEADING_TYPE_HEADING = 1
+enums["HEADING_TYPE"][1] = EnumEntry("HEADING_TYPE_HEADING", """""")
+HEADING_TYPE_DEFAULT = 2
+enums["HEADING_TYPE"][2] = EnumEntry("HEADING_TYPE_DEFAULT", """""")
+HEADING_TYPE_ENUM_END = 3
+enums["HEADING_TYPE"][3] = EnumEntry("HEADING_TYPE_ENUM_END", """""")
+
 # SCRIPTING_CMD
-enums["SCRIPTING_CMD"] = {}
+enums["SCRIPTING_CMD"] = Enum()
+enums["SCRIPTING_CMD"].bitmask = False
 SCRIPTING_CMD_REPL_START = 0
 enums["SCRIPTING_CMD"][0] = EnumEntry("SCRIPTING_CMD_REPL_START", """Start a REPL session.""")
 SCRIPTING_CMD_REPL_STOP = 1
@@ -2625,7 +2671,8 @@ SCRIPTING_CMD_ENUM_END = 4
 enums["SCRIPTING_CMD"][4] = EnumEntry("SCRIPTING_CMD_ENUM_END", """""")
 
 # SECURE_COMMAND_OP
-enums["SECURE_COMMAND_OP"] = {}
+enums["SECURE_COMMAND_OP"] = Enum()
+enums["SECURE_COMMAND_OP"].bitmask = False
 SECURE_COMMAND_GET_SESSION_KEY = 0
 enums["SECURE_COMMAND_OP"][0] = EnumEntry("SECURE_COMMAND_GET_SESSION_KEY", """Get an 8 byte session key which is used for remote secure updates which operate on flight controller data such as bootloader public keys. Return data will be 8 bytes on success. The session key remains valid until either the flight controller reboots or another SECURE_COMMAND_GET_SESSION_KEY is run.""")
 SECURE_COMMAND_GET_REMOTEID_SESSION_KEY = 1
@@ -2646,7 +2693,8 @@ SECURE_COMMAND_OP_ENUM_END = 8
 enums["SECURE_COMMAND_OP"][8] = EnumEntry("SECURE_COMMAND_OP_ENUM_END", """""")
 
 # LIMITS_STATE
-enums["LIMITS_STATE"] = {}
+enums["LIMITS_STATE"] = Enum()
+enums["LIMITS_STATE"].bitmask = False
 LIMITS_INIT = 0
 enums["LIMITS_STATE"][0] = EnumEntry("LIMITS_INIT", """Pre-initialization.""")
 LIMITS_DISABLED = 1
@@ -2663,7 +2711,8 @@ LIMITS_STATE_ENUM_END = 6
 enums["LIMITS_STATE"][6] = EnumEntry("LIMITS_STATE_ENUM_END", """""")
 
 # LIMIT_MODULE
-enums["LIMIT_MODULE"] = {}
+enums["LIMIT_MODULE"] = Enum()
+enums["LIMIT_MODULE"].bitmask = True
 LIMIT_GPSLOCK = 1
 enums["LIMIT_MODULE"][1] = EnumEntry("LIMIT_GPSLOCK", """Pre-initialization.""")
 LIMIT_GEOFENCE = 2
@@ -2674,7 +2723,8 @@ LIMIT_MODULE_ENUM_END = 5
 enums["LIMIT_MODULE"][5] = EnumEntry("LIMIT_MODULE_ENUM_END", """""")
 
 # RALLY_FLAGS
-enums["RALLY_FLAGS"] = {}
+enums["RALLY_FLAGS"] = Enum()
+enums["RALLY_FLAGS"].bitmask = False
 FAVORABLE_WIND = 1
 enums["RALLY_FLAGS"][1] = EnumEntry("FAVORABLE_WIND", """Flag set when requiring favorable winds for landing.""")
 LAND_IMMEDIATELY = 2
@@ -2687,7 +2737,8 @@ RALLY_FLAGS_ENUM_END = 25
 enums["RALLY_FLAGS"][25] = EnumEntry("RALLY_FLAGS_ENUM_END", """""")
 
 # CAMERA_STATUS_TYPES
-enums["CAMERA_STATUS_TYPES"] = {}
+enums["CAMERA_STATUS_TYPES"] = Enum()
+enums["CAMERA_STATUS_TYPES"].bitmask = False
 CAMERA_STATUS_TYPE_HEARTBEAT = 0
 enums["CAMERA_STATUS_TYPES"][0] = EnumEntry("CAMERA_STATUS_TYPE_HEARTBEAT", """Camera heartbeat, announce camera component ID at 1Hz.""")
 CAMERA_STATUS_TYPE_TRIGGER = 1
@@ -2706,7 +2757,8 @@ CAMERA_STATUS_TYPES_ENUM_END = 7
 enums["CAMERA_STATUS_TYPES"][7] = EnumEntry("CAMERA_STATUS_TYPES_ENUM_END", """""")
 
 # CAMERA_FEEDBACK_FLAGS
-enums["CAMERA_FEEDBACK_FLAGS"] = {}
+enums["CAMERA_FEEDBACK_FLAGS"] = Enum()
+enums["CAMERA_FEEDBACK_FLAGS"].bitmask = False
 CAMERA_FEEDBACK_PHOTO = 0
 enums["CAMERA_FEEDBACK_FLAGS"][0] = EnumEntry("CAMERA_FEEDBACK_PHOTO", """Shooting photos, not video.""")
 CAMERA_FEEDBACK_VIDEO = 1
@@ -2721,7 +2773,8 @@ CAMERA_FEEDBACK_FLAGS_ENUM_END = 5
 enums["CAMERA_FEEDBACK_FLAGS"][5] = EnumEntry("CAMERA_FEEDBACK_FLAGS_ENUM_END", """""")
 
 # MAV_MODE_GIMBAL
-enums["MAV_MODE_GIMBAL"] = {}
+enums["MAV_MODE_GIMBAL"] = Enum()
+enums["MAV_MODE_GIMBAL"].bitmask = False
 MAV_MODE_GIMBAL_UNINITIALIZED = 0
 enums["MAV_MODE_GIMBAL"][0] = EnumEntry("MAV_MODE_GIMBAL_UNINITIALIZED", """Gimbal is powered on but has not started initializing yet.""")
 MAV_MODE_GIMBAL_CALIBRATING_PITCH = 1
@@ -2740,7 +2793,8 @@ MAV_MODE_GIMBAL_ENUM_END = 7
 enums["MAV_MODE_GIMBAL"][7] = EnumEntry("MAV_MODE_GIMBAL_ENUM_END", """""")
 
 # GIMBAL_AXIS
-enums["GIMBAL_AXIS"] = {}
+enums["GIMBAL_AXIS"] = Enum()
+enums["GIMBAL_AXIS"].bitmask = False
 GIMBAL_AXIS_YAW = 0
 enums["GIMBAL_AXIS"][0] = EnumEntry("GIMBAL_AXIS_YAW", """Gimbal yaw axis.""")
 GIMBAL_AXIS_PITCH = 1
@@ -2751,7 +2805,8 @@ GIMBAL_AXIS_ENUM_END = 3
 enums["GIMBAL_AXIS"][3] = EnumEntry("GIMBAL_AXIS_ENUM_END", """""")
 
 # GIMBAL_AXIS_CALIBRATION_STATUS
-enums["GIMBAL_AXIS_CALIBRATION_STATUS"] = {}
+enums["GIMBAL_AXIS_CALIBRATION_STATUS"] = Enum()
+enums["GIMBAL_AXIS_CALIBRATION_STATUS"].bitmask = False
 GIMBAL_AXIS_CALIBRATION_STATUS_IN_PROGRESS = 0
 enums["GIMBAL_AXIS_CALIBRATION_STATUS"][0] = EnumEntry("GIMBAL_AXIS_CALIBRATION_STATUS_IN_PROGRESS", """Axis calibration is in progress.""")
 GIMBAL_AXIS_CALIBRATION_STATUS_SUCCEEDED = 1
@@ -2762,7 +2817,8 @@ GIMBAL_AXIS_CALIBRATION_STATUS_ENUM_END = 3
 enums["GIMBAL_AXIS_CALIBRATION_STATUS"][3] = EnumEntry("GIMBAL_AXIS_CALIBRATION_STATUS_ENUM_END", """""")
 
 # GIMBAL_AXIS_CALIBRATION_REQUIRED
-enums["GIMBAL_AXIS_CALIBRATION_REQUIRED"] = {}
+enums["GIMBAL_AXIS_CALIBRATION_REQUIRED"] = Enum()
+enums["GIMBAL_AXIS_CALIBRATION_REQUIRED"].bitmask = False
 GIMBAL_AXIS_CALIBRATION_REQUIRED_UNKNOWN = 0
 enums["GIMBAL_AXIS_CALIBRATION_REQUIRED"][0] = EnumEntry("GIMBAL_AXIS_CALIBRATION_REQUIRED_UNKNOWN", """Whether or not this axis requires calibration is unknown at this time.""")
 GIMBAL_AXIS_CALIBRATION_REQUIRED_TRUE = 1
@@ -2773,7 +2829,8 @@ GIMBAL_AXIS_CALIBRATION_REQUIRED_ENUM_END = 3
 enums["GIMBAL_AXIS_CALIBRATION_REQUIRED"][3] = EnumEntry("GIMBAL_AXIS_CALIBRATION_REQUIRED_ENUM_END", """""")
 
 # GOPRO_HEARTBEAT_STATUS
-enums["GOPRO_HEARTBEAT_STATUS"] = {}
+enums["GOPRO_HEARTBEAT_STATUS"] = Enum()
+enums["GOPRO_HEARTBEAT_STATUS"].bitmask = False
 GOPRO_HEARTBEAT_STATUS_DISCONNECTED = 0
 enums["GOPRO_HEARTBEAT_STATUS"][0] = EnumEntry("GOPRO_HEARTBEAT_STATUS_DISCONNECTED", """No GoPro connected.""")
 GOPRO_HEARTBEAT_STATUS_INCOMPATIBLE = 1
@@ -2786,14 +2843,16 @@ GOPRO_HEARTBEAT_STATUS_ENUM_END = 4
 enums["GOPRO_HEARTBEAT_STATUS"][4] = EnumEntry("GOPRO_HEARTBEAT_STATUS_ENUM_END", """""")
 
 # GOPRO_HEARTBEAT_FLAGS
-enums["GOPRO_HEARTBEAT_FLAGS"] = {}
+enums["GOPRO_HEARTBEAT_FLAGS"] = Enum()
+enums["GOPRO_HEARTBEAT_FLAGS"].bitmask = True
 GOPRO_FLAG_RECORDING = 1
 enums["GOPRO_HEARTBEAT_FLAGS"][1] = EnumEntry("GOPRO_FLAG_RECORDING", """GoPro is currently recording.""")
 GOPRO_HEARTBEAT_FLAGS_ENUM_END = 2
 enums["GOPRO_HEARTBEAT_FLAGS"][2] = EnumEntry("GOPRO_HEARTBEAT_FLAGS_ENUM_END", """""")
 
 # GOPRO_REQUEST_STATUS
-enums["GOPRO_REQUEST_STATUS"] = {}
+enums["GOPRO_REQUEST_STATUS"] = Enum()
+enums["GOPRO_REQUEST_STATUS"].bitmask = False
 GOPRO_REQUEST_SUCCESS = 0
 enums["GOPRO_REQUEST_STATUS"][0] = EnumEntry("GOPRO_REQUEST_SUCCESS", """The write message with ID indicated succeeded.""")
 GOPRO_REQUEST_FAILED = 1
@@ -2802,7 +2861,8 @@ GOPRO_REQUEST_STATUS_ENUM_END = 2
 enums["GOPRO_REQUEST_STATUS"][2] = EnumEntry("GOPRO_REQUEST_STATUS_ENUM_END", """""")
 
 # GOPRO_COMMAND
-enums["GOPRO_COMMAND"] = {}
+enums["GOPRO_COMMAND"] = Enum()
+enums["GOPRO_COMMAND"].bitmask = False
 GOPRO_COMMAND_POWER = 0
 enums["GOPRO_COMMAND"][0] = EnumEntry("GOPRO_COMMAND_POWER", """(Get/Set).""")
 GOPRO_COMMAND_CAPTURE_MODE = 1
@@ -2841,7 +2901,8 @@ GOPRO_COMMAND_ENUM_END = 17
 enums["GOPRO_COMMAND"][17] = EnumEntry("GOPRO_COMMAND_ENUM_END", """""")
 
 # GOPRO_CAPTURE_MODE
-enums["GOPRO_CAPTURE_MODE"] = {}
+enums["GOPRO_CAPTURE_MODE"] = Enum()
+enums["GOPRO_CAPTURE_MODE"].bitmask = False
 GOPRO_CAPTURE_MODE_VIDEO = 0
 enums["GOPRO_CAPTURE_MODE"][0] = EnumEntry("GOPRO_CAPTURE_MODE_VIDEO", """Video mode.""")
 GOPRO_CAPTURE_MODE_PHOTO = 1
@@ -2862,7 +2923,8 @@ GOPRO_CAPTURE_MODE_ENUM_END = 256
 enums["GOPRO_CAPTURE_MODE"][256] = EnumEntry("GOPRO_CAPTURE_MODE_ENUM_END", """""")
 
 # GOPRO_RESOLUTION
-enums["GOPRO_RESOLUTION"] = {}
+enums["GOPRO_RESOLUTION"] = Enum()
+enums["GOPRO_RESOLUTION"].bitmask = False
 GOPRO_RESOLUTION_480p = 0
 enums["GOPRO_RESOLUTION"][0] = EnumEntry("GOPRO_RESOLUTION_480p", """848 x 480 (480p).""")
 GOPRO_RESOLUTION_720p = 1
@@ -2895,7 +2957,8 @@ GOPRO_RESOLUTION_ENUM_END = 14
 enums["GOPRO_RESOLUTION"][14] = EnumEntry("GOPRO_RESOLUTION_ENUM_END", """""")
 
 # GOPRO_FRAME_RATE
-enums["GOPRO_FRAME_RATE"] = {}
+enums["GOPRO_FRAME_RATE"] = Enum()
+enums["GOPRO_FRAME_RATE"].bitmask = False
 GOPRO_FRAME_RATE_12 = 0
 enums["GOPRO_FRAME_RATE"][0] = EnumEntry("GOPRO_FRAME_RATE_12", """12 FPS.""")
 GOPRO_FRAME_RATE_15 = 1
@@ -2928,7 +2991,8 @@ GOPRO_FRAME_RATE_ENUM_END = 14
 enums["GOPRO_FRAME_RATE"][14] = EnumEntry("GOPRO_FRAME_RATE_ENUM_END", """""")
 
 # GOPRO_FIELD_OF_VIEW
-enums["GOPRO_FIELD_OF_VIEW"] = {}
+enums["GOPRO_FIELD_OF_VIEW"] = Enum()
+enums["GOPRO_FIELD_OF_VIEW"].bitmask = False
 GOPRO_FIELD_OF_VIEW_WIDE = 0
 enums["GOPRO_FIELD_OF_VIEW"][0] = EnumEntry("GOPRO_FIELD_OF_VIEW_WIDE", """0x00: Wide.""")
 GOPRO_FIELD_OF_VIEW_MEDIUM = 1
@@ -2939,14 +3003,16 @@ GOPRO_FIELD_OF_VIEW_ENUM_END = 3
 enums["GOPRO_FIELD_OF_VIEW"][3] = EnumEntry("GOPRO_FIELD_OF_VIEW_ENUM_END", """""")
 
 # GOPRO_VIDEO_SETTINGS_FLAGS
-enums["GOPRO_VIDEO_SETTINGS_FLAGS"] = {}
+enums["GOPRO_VIDEO_SETTINGS_FLAGS"] = Enum()
+enums["GOPRO_VIDEO_SETTINGS_FLAGS"].bitmask = True
 GOPRO_VIDEO_SETTINGS_TV_MODE = 1
 enums["GOPRO_VIDEO_SETTINGS_FLAGS"][1] = EnumEntry("GOPRO_VIDEO_SETTINGS_TV_MODE", """0=NTSC, 1=PAL.""")
 GOPRO_VIDEO_SETTINGS_FLAGS_ENUM_END = 2
 enums["GOPRO_VIDEO_SETTINGS_FLAGS"][2] = EnumEntry("GOPRO_VIDEO_SETTINGS_FLAGS_ENUM_END", """""")
 
 # GOPRO_PHOTO_RESOLUTION
-enums["GOPRO_PHOTO_RESOLUTION"] = {}
+enums["GOPRO_PHOTO_RESOLUTION"] = Enum()
+enums["GOPRO_PHOTO_RESOLUTION"].bitmask = False
 GOPRO_PHOTO_RESOLUTION_5MP_MEDIUM = 0
 enums["GOPRO_PHOTO_RESOLUTION"][0] = EnumEntry("GOPRO_PHOTO_RESOLUTION_5MP_MEDIUM", """5MP Medium.""")
 GOPRO_PHOTO_RESOLUTION_7MP_MEDIUM = 1
@@ -2961,7 +3027,8 @@ GOPRO_PHOTO_RESOLUTION_ENUM_END = 5
 enums["GOPRO_PHOTO_RESOLUTION"][5] = EnumEntry("GOPRO_PHOTO_RESOLUTION_ENUM_END", """""")
 
 # GOPRO_PROTUNE_WHITE_BALANCE
-enums["GOPRO_PROTUNE_WHITE_BALANCE"] = {}
+enums["GOPRO_PROTUNE_WHITE_BALANCE"] = Enum()
+enums["GOPRO_PROTUNE_WHITE_BALANCE"].bitmask = False
 GOPRO_PROTUNE_WHITE_BALANCE_AUTO = 0
 enums["GOPRO_PROTUNE_WHITE_BALANCE"][0] = EnumEntry("GOPRO_PROTUNE_WHITE_BALANCE_AUTO", """Auto.""")
 GOPRO_PROTUNE_WHITE_BALANCE_3000K = 1
@@ -2976,7 +3043,8 @@ GOPRO_PROTUNE_WHITE_BALANCE_ENUM_END = 5
 enums["GOPRO_PROTUNE_WHITE_BALANCE"][5] = EnumEntry("GOPRO_PROTUNE_WHITE_BALANCE_ENUM_END", """""")
 
 # GOPRO_PROTUNE_COLOUR
-enums["GOPRO_PROTUNE_COLOUR"] = {}
+enums["GOPRO_PROTUNE_COLOUR"] = Enum()
+enums["GOPRO_PROTUNE_COLOUR"].bitmask = False
 GOPRO_PROTUNE_COLOUR_STANDARD = 0
 enums["GOPRO_PROTUNE_COLOUR"][0] = EnumEntry("GOPRO_PROTUNE_COLOUR_STANDARD", """Auto.""")
 GOPRO_PROTUNE_COLOUR_NEUTRAL = 1
@@ -2985,7 +3053,8 @@ GOPRO_PROTUNE_COLOUR_ENUM_END = 2
 enums["GOPRO_PROTUNE_COLOUR"][2] = EnumEntry("GOPRO_PROTUNE_COLOUR_ENUM_END", """""")
 
 # GOPRO_PROTUNE_GAIN
-enums["GOPRO_PROTUNE_GAIN"] = {}
+enums["GOPRO_PROTUNE_GAIN"] = Enum()
+enums["GOPRO_PROTUNE_GAIN"].bitmask = False
 GOPRO_PROTUNE_GAIN_400 = 0
 enums["GOPRO_PROTUNE_GAIN"][0] = EnumEntry("GOPRO_PROTUNE_GAIN_400", """ISO 400.""")
 GOPRO_PROTUNE_GAIN_800 = 1
@@ -3000,7 +3069,8 @@ GOPRO_PROTUNE_GAIN_ENUM_END = 5
 enums["GOPRO_PROTUNE_GAIN"][5] = EnumEntry("GOPRO_PROTUNE_GAIN_ENUM_END", """""")
 
 # GOPRO_PROTUNE_SHARPNESS
-enums["GOPRO_PROTUNE_SHARPNESS"] = {}
+enums["GOPRO_PROTUNE_SHARPNESS"] = Enum()
+enums["GOPRO_PROTUNE_SHARPNESS"].bitmask = False
 GOPRO_PROTUNE_SHARPNESS_LOW = 0
 enums["GOPRO_PROTUNE_SHARPNESS"][0] = EnumEntry("GOPRO_PROTUNE_SHARPNESS_LOW", """Low Sharpness.""")
 GOPRO_PROTUNE_SHARPNESS_MEDIUM = 1
@@ -3011,7 +3081,8 @@ GOPRO_PROTUNE_SHARPNESS_ENUM_END = 3
 enums["GOPRO_PROTUNE_SHARPNESS"][3] = EnumEntry("GOPRO_PROTUNE_SHARPNESS_ENUM_END", """""")
 
 # GOPRO_PROTUNE_EXPOSURE
-enums["GOPRO_PROTUNE_EXPOSURE"] = {}
+enums["GOPRO_PROTUNE_EXPOSURE"] = Enum()
+enums["GOPRO_PROTUNE_EXPOSURE"].bitmask = False
 GOPRO_PROTUNE_EXPOSURE_NEG_5_0 = 0
 enums["GOPRO_PROTUNE_EXPOSURE"][0] = EnumEntry("GOPRO_PROTUNE_EXPOSURE_NEG_5_0", """-5.0 EV (Hero 3+ Only).""")
 GOPRO_PROTUNE_EXPOSURE_NEG_4_5 = 1
@@ -3058,7 +3129,8 @@ GOPRO_PROTUNE_EXPOSURE_ENUM_END = 21
 enums["GOPRO_PROTUNE_EXPOSURE"][21] = EnumEntry("GOPRO_PROTUNE_EXPOSURE_ENUM_END", """""")
 
 # GOPRO_CHARGING
-enums["GOPRO_CHARGING"] = {}
+enums["GOPRO_CHARGING"] = Enum()
+enums["GOPRO_CHARGING"].bitmask = False
 GOPRO_CHARGING_DISABLED = 0
 enums["GOPRO_CHARGING"][0] = EnumEntry("GOPRO_CHARGING_DISABLED", """Charging disabled.""")
 GOPRO_CHARGING_ENABLED = 1
@@ -3067,7 +3139,8 @@ GOPRO_CHARGING_ENUM_END = 2
 enums["GOPRO_CHARGING"][2] = EnumEntry("GOPRO_CHARGING_ENUM_END", """""")
 
 # GOPRO_MODEL
-enums["GOPRO_MODEL"] = {}
+enums["GOPRO_MODEL"] = Enum()
+enums["GOPRO_MODEL"].bitmask = False
 GOPRO_MODEL_UNKNOWN = 0
 enums["GOPRO_MODEL"][0] = EnumEntry("GOPRO_MODEL_UNKNOWN", """Unknown gopro model.""")
 GOPRO_MODEL_HERO_3_PLUS_SILVER = 1
@@ -3082,7 +3155,8 @@ GOPRO_MODEL_ENUM_END = 5
 enums["GOPRO_MODEL"][5] = EnumEntry("GOPRO_MODEL_ENUM_END", """""")
 
 # GOPRO_BURST_RATE
-enums["GOPRO_BURST_RATE"] = {}
+enums["GOPRO_BURST_RATE"] = Enum()
+enums["GOPRO_BURST_RATE"].bitmask = False
 GOPRO_BURST_RATE_3_IN_1_SECOND = 0
 enums["GOPRO_BURST_RATE"][0] = EnumEntry("GOPRO_BURST_RATE_3_IN_1_SECOND", """3 Shots / 1 Second.""")
 GOPRO_BURST_RATE_5_IN_1_SECOND = 1
@@ -3105,7 +3179,8 @@ GOPRO_BURST_RATE_ENUM_END = 9
 enums["GOPRO_BURST_RATE"][9] = EnumEntry("GOPRO_BURST_RATE_ENUM_END", """""")
 
 # MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL
-enums["MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL"] = {}
+enums["MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL"] = Enum()
+enums["MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL"].bitmask = False
 MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL_LOW = 0
 enums["MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL"][0] = EnumEntry("MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL_LOW", """Switch Low.""")
 enums["MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL"][0].param[1] = """Reserved (default:0)"""
@@ -3137,7 +3212,8 @@ MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL_ENUM_END = 3
 enums["MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL"][3] = EnumEntry("MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL_ENUM_END", """""")
 
 # LED_CONTROL_PATTERN
-enums["LED_CONTROL_PATTERN"] = {}
+enums["LED_CONTROL_PATTERN"] = Enum()
+enums["LED_CONTROL_PATTERN"].bitmask = False
 LED_CONTROL_PATTERN_OFF = 0
 enums["LED_CONTROL_PATTERN"][0] = EnumEntry("LED_CONTROL_PATTERN_OFF", """LED patterns off (return control to regular vehicle control).""")
 LED_CONTROL_PATTERN_FIRMWAREUPDATE = 1
@@ -3148,7 +3224,8 @@ LED_CONTROL_PATTERN_ENUM_END = 256
 enums["LED_CONTROL_PATTERN"][256] = EnumEntry("LED_CONTROL_PATTERN_ENUM_END", """""")
 
 # EKF_STATUS_FLAGS
-enums["EKF_STATUS_FLAGS"] = {}
+enums["EKF_STATUS_FLAGS"] = Enum()
+enums["EKF_STATUS_FLAGS"].bitmask = True
 EKF_ATTITUDE = 1
 enums["EKF_STATUS_FLAGS"][1] = EnumEntry("EKF_ATTITUDE", """Set if EKF's attitude estimate is good.""")
 EKF_VELOCITY_HORIZ = 2
@@ -3177,7 +3254,8 @@ EKF_STATUS_FLAGS_ENUM_END = 32769
 enums["EKF_STATUS_FLAGS"][32769] = EnumEntry("EKF_STATUS_FLAGS_ENUM_END", """""")
 
 # PID_TUNING_AXIS
-enums["PID_TUNING_AXIS"] = {}
+enums["PID_TUNING_AXIS"] = Enum()
+enums["PID_TUNING_AXIS"].bitmask = False
 PID_TUNING_ROLL = 1
 enums["PID_TUNING_AXIS"][1] = EnumEntry("PID_TUNING_ROLL", """""")
 PID_TUNING_PITCH = 2
@@ -3194,7 +3272,8 @@ PID_TUNING_AXIS_ENUM_END = 7
 enums["PID_TUNING_AXIS"][7] = EnumEntry("PID_TUNING_AXIS_ENUM_END", """""")
 
 # MAV_REMOTE_LOG_DATA_BLOCK_COMMANDS
-enums["MAV_REMOTE_LOG_DATA_BLOCK_COMMANDS"] = {}
+enums["MAV_REMOTE_LOG_DATA_BLOCK_COMMANDS"] = Enum()
+enums["MAV_REMOTE_LOG_DATA_BLOCK_COMMANDS"].bitmask = False
 MAV_REMOTE_LOG_DATA_BLOCK_STOP = 2147483645
 enums["MAV_REMOTE_LOG_DATA_BLOCK_COMMANDS"][2147483645] = EnumEntry("MAV_REMOTE_LOG_DATA_BLOCK_STOP", """UAV to stop sending DataFlash blocks.""")
 MAV_REMOTE_LOG_DATA_BLOCK_START = 2147483646
@@ -3203,7 +3282,8 @@ MAV_REMOTE_LOG_DATA_BLOCK_COMMANDS_ENUM_END = 2147483647
 enums["MAV_REMOTE_LOG_DATA_BLOCK_COMMANDS"][2147483647] = EnumEntry("MAV_REMOTE_LOG_DATA_BLOCK_COMMANDS_ENUM_END", """""")
 
 # MAV_REMOTE_LOG_DATA_BLOCK_STATUSES
-enums["MAV_REMOTE_LOG_DATA_BLOCK_STATUSES"] = {}
+enums["MAV_REMOTE_LOG_DATA_BLOCK_STATUSES"] = Enum()
+enums["MAV_REMOTE_LOG_DATA_BLOCK_STATUSES"].bitmask = False
 MAV_REMOTE_LOG_DATA_BLOCK_NACK = 0
 enums["MAV_REMOTE_LOG_DATA_BLOCK_STATUSES"][0] = EnumEntry("MAV_REMOTE_LOG_DATA_BLOCK_NACK", """This block has NOT been received.""")
 MAV_REMOTE_LOG_DATA_BLOCK_ACK = 1
@@ -3212,7 +3292,8 @@ MAV_REMOTE_LOG_DATA_BLOCK_STATUSES_ENUM_END = 2
 enums["MAV_REMOTE_LOG_DATA_BLOCK_STATUSES"][2] = EnumEntry("MAV_REMOTE_LOG_DATA_BLOCK_STATUSES_ENUM_END", """""")
 
 # DEVICE_OP_BUSTYPE
-enums["DEVICE_OP_BUSTYPE"] = {}
+enums["DEVICE_OP_BUSTYPE"] = Enum()
+enums["DEVICE_OP_BUSTYPE"].bitmask = False
 DEVICE_OP_BUSTYPE_I2C = 0
 enums["DEVICE_OP_BUSTYPE"][0] = EnumEntry("DEVICE_OP_BUSTYPE_I2C", """I2C Device operation.""")
 DEVICE_OP_BUSTYPE_SPI = 1
@@ -3221,7 +3302,8 @@ DEVICE_OP_BUSTYPE_ENUM_END = 2
 enums["DEVICE_OP_BUSTYPE"][2] = EnumEntry("DEVICE_OP_BUSTYPE_ENUM_END", """""")
 
 # DEEPSTALL_STAGE
-enums["DEEPSTALL_STAGE"] = {}
+enums["DEEPSTALL_STAGE"] = Enum()
+enums["DEEPSTALL_STAGE"].bitmask = False
 DEEPSTALL_STAGE_FLY_TO_LANDING = 0
 enums["DEEPSTALL_STAGE"][0] = EnumEntry("DEEPSTALL_STAGE_FLY_TO_LANDING", """Flying to the landing point.""")
 DEEPSTALL_STAGE_ESTIMATE_WIND = 1
@@ -3240,184 +3322,206 @@ DEEPSTALL_STAGE_ENUM_END = 7
 enums["DEEPSTALL_STAGE"][7] = EnumEntry("DEEPSTALL_STAGE_ENUM_END", """""")
 
 # PLANE_MODE
-enums["PLANE_MODE"] = {}
+enums["PLANE_MODE"] = Enum()
+enums["PLANE_MODE"].bitmask = False
 PLANE_MODE_MANUAL = 0
-enums["PLANE_MODE"][0] = EnumEntry("PLANE_MODE_MANUAL", """""")
+enums["PLANE_MODE"][0] = EnumEntry("PLANE_MODE_MANUAL", """MANUAL""")
 PLANE_MODE_CIRCLE = 1
-enums["PLANE_MODE"][1] = EnumEntry("PLANE_MODE_CIRCLE", """""")
+enums["PLANE_MODE"][1] = EnumEntry("PLANE_MODE_CIRCLE", """CIRCLE""")
 PLANE_MODE_STABILIZE = 2
-enums["PLANE_MODE"][2] = EnumEntry("PLANE_MODE_STABILIZE", """""")
+enums["PLANE_MODE"][2] = EnumEntry("PLANE_MODE_STABILIZE", """STABILIZE""")
 PLANE_MODE_TRAINING = 3
-enums["PLANE_MODE"][3] = EnumEntry("PLANE_MODE_TRAINING", """""")
+enums["PLANE_MODE"][3] = EnumEntry("PLANE_MODE_TRAINING", """TRAINING""")
 PLANE_MODE_ACRO = 4
-enums["PLANE_MODE"][4] = EnumEntry("PLANE_MODE_ACRO", """""")
+enums["PLANE_MODE"][4] = EnumEntry("PLANE_MODE_ACRO", """ACRO""")
 PLANE_MODE_FLY_BY_WIRE_A = 5
-enums["PLANE_MODE"][5] = EnumEntry("PLANE_MODE_FLY_BY_WIRE_A", """""")
+enums["PLANE_MODE"][5] = EnumEntry("PLANE_MODE_FLY_BY_WIRE_A", """FBWA""")
 PLANE_MODE_FLY_BY_WIRE_B = 6
-enums["PLANE_MODE"][6] = EnumEntry("PLANE_MODE_FLY_BY_WIRE_B", """""")
+enums["PLANE_MODE"][6] = EnumEntry("PLANE_MODE_FLY_BY_WIRE_B", """FBWB""")
 PLANE_MODE_CRUISE = 7
-enums["PLANE_MODE"][7] = EnumEntry("PLANE_MODE_CRUISE", """""")
+enums["PLANE_MODE"][7] = EnumEntry("PLANE_MODE_CRUISE", """CRUISE""")
 PLANE_MODE_AUTOTUNE = 8
-enums["PLANE_MODE"][8] = EnumEntry("PLANE_MODE_AUTOTUNE", """""")
+enums["PLANE_MODE"][8] = EnumEntry("PLANE_MODE_AUTOTUNE", """AUTOTUNE""")
 PLANE_MODE_AUTO = 10
-enums["PLANE_MODE"][10] = EnumEntry("PLANE_MODE_AUTO", """""")
+enums["PLANE_MODE"][10] = EnumEntry("PLANE_MODE_AUTO", """AUTO""")
 PLANE_MODE_RTL = 11
-enums["PLANE_MODE"][11] = EnumEntry("PLANE_MODE_RTL", """""")
+enums["PLANE_MODE"][11] = EnumEntry("PLANE_MODE_RTL", """RTL""")
 PLANE_MODE_LOITER = 12
-enums["PLANE_MODE"][12] = EnumEntry("PLANE_MODE_LOITER", """""")
+enums["PLANE_MODE"][12] = EnumEntry("PLANE_MODE_LOITER", """LOITER""")
 PLANE_MODE_TAKEOFF = 13
-enums["PLANE_MODE"][13] = EnumEntry("PLANE_MODE_TAKEOFF", """""")
+enums["PLANE_MODE"][13] = EnumEntry("PLANE_MODE_TAKEOFF", """TAKEOFF""")
 PLANE_MODE_AVOID_ADSB = 14
-enums["PLANE_MODE"][14] = EnumEntry("PLANE_MODE_AVOID_ADSB", """""")
+enums["PLANE_MODE"][14] = EnumEntry("PLANE_MODE_AVOID_ADSB", """AVOID ADSB""")
 PLANE_MODE_GUIDED = 15
-enums["PLANE_MODE"][15] = EnumEntry("PLANE_MODE_GUIDED", """""")
+enums["PLANE_MODE"][15] = EnumEntry("PLANE_MODE_GUIDED", """GUIDED""")
 PLANE_MODE_INITIALIZING = 16
-enums["PLANE_MODE"][16] = EnumEntry("PLANE_MODE_INITIALIZING", """""")
+enums["PLANE_MODE"][16] = EnumEntry("PLANE_MODE_INITIALIZING", """INITIALISING""")
 PLANE_MODE_QSTABILIZE = 17
-enums["PLANE_MODE"][17] = EnumEntry("PLANE_MODE_QSTABILIZE", """""")
+enums["PLANE_MODE"][17] = EnumEntry("PLANE_MODE_QSTABILIZE", """QSTABILIZE""")
 PLANE_MODE_QHOVER = 18
-enums["PLANE_MODE"][18] = EnumEntry("PLANE_MODE_QHOVER", """""")
+enums["PLANE_MODE"][18] = EnumEntry("PLANE_MODE_QHOVER", """QHOVER""")
 PLANE_MODE_QLOITER = 19
-enums["PLANE_MODE"][19] = EnumEntry("PLANE_MODE_QLOITER", """""")
+enums["PLANE_MODE"][19] = EnumEntry("PLANE_MODE_QLOITER", """QLOITER""")
 PLANE_MODE_QLAND = 20
-enums["PLANE_MODE"][20] = EnumEntry("PLANE_MODE_QLAND", """""")
+enums["PLANE_MODE"][20] = EnumEntry("PLANE_MODE_QLAND", """QLAND""")
 PLANE_MODE_QRTL = 21
-enums["PLANE_MODE"][21] = EnumEntry("PLANE_MODE_QRTL", """""")
+enums["PLANE_MODE"][21] = EnumEntry("PLANE_MODE_QRTL", """QRTL""")
 PLANE_MODE_QAUTOTUNE = 22
-enums["PLANE_MODE"][22] = EnumEntry("PLANE_MODE_QAUTOTUNE", """""")
+enums["PLANE_MODE"][22] = EnumEntry("PLANE_MODE_QAUTOTUNE", """QAUTOTUNE""")
 PLANE_MODE_QACRO = 23
-enums["PLANE_MODE"][23] = EnumEntry("PLANE_MODE_QACRO", """""")
+enums["PLANE_MODE"][23] = EnumEntry("PLANE_MODE_QACRO", """QACRO""")
 PLANE_MODE_THERMAL = 24
-enums["PLANE_MODE"][24] = EnumEntry("PLANE_MODE_THERMAL", """""")
-PLANE_MODE_ENUM_END = 25
-enums["PLANE_MODE"][25] = EnumEntry("PLANE_MODE_ENUM_END", """""")
+enums["PLANE_MODE"][24] = EnumEntry("PLANE_MODE_THERMAL", """THERMAL""")
+PLANE_MODE_LOITER_ALT_QLAND = 25
+enums["PLANE_MODE"][25] = EnumEntry("PLANE_MODE_LOITER_ALT_QLAND", """LOITER2QLAND""")
+PLANE_MODE_AUTOLAND = 26
+enums["PLANE_MODE"][26] = EnumEntry("PLANE_MODE_AUTOLAND", """AUTOLAND""")
+PLANE_MODE_ENUM_END = 27
+enums["PLANE_MODE"][27] = EnumEntry("PLANE_MODE_ENUM_END", """""")
 
 # COPTER_MODE
-enums["COPTER_MODE"] = {}
+enums["COPTER_MODE"] = Enum()
+enums["COPTER_MODE"].bitmask = False
 COPTER_MODE_STABILIZE = 0
-enums["COPTER_MODE"][0] = EnumEntry("COPTER_MODE_STABILIZE", """""")
+enums["COPTER_MODE"][0] = EnumEntry("COPTER_MODE_STABILIZE", """STABILIZE""")
 COPTER_MODE_ACRO = 1
-enums["COPTER_MODE"][1] = EnumEntry("COPTER_MODE_ACRO", """""")
+enums["COPTER_MODE"][1] = EnumEntry("COPTER_MODE_ACRO", """ACRO""")
 COPTER_MODE_ALT_HOLD = 2
-enums["COPTER_MODE"][2] = EnumEntry("COPTER_MODE_ALT_HOLD", """""")
+enums["COPTER_MODE"][2] = EnumEntry("COPTER_MODE_ALT_HOLD", """ALT HOLD""")
 COPTER_MODE_AUTO = 3
-enums["COPTER_MODE"][3] = EnumEntry("COPTER_MODE_AUTO", """""")
+enums["COPTER_MODE"][3] = EnumEntry("COPTER_MODE_AUTO", """AUTO""")
 COPTER_MODE_GUIDED = 4
-enums["COPTER_MODE"][4] = EnumEntry("COPTER_MODE_GUIDED", """""")
+enums["COPTER_MODE"][4] = EnumEntry("COPTER_MODE_GUIDED", """GUIDED""")
 COPTER_MODE_LOITER = 5
-enums["COPTER_MODE"][5] = EnumEntry("COPTER_MODE_LOITER", """""")
+enums["COPTER_MODE"][5] = EnumEntry("COPTER_MODE_LOITER", """LOITER""")
 COPTER_MODE_RTL = 6
-enums["COPTER_MODE"][6] = EnumEntry("COPTER_MODE_RTL", """""")
+enums["COPTER_MODE"][6] = EnumEntry("COPTER_MODE_RTL", """RTL""")
 COPTER_MODE_CIRCLE = 7
-enums["COPTER_MODE"][7] = EnumEntry("COPTER_MODE_CIRCLE", """""")
+enums["COPTER_MODE"][7] = EnumEntry("COPTER_MODE_CIRCLE", """CIRCLE""")
 COPTER_MODE_LAND = 9
-enums["COPTER_MODE"][9] = EnumEntry("COPTER_MODE_LAND", """""")
+enums["COPTER_MODE"][9] = EnumEntry("COPTER_MODE_LAND", """LAND""")
 COPTER_MODE_DRIFT = 11
-enums["COPTER_MODE"][11] = EnumEntry("COPTER_MODE_DRIFT", """""")
+enums["COPTER_MODE"][11] = EnumEntry("COPTER_MODE_DRIFT", """DRIFT""")
 COPTER_MODE_SPORT = 13
-enums["COPTER_MODE"][13] = EnumEntry("COPTER_MODE_SPORT", """""")
+enums["COPTER_MODE"][13] = EnumEntry("COPTER_MODE_SPORT", """SPORT""")
 COPTER_MODE_FLIP = 14
-enums["COPTER_MODE"][14] = EnumEntry("COPTER_MODE_FLIP", """""")
+enums["COPTER_MODE"][14] = EnumEntry("COPTER_MODE_FLIP", """FLIP""")
 COPTER_MODE_AUTOTUNE = 15
-enums["COPTER_MODE"][15] = EnumEntry("COPTER_MODE_AUTOTUNE", """""")
+enums["COPTER_MODE"][15] = EnumEntry("COPTER_MODE_AUTOTUNE", """AUTOTUNE""")
 COPTER_MODE_POSHOLD = 16
-enums["COPTER_MODE"][16] = EnumEntry("COPTER_MODE_POSHOLD", """""")
+enums["COPTER_MODE"][16] = EnumEntry("COPTER_MODE_POSHOLD", """POSHOLD""")
 COPTER_MODE_BRAKE = 17
-enums["COPTER_MODE"][17] = EnumEntry("COPTER_MODE_BRAKE", """""")
+enums["COPTER_MODE"][17] = EnumEntry("COPTER_MODE_BRAKE", """BRAKE""")
 COPTER_MODE_THROW = 18
-enums["COPTER_MODE"][18] = EnumEntry("COPTER_MODE_THROW", """""")
+enums["COPTER_MODE"][18] = EnumEntry("COPTER_MODE_THROW", """THROW""")
 COPTER_MODE_AVOID_ADSB = 19
-enums["COPTER_MODE"][19] = EnumEntry("COPTER_MODE_AVOID_ADSB", """""")
+enums["COPTER_MODE"][19] = EnumEntry("COPTER_MODE_AVOID_ADSB", """AVOID ADSB""")
 COPTER_MODE_GUIDED_NOGPS = 20
-enums["COPTER_MODE"][20] = EnumEntry("COPTER_MODE_GUIDED_NOGPS", """""")
+enums["COPTER_MODE"][20] = EnumEntry("COPTER_MODE_GUIDED_NOGPS", """GUIDED NOGPS""")
 COPTER_MODE_SMART_RTL = 21
-enums["COPTER_MODE"][21] = EnumEntry("COPTER_MODE_SMART_RTL", """""")
+enums["COPTER_MODE"][21] = EnumEntry("COPTER_MODE_SMART_RTL", """SMARTRTL""")
 COPTER_MODE_FLOWHOLD = 22
-enums["COPTER_MODE"][22] = EnumEntry("COPTER_MODE_FLOWHOLD", """""")
+enums["COPTER_MODE"][22] = EnumEntry("COPTER_MODE_FLOWHOLD", """FLOWHOLD""")
 COPTER_MODE_FOLLOW = 23
-enums["COPTER_MODE"][23] = EnumEntry("COPTER_MODE_FOLLOW", """""")
+enums["COPTER_MODE"][23] = EnumEntry("COPTER_MODE_FOLLOW", """FOLLOW""")
 COPTER_MODE_ZIGZAG = 24
-enums["COPTER_MODE"][24] = EnumEntry("COPTER_MODE_ZIGZAG", """""")
+enums["COPTER_MODE"][24] = EnumEntry("COPTER_MODE_ZIGZAG", """ZIGZAG""")
 COPTER_MODE_SYSTEMID = 25
-enums["COPTER_MODE"][25] = EnumEntry("COPTER_MODE_SYSTEMID", """""")
+enums["COPTER_MODE"][25] = EnumEntry("COPTER_MODE_SYSTEMID", """SYSTEMID""")
 COPTER_MODE_AUTOROTATE = 26
-enums["COPTER_MODE"][26] = EnumEntry("COPTER_MODE_AUTOROTATE", """""")
+enums["COPTER_MODE"][26] = EnumEntry("COPTER_MODE_AUTOROTATE", """AUTOROTATE""")
 COPTER_MODE_AUTO_RTL = 27
-enums["COPTER_MODE"][27] = EnumEntry("COPTER_MODE_AUTO_RTL", """""")
-COPTER_MODE_ENUM_END = 28
-enums["COPTER_MODE"][28] = EnumEntry("COPTER_MODE_ENUM_END", """""")
+enums["COPTER_MODE"][27] = EnumEntry("COPTER_MODE_AUTO_RTL", """AUTO RTL""")
+COPTER_MODE_TURTLE = 28
+enums["COPTER_MODE"][28] = EnumEntry("COPTER_MODE_TURTLE", """TURTLE""")
+COPTER_MODE_ENUM_END = 29
+enums["COPTER_MODE"][29] = EnumEntry("COPTER_MODE_ENUM_END", """""")
 
 # SUB_MODE
-enums["SUB_MODE"] = {}
+enums["SUB_MODE"] = Enum()
+enums["SUB_MODE"].bitmask = False
 SUB_MODE_STABILIZE = 0
-enums["SUB_MODE"][0] = EnumEntry("SUB_MODE_STABILIZE", """""")
+enums["SUB_MODE"][0] = EnumEntry("SUB_MODE_STABILIZE", """STABILIZE""")
 SUB_MODE_ACRO = 1
-enums["SUB_MODE"][1] = EnumEntry("SUB_MODE_ACRO", """""")
+enums["SUB_MODE"][1] = EnumEntry("SUB_MODE_ACRO", """ACRO""")
 SUB_MODE_ALT_HOLD = 2
-enums["SUB_MODE"][2] = EnumEntry("SUB_MODE_ALT_HOLD", """""")
+enums["SUB_MODE"][2] = EnumEntry("SUB_MODE_ALT_HOLD", """ALT HOLD""")
 SUB_MODE_AUTO = 3
-enums["SUB_MODE"][3] = EnumEntry("SUB_MODE_AUTO", """""")
+enums["SUB_MODE"][3] = EnumEntry("SUB_MODE_AUTO", """AUTO""")
 SUB_MODE_GUIDED = 4
-enums["SUB_MODE"][4] = EnumEntry("SUB_MODE_GUIDED", """""")
+enums["SUB_MODE"][4] = EnumEntry("SUB_MODE_GUIDED", """GUIDED""")
 SUB_MODE_CIRCLE = 7
-enums["SUB_MODE"][7] = EnumEntry("SUB_MODE_CIRCLE", """""")
+enums["SUB_MODE"][7] = EnumEntry("SUB_MODE_CIRCLE", """CIRCLE""")
 SUB_MODE_SURFACE = 9
-enums["SUB_MODE"][9] = EnumEntry("SUB_MODE_SURFACE", """""")
+enums["SUB_MODE"][9] = EnumEntry("SUB_MODE_SURFACE", """SURFACE""")
 SUB_MODE_POSHOLD = 16
-enums["SUB_MODE"][16] = EnumEntry("SUB_MODE_POSHOLD", """""")
+enums["SUB_MODE"][16] = EnumEntry("SUB_MODE_POSHOLD", """POSHOLD""")
 SUB_MODE_MANUAL = 19
-enums["SUB_MODE"][19] = EnumEntry("SUB_MODE_MANUAL", """""")
-SUB_MODE_ENUM_END = 20
-enums["SUB_MODE"][20] = EnumEntry("SUB_MODE_ENUM_END", """""")
+enums["SUB_MODE"][19] = EnumEntry("SUB_MODE_MANUAL", """MANUAL""")
+SUB_MODE_MOTORDETECT = 20
+enums["SUB_MODE"][20] = EnumEntry("SUB_MODE_MOTORDETECT", """MOTORDETECT""")
+SUB_MODE_SURFTRAK = 21
+enums["SUB_MODE"][21] = EnumEntry("SUB_MODE_SURFTRAK", """SURFTRAK""")
+SUB_MODE_ENUM_END = 22
+enums["SUB_MODE"][22] = EnumEntry("SUB_MODE_ENUM_END", """""")
 
 # ROVER_MODE
-enums["ROVER_MODE"] = {}
+enums["ROVER_MODE"] = Enum()
+enums["ROVER_MODE"].bitmask = False
 ROVER_MODE_MANUAL = 0
-enums["ROVER_MODE"][0] = EnumEntry("ROVER_MODE_MANUAL", """""")
+enums["ROVER_MODE"][0] = EnumEntry("ROVER_MODE_MANUAL", """MANUAL""")
 ROVER_MODE_ACRO = 1
-enums["ROVER_MODE"][1] = EnumEntry("ROVER_MODE_ACRO", """""")
+enums["ROVER_MODE"][1] = EnumEntry("ROVER_MODE_ACRO", """ACRO""")
 ROVER_MODE_STEERING = 3
-enums["ROVER_MODE"][3] = EnumEntry("ROVER_MODE_STEERING", """""")
+enums["ROVER_MODE"][3] = EnumEntry("ROVER_MODE_STEERING", """STEERING""")
 ROVER_MODE_HOLD = 4
-enums["ROVER_MODE"][4] = EnumEntry("ROVER_MODE_HOLD", """""")
+enums["ROVER_MODE"][4] = EnumEntry("ROVER_MODE_HOLD", """HOLD""")
 ROVER_MODE_LOITER = 5
-enums["ROVER_MODE"][5] = EnumEntry("ROVER_MODE_LOITER", """""")
+enums["ROVER_MODE"][5] = EnumEntry("ROVER_MODE_LOITER", """LOITER""")
 ROVER_MODE_FOLLOW = 6
-enums["ROVER_MODE"][6] = EnumEntry("ROVER_MODE_FOLLOW", """""")
+enums["ROVER_MODE"][6] = EnumEntry("ROVER_MODE_FOLLOW", """FOLLOW""")
 ROVER_MODE_SIMPLE = 7
-enums["ROVER_MODE"][7] = EnumEntry("ROVER_MODE_SIMPLE", """""")
+enums["ROVER_MODE"][7] = EnumEntry("ROVER_MODE_SIMPLE", """SIMPLE""")
+ROVER_MODE_DOCK = 8
+enums["ROVER_MODE"][8] = EnumEntry("ROVER_MODE_DOCK", """DOCK""")
+ROVER_MODE_CIRCLE = 9
+enums["ROVER_MODE"][9] = EnumEntry("ROVER_MODE_CIRCLE", """CIRCLE""")
 ROVER_MODE_AUTO = 10
-enums["ROVER_MODE"][10] = EnumEntry("ROVER_MODE_AUTO", """""")
+enums["ROVER_MODE"][10] = EnumEntry("ROVER_MODE_AUTO", """AUTO""")
 ROVER_MODE_RTL = 11
-enums["ROVER_MODE"][11] = EnumEntry("ROVER_MODE_RTL", """""")
+enums["ROVER_MODE"][11] = EnumEntry("ROVER_MODE_RTL", """RTL""")
 ROVER_MODE_SMART_RTL = 12
-enums["ROVER_MODE"][12] = EnumEntry("ROVER_MODE_SMART_RTL", """""")
+enums["ROVER_MODE"][12] = EnumEntry("ROVER_MODE_SMART_RTL", """SMART RTL""")
 ROVER_MODE_GUIDED = 15
-enums["ROVER_MODE"][15] = EnumEntry("ROVER_MODE_GUIDED", """""")
+enums["ROVER_MODE"][15] = EnumEntry("ROVER_MODE_GUIDED", """GUIDED""")
 ROVER_MODE_INITIALIZING = 16
-enums["ROVER_MODE"][16] = EnumEntry("ROVER_MODE_INITIALIZING", """""")
+enums["ROVER_MODE"][16] = EnumEntry("ROVER_MODE_INITIALIZING", """INITIALISING""")
 ROVER_MODE_ENUM_END = 17
 enums["ROVER_MODE"][17] = EnumEntry("ROVER_MODE_ENUM_END", """""")
 
 # TRACKER_MODE
-enums["TRACKER_MODE"] = {}
+enums["TRACKER_MODE"] = Enum()
+enums["TRACKER_MODE"].bitmask = False
 TRACKER_MODE_MANUAL = 0
-enums["TRACKER_MODE"][0] = EnumEntry("TRACKER_MODE_MANUAL", """""")
+enums["TRACKER_MODE"][0] = EnumEntry("TRACKER_MODE_MANUAL", """MANUAL""")
 TRACKER_MODE_STOP = 1
-enums["TRACKER_MODE"][1] = EnumEntry("TRACKER_MODE_STOP", """""")
+enums["TRACKER_MODE"][1] = EnumEntry("TRACKER_MODE_STOP", """STOP""")
 TRACKER_MODE_SCAN = 2
-enums["TRACKER_MODE"][2] = EnumEntry("TRACKER_MODE_SCAN", """""")
+enums["TRACKER_MODE"][2] = EnumEntry("TRACKER_MODE_SCAN", """SCAN""")
 TRACKER_MODE_SERVO_TEST = 3
-enums["TRACKER_MODE"][3] = EnumEntry("TRACKER_MODE_SERVO_TEST", """""")
+enums["TRACKER_MODE"][3] = EnumEntry("TRACKER_MODE_SERVO_TEST", """SERVO TEST""")
+TRACKER_MODE_GUIDED = 4
+enums["TRACKER_MODE"][4] = EnumEntry("TRACKER_MODE_GUIDED", """GUIDED""")
 TRACKER_MODE_AUTO = 10
-enums["TRACKER_MODE"][10] = EnumEntry("TRACKER_MODE_AUTO", """""")
+enums["TRACKER_MODE"][10] = EnumEntry("TRACKER_MODE_AUTO", """AUTO""")
 TRACKER_MODE_INITIALIZING = 16
-enums["TRACKER_MODE"][16] = EnumEntry("TRACKER_MODE_INITIALIZING", """""")
+enums["TRACKER_MODE"][16] = EnumEntry("TRACKER_MODE_INITIALIZING", """INITIALISING""")
 TRACKER_MODE_ENUM_END = 17
 enums["TRACKER_MODE"][17] = EnumEntry("TRACKER_MODE_ENUM_END", """""")
 
 # OSD_PARAM_CONFIG_TYPE
-enums["OSD_PARAM_CONFIG_TYPE"] = {}
+enums["OSD_PARAM_CONFIG_TYPE"] = Enum()
+enums["OSD_PARAM_CONFIG_TYPE"].bitmask = False
 OSD_PARAM_NONE = 0
 enums["OSD_PARAM_CONFIG_TYPE"][0] = EnumEntry("OSD_PARAM_NONE", """""")
 OSD_PARAM_SERIAL_PROTOCOL = 1
@@ -3440,7 +3544,8 @@ OSD_PARAM_CONFIG_TYPE_ENUM_END = 9
 enums["OSD_PARAM_CONFIG_TYPE"][9] = EnumEntry("OSD_PARAM_CONFIG_TYPE_ENUM_END", """""")
 
 # OSD_PARAM_CONFIG_ERROR
-enums["OSD_PARAM_CONFIG_ERROR"] = {}
+enums["OSD_PARAM_CONFIG_ERROR"] = Enum()
+enums["OSD_PARAM_CONFIG_ERROR"].bitmask = False
 OSD_PARAM_SUCCESS = 0
 enums["OSD_PARAM_CONFIG_ERROR"][0] = EnumEntry("OSD_PARAM_SUCCESS", """""")
 OSD_PARAM_INVALID_SCREEN = 1
@@ -3453,7 +3558,8 @@ OSD_PARAM_CONFIG_ERROR_ENUM_END = 4
 enums["OSD_PARAM_CONFIG_ERROR"][4] = EnumEntry("OSD_PARAM_CONFIG_ERROR_ENUM_END", """""")
 
 # GSM_LINK_TYPE
-enums["GSM_LINK_TYPE"] = {}
+enums["GSM_LINK_TYPE"] = Enum()
+enums["GSM_LINK_TYPE"].bitmask = False
 GSM_LINK_TYPE_NONE = 0
 enums["GSM_LINK_TYPE"][0] = EnumEntry("GSM_LINK_TYPE_NONE", """no service""")
 GSM_LINK_TYPE_UNKNOWN = 1
@@ -3468,7 +3574,8 @@ GSM_LINK_TYPE_ENUM_END = 5
 enums["GSM_LINK_TYPE"][5] = EnumEntry("GSM_LINK_TYPE_ENUM_END", """""")
 
 # GSM_MODEM_TYPE
-enums["GSM_MODEM_TYPE"] = {}
+enums["GSM_MODEM_TYPE"] = Enum()
+enums["GSM_MODEM_TYPE"].bitmask = False
 GSM_MODEM_TYPE_UNKNOWN = 0
 enums["GSM_MODEM_TYPE"][0] = EnumEntry("GSM_MODEM_TYPE_UNKNOWN", """not specified""")
 GSM_MODEM_TYPE_HUAWEI_E3372 = 1
@@ -3477,7 +3584,8 @@ GSM_MODEM_TYPE_ENUM_END = 2
 enums["GSM_MODEM_TYPE"][2] = EnumEntry("GSM_MODEM_TYPE_ENUM_END", """""")
 
 # FIRMWARE_VERSION_TYPE
-enums["FIRMWARE_VERSION_TYPE"] = {}
+enums["FIRMWARE_VERSION_TYPE"] = Enum()
+enums["FIRMWARE_VERSION_TYPE"].bitmask = False
 FIRMWARE_VERSION_TYPE_DEV = 0
 enums["FIRMWARE_VERSION_TYPE"][0] = EnumEntry("FIRMWARE_VERSION_TYPE_DEV", """development release""")
 FIRMWARE_VERSION_TYPE_ALPHA = 64
@@ -3492,7 +3600,8 @@ FIRMWARE_VERSION_TYPE_ENUM_END = 256
 enums["FIRMWARE_VERSION_TYPE"][256] = EnumEntry("FIRMWARE_VERSION_TYPE_ENUM_END", """""")
 
 # HL_FAILURE_FLAG
-enums["HL_FAILURE_FLAG"] = {}
+enums["HL_FAILURE_FLAG"] = Enum()
+enums["HL_FAILURE_FLAG"].bitmask = True
 HL_FAILURE_FLAG_GPS = 1
 enums["HL_FAILURE_FLAG"][1] = EnumEntry("HL_FAILURE_FLAG_GPS", """GPS failure.""")
 HL_FAILURE_FLAG_DIFFERENTIAL_PRESSURE = 2
@@ -3525,7 +3634,8 @@ HL_FAILURE_FLAG_ENUM_END = 8193
 enums["HL_FAILURE_FLAG"][8193] = EnumEntry("HL_FAILURE_FLAG_ENUM_END", """""")
 
 # MAV_GOTO
-enums["MAV_GOTO"] = {}
+enums["MAV_GOTO"] = Enum()
+enums["MAV_GOTO"].bitmask = False
 MAV_GOTO_DO_HOLD = 0
 enums["MAV_GOTO"][0] = EnumEntry("MAV_GOTO_DO_HOLD", """Hold at the current position.""")
 MAV_GOTO_DO_CONTINUE = 1
@@ -3538,7 +3648,8 @@ MAV_GOTO_ENUM_END = 4
 enums["MAV_GOTO"][4] = EnumEntry("MAV_GOTO_ENUM_END", """""")
 
 # MAV_MODE
-enums["MAV_MODE"] = {}
+enums["MAV_MODE"] = Enum()
+enums["MAV_MODE"].bitmask = False
 MAV_MODE_PREFLIGHT = 0
 enums["MAV_MODE"][0] = EnumEntry("MAV_MODE_PREFLIGHT", """System is not ready to fly, booting, calibrating, etc. No flag is set.""")
 MAV_MODE_MANUAL_DISARMED = 64
@@ -3565,7 +3676,8 @@ MAV_MODE_ENUM_END = 221
 enums["MAV_MODE"][221] = EnumEntry("MAV_MODE_ENUM_END", """""")
 
 # MAV_SYS_STATUS_SENSOR
-enums["MAV_SYS_STATUS_SENSOR"] = {}
+enums["MAV_SYS_STATUS_SENSOR"] = Enum()
+enums["MAV_SYS_STATUS_SENSOR"].bitmask = True
 MAV_SYS_STATUS_SENSOR_3D_GYRO = 1
 enums["MAV_SYS_STATUS_SENSOR"][1] = EnumEntry("MAV_SYS_STATUS_SENSOR_3D_GYRO", """0x01 3D gyro""")
 MAV_SYS_STATUS_SENSOR_3D_ACCEL = 2
@@ -3634,14 +3746,16 @@ MAV_SYS_STATUS_SENSOR_ENUM_END = 2147483649
 enums["MAV_SYS_STATUS_SENSOR"][2147483649] = EnumEntry("MAV_SYS_STATUS_SENSOR_ENUM_END", """""")
 
 # MAV_SYS_STATUS_SENSOR_EXTENDED
-enums["MAV_SYS_STATUS_SENSOR_EXTENDED"] = {}
+enums["MAV_SYS_STATUS_SENSOR_EXTENDED"] = Enum()
+enums["MAV_SYS_STATUS_SENSOR_EXTENDED"].bitmask = True
 MAV_SYS_STATUS_RECOVERY_SYSTEM = 1
 enums["MAV_SYS_STATUS_SENSOR_EXTENDED"][1] = EnumEntry("MAV_SYS_STATUS_RECOVERY_SYSTEM", """0x01 Recovery system (parachute, balloon, retracts etc)""")
 MAV_SYS_STATUS_SENSOR_EXTENDED_ENUM_END = 2
 enums["MAV_SYS_STATUS_SENSOR_EXTENDED"][2] = EnumEntry("MAV_SYS_STATUS_SENSOR_EXTENDED_ENUM_END", """""")
 
 # MAV_FRAME
-enums["MAV_FRAME"] = {}
+enums["MAV_FRAME"] = Enum()
+enums["MAV_FRAME"].bitmask = False
 MAV_FRAME_GLOBAL = 0
 enums["MAV_FRAME"][0] = EnumEntry("MAV_FRAME_GLOBAL", """Global (WGS84) coordinate frame + altitude relative to mean sea level (MSL).""")
 MAV_FRAME_LOCAL_NED = 1
@@ -3695,7 +3809,8 @@ MAV_FRAME_ENUM_END = 22
 enums["MAV_FRAME"][22] = EnumEntry("MAV_FRAME_ENUM_END", """""")
 
 # MAVLINK_DATA_STREAM_TYPE
-enums["MAVLINK_DATA_STREAM_TYPE"] = {}
+enums["MAVLINK_DATA_STREAM_TYPE"] = Enum()
+enums["MAVLINK_DATA_STREAM_TYPE"].bitmask = False
 MAVLINK_DATA_STREAM_IMG_JPEG = 0
 enums["MAVLINK_DATA_STREAM_TYPE"][0] = EnumEntry("MAVLINK_DATA_STREAM_IMG_JPEG", """""")
 MAVLINK_DATA_STREAM_IMG_BMP = 1
@@ -3711,29 +3826,9 @@ enums["MAVLINK_DATA_STREAM_TYPE"][5] = EnumEntry("MAVLINK_DATA_STREAM_IMG_PNG", 
 MAVLINK_DATA_STREAM_TYPE_ENUM_END = 6
 enums["MAVLINK_DATA_STREAM_TYPE"][6] = EnumEntry("MAVLINK_DATA_STREAM_TYPE_ENUM_END", """""")
 
-# FENCE_ACTION
-enums["FENCE_ACTION"] = {}
-FENCE_ACTION_NONE = 0
-enums["FENCE_ACTION"][0] = EnumEntry("FENCE_ACTION_NONE", """Disable fenced mode. If used in a plan this would mean the next fence is disabled.""")
-FENCE_ACTION_GUIDED = 1
-enums["FENCE_ACTION"][1] = EnumEntry("FENCE_ACTION_GUIDED", """Fly to geofence MAV_CMD_NAV_FENCE_RETURN_POINT in GUIDED mode. Note: This action is only supported by ArduPlane, and may not be supported in all versions.""")
-FENCE_ACTION_REPORT = 2
-enums["FENCE_ACTION"][2] = EnumEntry("FENCE_ACTION_REPORT", """Report fence breach, but don't take action""")
-FENCE_ACTION_GUIDED_THR_PASS = 3
-enums["FENCE_ACTION"][3] = EnumEntry("FENCE_ACTION_GUIDED_THR_PASS", """Fly to geofence MAV_CMD_NAV_FENCE_RETURN_POINT with manual throttle control in GUIDED mode. Note: This action is only supported by ArduPlane, and may not be supported in all versions.""")
-FENCE_ACTION_RTL = 4
-enums["FENCE_ACTION"][4] = EnumEntry("FENCE_ACTION_RTL", """Return/RTL mode.""")
-FENCE_ACTION_HOLD = 5
-enums["FENCE_ACTION"][5] = EnumEntry("FENCE_ACTION_HOLD", """Hold at current location.""")
-FENCE_ACTION_TERMINATE = 6
-enums["FENCE_ACTION"][6] = EnumEntry("FENCE_ACTION_TERMINATE", """Termination failsafe. Motors are shut down (some flight stacks may trigger other failsafe actions).""")
-FENCE_ACTION_LAND = 7
-enums["FENCE_ACTION"][7] = EnumEntry("FENCE_ACTION_LAND", """Land at current location.""")
-FENCE_ACTION_ENUM_END = 8
-enums["FENCE_ACTION"][8] = EnumEntry("FENCE_ACTION_ENUM_END", """""")
-
 # FENCE_BREACH
-enums["FENCE_BREACH"] = {}
+enums["FENCE_BREACH"] = Enum()
+enums["FENCE_BREACH"].bitmask = False
 FENCE_BREACH_NONE = 0
 enums["FENCE_BREACH"][0] = EnumEntry("FENCE_BREACH_NONE", """No last fence breach""")
 FENCE_BREACH_MINALT = 1
@@ -3746,7 +3841,8 @@ FENCE_BREACH_ENUM_END = 4
 enums["FENCE_BREACH"][4] = EnumEntry("FENCE_BREACH_ENUM_END", """""")
 
 # FENCE_MITIGATE
-enums["FENCE_MITIGATE"] = {}
+enums["FENCE_MITIGATE"] = Enum()
+enums["FENCE_MITIGATE"].bitmask = False
 FENCE_MITIGATE_UNKNOWN = 0
 enums["FENCE_MITIGATE"][0] = EnumEntry("FENCE_MITIGATE_UNKNOWN", """Unknown""")
 FENCE_MITIGATE_NONE = 1
@@ -3757,9 +3853,8 @@ FENCE_MITIGATE_ENUM_END = 3
 enums["FENCE_MITIGATE"][3] = EnumEntry("FENCE_MITIGATE_ENUM_END", """""")
 
 # FENCE_TYPE
-enums["FENCE_TYPE"] = {}
-FENCE_TYPE_ALL = 0
-enums["FENCE_TYPE"][0] = EnumEntry("FENCE_TYPE_ALL", """All fence types""")
+enums["FENCE_TYPE"] = Enum()
+enums["FENCE_TYPE"].bitmask = True
 FENCE_TYPE_ALT_MAX = 1
 enums["FENCE_TYPE"][1] = EnumEntry("FENCE_TYPE_ALT_MAX", """Maximum altitude fence""")
 FENCE_TYPE_CIRCLE = 2
@@ -3772,7 +3867,8 @@ FENCE_TYPE_ENUM_END = 9
 enums["FENCE_TYPE"][9] = EnumEntry("FENCE_TYPE_ENUM_END", """""")
 
 # MAV_MOUNT_MODE
-enums["MAV_MOUNT_MODE"] = {}
+enums["MAV_MOUNT_MODE"] = Enum()
+enums["MAV_MOUNT_MODE"].bitmask = False
 MAV_MOUNT_MODE_RETRACT = 0
 enums["MAV_MOUNT_MODE"][0] = EnumEntry("MAV_MOUNT_MODE_RETRACT", """Load and keep safe position (Roll,Pitch,Yaw) from permanent memory and stop stabilization""")
 MAV_MOUNT_MODE_NEUTRAL = 1
@@ -3791,7 +3887,8 @@ MAV_MOUNT_MODE_ENUM_END = 7
 enums["MAV_MOUNT_MODE"][7] = EnumEntry("MAV_MOUNT_MODE_ENUM_END", """""")
 
 # GIMBAL_DEVICE_CAP_FLAGS
-enums["GIMBAL_DEVICE_CAP_FLAGS"] = {}
+enums["GIMBAL_DEVICE_CAP_FLAGS"] = Enum()
+enums["GIMBAL_DEVICE_CAP_FLAGS"].bitmask = True
 GIMBAL_DEVICE_CAP_FLAGS_HAS_RETRACT = 1
 enums["GIMBAL_DEVICE_CAP_FLAGS"][1] = EnumEntry("GIMBAL_DEVICE_CAP_FLAGS_HAS_RETRACT", """Gimbal device supports a retracted position.""")
 GIMBAL_DEVICE_CAP_FLAGS_HAS_NEUTRAL = 2
@@ -3824,7 +3921,8 @@ GIMBAL_DEVICE_CAP_FLAGS_ENUM_END = 8193
 enums["GIMBAL_DEVICE_CAP_FLAGS"][8193] = EnumEntry("GIMBAL_DEVICE_CAP_FLAGS_ENUM_END", """""")
 
 # GIMBAL_MANAGER_CAP_FLAGS
-enums["GIMBAL_MANAGER_CAP_FLAGS"] = {}
+enums["GIMBAL_MANAGER_CAP_FLAGS"] = Enum()
+enums["GIMBAL_MANAGER_CAP_FLAGS"].bitmask = True
 GIMBAL_MANAGER_CAP_FLAGS_HAS_RETRACT = 1
 enums["GIMBAL_MANAGER_CAP_FLAGS"][1] = EnumEntry("GIMBAL_MANAGER_CAP_FLAGS_HAS_RETRACT", """Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_RETRACT.""")
 GIMBAL_MANAGER_CAP_FLAGS_HAS_NEUTRAL = 2
@@ -3861,7 +3959,8 @@ GIMBAL_MANAGER_CAP_FLAGS_ENUM_END = 131073
 enums["GIMBAL_MANAGER_CAP_FLAGS"][131073] = EnumEntry("GIMBAL_MANAGER_CAP_FLAGS_ENUM_END", """""")
 
 # GIMBAL_DEVICE_FLAGS
-enums["GIMBAL_DEVICE_FLAGS"] = {}
+enums["GIMBAL_DEVICE_FLAGS"] = Enum()
+enums["GIMBAL_DEVICE_FLAGS"].bitmask = True
 GIMBAL_DEVICE_FLAGS_RETRACT = 1
 enums["GIMBAL_DEVICE_FLAGS"][1] = EnumEntry("GIMBAL_DEVICE_FLAGS_RETRACT", """Set to retracted safe position (no stabilization), takes precedence over all other flags.""")
 GIMBAL_DEVICE_FLAGS_NEUTRAL = 2
@@ -3886,7 +3985,8 @@ GIMBAL_DEVICE_FLAGS_ENUM_END = 513
 enums["GIMBAL_DEVICE_FLAGS"][513] = EnumEntry("GIMBAL_DEVICE_FLAGS_ENUM_END", """""")
 
 # GIMBAL_MANAGER_FLAGS
-enums["GIMBAL_MANAGER_FLAGS"] = {}
+enums["GIMBAL_MANAGER_FLAGS"] = Enum()
+enums["GIMBAL_MANAGER_FLAGS"].bitmask = True
 GIMBAL_MANAGER_FLAGS_RETRACT = 1
 enums["GIMBAL_MANAGER_FLAGS"][1] = EnumEntry("GIMBAL_MANAGER_FLAGS_RETRACT", """Based on GIMBAL_DEVICE_FLAGS_RETRACT.""")
 GIMBAL_MANAGER_FLAGS_NEUTRAL = 2
@@ -3911,7 +4011,8 @@ GIMBAL_MANAGER_FLAGS_ENUM_END = 513
 enums["GIMBAL_MANAGER_FLAGS"][513] = EnumEntry("GIMBAL_MANAGER_FLAGS_ENUM_END", """""")
 
 # GIMBAL_DEVICE_ERROR_FLAGS
-enums["GIMBAL_DEVICE_ERROR_FLAGS"] = {}
+enums["GIMBAL_DEVICE_ERROR_FLAGS"] = Enum()
+enums["GIMBAL_DEVICE_ERROR_FLAGS"].bitmask = True
 GIMBAL_DEVICE_ERROR_FLAGS_AT_ROLL_LIMIT = 1
 enums["GIMBAL_DEVICE_ERROR_FLAGS"][1] = EnumEntry("GIMBAL_DEVICE_ERROR_FLAGS_AT_ROLL_LIMIT", """Gimbal device is limited by hardware roll limit.""")
 GIMBAL_DEVICE_ERROR_FLAGS_AT_PITCH_LIMIT = 2
@@ -3936,7 +4037,8 @@ GIMBAL_DEVICE_ERROR_FLAGS_ENUM_END = 513
 enums["GIMBAL_DEVICE_ERROR_FLAGS"][513] = EnumEntry("GIMBAL_DEVICE_ERROR_FLAGS_ENUM_END", """""")
 
 # GRIPPER_ACTIONS
-enums["GRIPPER_ACTIONS"] = {}
+enums["GRIPPER_ACTIONS"] = Enum()
+enums["GRIPPER_ACTIONS"].bitmask = False
 GRIPPER_ACTION_RELEASE = 0
 enums["GRIPPER_ACTIONS"][0] = EnumEntry("GRIPPER_ACTION_RELEASE", """Gripper release cargo.""")
 GRIPPER_ACTION_GRAB = 1
@@ -3945,7 +4047,8 @@ GRIPPER_ACTIONS_ENUM_END = 2
 enums["GRIPPER_ACTIONS"][2] = EnumEntry("GRIPPER_ACTIONS_ENUM_END", """""")
 
 # WINCH_ACTIONS
-enums["WINCH_ACTIONS"] = {}
+enums["WINCH_ACTIONS"] = Enum()
+enums["WINCH_ACTIONS"].bitmask = False
 WINCH_RELAXED = 0
 enums["WINCH_ACTIONS"][0] = EnumEntry("WINCH_RELAXED", """Allow motor to freewheel.""")
 WINCH_RELATIVE_LENGTH_CONTROL = 1
@@ -3970,7 +4073,8 @@ WINCH_ACTIONS_ENUM_END = 10
 enums["WINCH_ACTIONS"][10] = EnumEntry("WINCH_ACTIONS_ENUM_END", """""")
 
 # UAVCAN_NODE_HEALTH
-enums["UAVCAN_NODE_HEALTH"] = {}
+enums["UAVCAN_NODE_HEALTH"] = Enum()
+enums["UAVCAN_NODE_HEALTH"].bitmask = False
 UAVCAN_NODE_HEALTH_OK = 0
 enums["UAVCAN_NODE_HEALTH"][0] = EnumEntry("UAVCAN_NODE_HEALTH_OK", """The node is functioning properly.""")
 UAVCAN_NODE_HEALTH_WARNING = 1
@@ -3983,7 +4087,8 @@ UAVCAN_NODE_HEALTH_ENUM_END = 4
 enums["UAVCAN_NODE_HEALTH"][4] = EnumEntry("UAVCAN_NODE_HEALTH_ENUM_END", """""")
 
 # UAVCAN_NODE_MODE
-enums["UAVCAN_NODE_MODE"] = {}
+enums["UAVCAN_NODE_MODE"] = Enum()
+enums["UAVCAN_NODE_MODE"].bitmask = False
 UAVCAN_NODE_MODE_OPERATIONAL = 0
 enums["UAVCAN_NODE_MODE"][0] = EnumEntry("UAVCAN_NODE_MODE_OPERATIONAL", """The node is performing its primary functions.""")
 UAVCAN_NODE_MODE_INITIALIZATION = 1
@@ -3998,7 +4103,8 @@ UAVCAN_NODE_MODE_ENUM_END = 8
 enums["UAVCAN_NODE_MODE"][8] = EnumEntry("UAVCAN_NODE_MODE_ENUM_END", """""")
 
 # ESC_CONNECTION_TYPE
-enums["ESC_CONNECTION_TYPE"] = {}
+enums["ESC_CONNECTION_TYPE"] = Enum()
+enums["ESC_CONNECTION_TYPE"].bitmask = False
 ESC_CONNECTION_TYPE_PPM = 0
 enums["ESC_CONNECTION_TYPE"][0] = EnumEntry("ESC_CONNECTION_TYPE_PPM", """Traditional PPM ESC.""")
 ESC_CONNECTION_TYPE_SERIAL = 1
@@ -4015,9 +4121,8 @@ ESC_CONNECTION_TYPE_ENUM_END = 6
 enums["ESC_CONNECTION_TYPE"][6] = EnumEntry("ESC_CONNECTION_TYPE_ENUM_END", """""")
 
 # ESC_FAILURE_FLAGS
-enums["ESC_FAILURE_FLAGS"] = {}
-ESC_FAILURE_NONE = 0
-enums["ESC_FAILURE_FLAGS"][0] = EnumEntry("ESC_FAILURE_NONE", """No ESC failure.""")
+enums["ESC_FAILURE_FLAGS"] = Enum()
+enums["ESC_FAILURE_FLAGS"].bitmask = True
 ESC_FAILURE_OVER_CURRENT = 1
 enums["ESC_FAILURE_FLAGS"][1] = EnumEntry("ESC_FAILURE_OVER_CURRENT", """Over current failure.""")
 ESC_FAILURE_OVER_VOLTAGE = 2
@@ -4036,7 +4141,8 @@ ESC_FAILURE_FLAGS_ENUM_END = 65
 enums["ESC_FAILURE_FLAGS"][65] = EnumEntry("ESC_FAILURE_FLAGS_ENUM_END", """""")
 
 # STORAGE_STATUS
-enums["STORAGE_STATUS"] = {}
+enums["STORAGE_STATUS"] = Enum()
+enums["STORAGE_STATUS"].bitmask = False
 STORAGE_STATUS_EMPTY = 0
 enums["STORAGE_STATUS"][0] = EnumEntry("STORAGE_STATUS_EMPTY", """Storage is missing (no microSD card loaded for example.)""")
 STORAGE_STATUS_UNFORMATTED = 1
@@ -4049,7 +4155,8 @@ STORAGE_STATUS_ENUM_END = 4
 enums["STORAGE_STATUS"][4] = EnumEntry("STORAGE_STATUS_ENUM_END", """""")
 
 # STORAGE_TYPE
-enums["STORAGE_TYPE"] = {}
+enums["STORAGE_TYPE"] = Enum()
+enums["STORAGE_TYPE"].bitmask = False
 STORAGE_TYPE_UNKNOWN = 0
 enums["STORAGE_TYPE"][0] = EnumEntry("STORAGE_TYPE_UNKNOWN", """Storage type is not known.""")
 STORAGE_TYPE_USB_STICK = 1
@@ -4072,7 +4179,8 @@ STORAGE_TYPE_ENUM_END = 255
 enums["STORAGE_TYPE"][255] = EnumEntry("STORAGE_TYPE_ENUM_END", """""")
 
 # STORAGE_USAGE_FLAG
-enums["STORAGE_USAGE_FLAG"] = {}
+enums["STORAGE_USAGE_FLAG"] = Enum()
+enums["STORAGE_USAGE_FLAG"].bitmask = True
 STORAGE_USAGE_FLAG_SET = 1
 enums["STORAGE_USAGE_FLAG"][1] = EnumEntry("STORAGE_USAGE_FLAG_SET", """Always set to 1 (indicates STORAGE_INFORMATION.storage_usage is supported).""")
 STORAGE_USAGE_FLAG_PHOTO = 2
@@ -4085,7 +4193,8 @@ STORAGE_USAGE_FLAG_ENUM_END = 9
 enums["STORAGE_USAGE_FLAG"][9] = EnumEntry("STORAGE_USAGE_FLAG_ENUM_END", """""")
 
 # ORBIT_YAW_BEHAVIOUR
-enums["ORBIT_YAW_BEHAVIOUR"] = {}
+enums["ORBIT_YAW_BEHAVIOUR"] = Enum()
+enums["ORBIT_YAW_BEHAVIOUR"].bitmask = False
 ORBIT_YAW_BEHAVIOUR_HOLD_FRONT_TO_CIRCLE_CENTER = 0
 enums["ORBIT_YAW_BEHAVIOUR"][0] = EnumEntry("ORBIT_YAW_BEHAVIOUR_HOLD_FRONT_TO_CIRCLE_CENTER", """Vehicle front points to the center (default).""")
 ORBIT_YAW_BEHAVIOUR_HOLD_INITIAL_HEADING = 1
@@ -4102,7 +4211,8 @@ ORBIT_YAW_BEHAVIOUR_ENUM_END = 6
 enums["ORBIT_YAW_BEHAVIOUR"][6] = EnumEntry("ORBIT_YAW_BEHAVIOUR_ENUM_END", """""")
 
 # WIFI_CONFIG_AP_RESPONSE
-enums["WIFI_CONFIG_AP_RESPONSE"] = {}
+enums["WIFI_CONFIG_AP_RESPONSE"] = Enum()
+enums["WIFI_CONFIG_AP_RESPONSE"].bitmask = False
 WIFI_CONFIG_AP_RESPONSE_UNDEFINED = 0
 enums["WIFI_CONFIG_AP_RESPONSE"][0] = EnumEntry("WIFI_CONFIG_AP_RESPONSE_UNDEFINED", """Undefined response. Likely an indicative of a system that doesn't support this request.""")
 WIFI_CONFIG_AP_RESPONSE_ACCEPTED = 1
@@ -4119,7 +4229,8 @@ WIFI_CONFIG_AP_RESPONSE_ENUM_END = 6
 enums["WIFI_CONFIG_AP_RESPONSE"][6] = EnumEntry("WIFI_CONFIG_AP_RESPONSE_ENUM_END", """""")
 
 # CELLULAR_CONFIG_RESPONSE
-enums["CELLULAR_CONFIG_RESPONSE"] = {}
+enums["CELLULAR_CONFIG_RESPONSE"] = Enum()
+enums["CELLULAR_CONFIG_RESPONSE"].bitmask = False
 CELLULAR_CONFIG_RESPONSE_ACCEPTED = 0
 enums["CELLULAR_CONFIG_RESPONSE"][0] = EnumEntry("CELLULAR_CONFIG_RESPONSE_ACCEPTED", """Changes accepted.""")
 CELLULAR_CONFIG_RESPONSE_APN_ERROR = 1
@@ -4134,7 +4245,8 @@ CELLULAR_CONFIG_RESPONSE_ENUM_END = 5
 enums["CELLULAR_CONFIG_RESPONSE"][5] = EnumEntry("CELLULAR_CONFIG_RESPONSE_ENUM_END", """""")
 
 # WIFI_CONFIG_AP_MODE
-enums["WIFI_CONFIG_AP_MODE"] = {}
+enums["WIFI_CONFIG_AP_MODE"] = Enum()
+enums["WIFI_CONFIG_AP_MODE"].bitmask = False
 WIFI_CONFIG_AP_MODE_UNDEFINED = 0
 enums["WIFI_CONFIG_AP_MODE"][0] = EnumEntry("WIFI_CONFIG_AP_MODE_UNDEFINED", """WiFi mode is undefined.""")
 WIFI_CONFIG_AP_MODE_AP = 1
@@ -4147,7 +4259,8 @@ WIFI_CONFIG_AP_MODE_ENUM_END = 4
 enums["WIFI_CONFIG_AP_MODE"][4] = EnumEntry("WIFI_CONFIG_AP_MODE_ENUM_END", """""")
 
 # COMP_METADATA_TYPE
-enums["COMP_METADATA_TYPE"] = {}
+enums["COMP_METADATA_TYPE"] = Enum()
+enums["COMP_METADATA_TYPE"].bitmask = False
 COMP_METADATA_TYPE_GENERAL = 0
 enums["COMP_METADATA_TYPE"][0] = EnumEntry("COMP_METADATA_TYPE_GENERAL", """General information about the component. General metadata includes information about other metadata types supported by the component. Files of this type must be supported, and must be downloadable from vehicle using a MAVLink FTP URI.""")
 COMP_METADATA_TYPE_PARAMETER = 1
@@ -4164,7 +4277,8 @@ COMP_METADATA_TYPE_ENUM_END = 6
 enums["COMP_METADATA_TYPE"][6] = EnumEntry("COMP_METADATA_TYPE_ENUM_END", """""")
 
 # ACTUATOR_CONFIGURATION
-enums["ACTUATOR_CONFIGURATION"] = {}
+enums["ACTUATOR_CONFIGURATION"] = Enum()
+enums["ACTUATOR_CONFIGURATION"].bitmask = False
 ACTUATOR_CONFIGURATION_NONE = 0
 enums["ACTUATOR_CONFIGURATION"][0] = EnumEntry("ACTUATOR_CONFIGURATION_NONE", """Do nothing.""")
 ACTUATOR_CONFIGURATION_BEEP = 1
@@ -4181,7 +4295,8 @@ ACTUATOR_CONFIGURATION_ENUM_END = 6
 enums["ACTUATOR_CONFIGURATION"][6] = EnumEntry("ACTUATOR_CONFIGURATION_ENUM_END", """""")
 
 # ACTUATOR_OUTPUT_FUNCTION
-enums["ACTUATOR_OUTPUT_FUNCTION"] = {}
+enums["ACTUATOR_OUTPUT_FUNCTION"] = Enum()
+enums["ACTUATOR_OUTPUT_FUNCTION"].bitmask = False
 ACTUATOR_OUTPUT_FUNCTION_NONE = 0
 enums["ACTUATOR_OUTPUT_FUNCTION"][0] = EnumEntry("ACTUATOR_OUTPUT_FUNCTION_NONE", """No function (disabled).""")
 ACTUATOR_OUTPUT_FUNCTION_MOTOR1 = 1
@@ -4252,9 +4367,8 @@ ACTUATOR_OUTPUT_FUNCTION_ENUM_END = 49
 enums["ACTUATOR_OUTPUT_FUNCTION"][49] = EnumEntry("ACTUATOR_OUTPUT_FUNCTION_ENUM_END", """""")
 
 # AUTOTUNE_AXIS
-enums["AUTOTUNE_AXIS"] = {}
-AUTOTUNE_AXIS_DEFAULT = 0
-enums["AUTOTUNE_AXIS"][0] = EnumEntry("AUTOTUNE_AXIS_DEFAULT", """Flight stack tunes axis according to its default settings.""")
+enums["AUTOTUNE_AXIS"] = Enum()
+enums["AUTOTUNE_AXIS"].bitmask = True
 AUTOTUNE_AXIS_ROLL = 1
 enums["AUTOTUNE_AXIS"][1] = EnumEntry("AUTOTUNE_AXIS_ROLL", """Autotune roll axis.""")
 AUTOTUNE_AXIS_PITCH = 2
@@ -4265,7 +4379,8 @@ AUTOTUNE_AXIS_ENUM_END = 5
 enums["AUTOTUNE_AXIS"][5] = EnumEntry("AUTOTUNE_AXIS_ENUM_END", """""")
 
 # PREFLIGHT_STORAGE_PARAMETER_ACTION
-enums["PREFLIGHT_STORAGE_PARAMETER_ACTION"] = {}
+enums["PREFLIGHT_STORAGE_PARAMETER_ACTION"] = Enum()
+enums["PREFLIGHT_STORAGE_PARAMETER_ACTION"].bitmask = False
 PARAM_READ_PERSISTENT = 0
 enums["PREFLIGHT_STORAGE_PARAMETER_ACTION"][0] = EnumEntry("PARAM_READ_PERSISTENT", """Read all parameters from persistent storage. Replaces values in volatile storage.""")
 PARAM_WRITE_PERSISTENT = 1
@@ -4280,7 +4395,8 @@ PREFLIGHT_STORAGE_PARAMETER_ACTION_ENUM_END = 5
 enums["PREFLIGHT_STORAGE_PARAMETER_ACTION"][5] = EnumEntry("PREFLIGHT_STORAGE_PARAMETER_ACTION_ENUM_END", """""")
 
 # PREFLIGHT_STORAGE_MISSION_ACTION
-enums["PREFLIGHT_STORAGE_MISSION_ACTION"] = {}
+enums["PREFLIGHT_STORAGE_MISSION_ACTION"] = Enum()
+enums["PREFLIGHT_STORAGE_MISSION_ACTION"].bitmask = False
 MISSION_READ_PERSISTENT = 0
 enums["PREFLIGHT_STORAGE_MISSION_ACTION"][0] = EnumEntry("MISSION_READ_PERSISTENT", """Read current mission data from persistent storage""")
 MISSION_WRITE_PERSISTENT = 1
@@ -4291,7 +4407,8 @@ PREFLIGHT_STORAGE_MISSION_ACTION_ENUM_END = 3
 enums["PREFLIGHT_STORAGE_MISSION_ACTION"][3] = EnumEntry("PREFLIGHT_STORAGE_MISSION_ACTION_ENUM_END", """""")
 
 # MAV_DATA_STREAM
-enums["MAV_DATA_STREAM"] = {}
+enums["MAV_DATA_STREAM"] = Enum()
+enums["MAV_DATA_STREAM"].bitmask = False
 MAV_DATA_STREAM_ALL = 0
 enums["MAV_DATA_STREAM"][0] = EnumEntry("MAV_DATA_STREAM_ALL", """Enable all data streams""")
 MAV_DATA_STREAM_RAW_SENSORS = 1
@@ -4314,7 +4431,8 @@ MAV_DATA_STREAM_ENUM_END = 13
 enums["MAV_DATA_STREAM"][13] = EnumEntry("MAV_DATA_STREAM_ENUM_END", """""")
 
 # MAV_ROI
-enums["MAV_ROI"] = {}
+enums["MAV_ROI"] = Enum()
+enums["MAV_ROI"].bitmask = False
 MAV_ROI_NONE = 0
 enums["MAV_ROI"][0] = EnumEntry("MAV_ROI_NONE", """No region of interest.""")
 MAV_ROI_WPNEXT = 1
@@ -4329,7 +4447,8 @@ MAV_ROI_ENUM_END = 5
 enums["MAV_ROI"][5] = EnumEntry("MAV_ROI_ENUM_END", """""")
 
 # MAV_PARAM_TYPE
-enums["MAV_PARAM_TYPE"] = {}
+enums["MAV_PARAM_TYPE"] = Enum()
+enums["MAV_PARAM_TYPE"].bitmask = False
 MAV_PARAM_TYPE_UINT8 = 1
 enums["MAV_PARAM_TYPE"][1] = EnumEntry("MAV_PARAM_TYPE_UINT8", """8-bit unsigned integer""")
 MAV_PARAM_TYPE_INT8 = 2
@@ -4354,7 +4473,8 @@ MAV_PARAM_TYPE_ENUM_END = 11
 enums["MAV_PARAM_TYPE"][11] = EnumEntry("MAV_PARAM_TYPE_ENUM_END", """""")
 
 # MAV_PARAM_EXT_TYPE
-enums["MAV_PARAM_EXT_TYPE"] = {}
+enums["MAV_PARAM_EXT_TYPE"] = Enum()
+enums["MAV_PARAM_EXT_TYPE"].bitmask = False
 MAV_PARAM_EXT_TYPE_UINT8 = 1
 enums["MAV_PARAM_EXT_TYPE"][1] = EnumEntry("MAV_PARAM_EXT_TYPE_UINT8", """8-bit unsigned integer""")
 MAV_PARAM_EXT_TYPE_INT8 = 2
@@ -4381,7 +4501,8 @@ MAV_PARAM_EXT_TYPE_ENUM_END = 12
 enums["MAV_PARAM_EXT_TYPE"][12] = EnumEntry("MAV_PARAM_EXT_TYPE_ENUM_END", """""")
 
 # MAV_RESULT
-enums["MAV_RESULT"] = {}
+enums["MAV_RESULT"] = Enum()
+enums["MAV_RESULT"].bitmask = False
 MAV_RESULT_ACCEPTED = 0
 enums["MAV_RESULT"][0] = EnumEntry("MAV_RESULT_ACCEPTED", """Command is valid (is supported and has valid parameters), and was executed.""")
 MAV_RESULT_TEMPORARILY_REJECTED = 1
@@ -4406,7 +4527,8 @@ MAV_RESULT_ENUM_END = 10
 enums["MAV_RESULT"][10] = EnumEntry("MAV_RESULT_ENUM_END", """""")
 
 # MAV_MISSION_RESULT
-enums["MAV_MISSION_RESULT"] = {}
+enums["MAV_MISSION_RESULT"] = Enum()
+enums["MAV_MISSION_RESULT"].bitmask = False
 MAV_MISSION_ACCEPTED = 0
 enums["MAV_MISSION_RESULT"][0] = EnumEntry("MAV_MISSION_ACCEPTED", """mission accepted OK""")
 MAV_MISSION_ERROR = 1
@@ -4443,7 +4565,8 @@ MAV_MISSION_RESULT_ENUM_END = 16
 enums["MAV_MISSION_RESULT"][16] = EnumEntry("MAV_MISSION_RESULT_ENUM_END", """""")
 
 # MAV_SEVERITY
-enums["MAV_SEVERITY"] = {}
+enums["MAV_SEVERITY"] = Enum()
+enums["MAV_SEVERITY"].bitmask = False
 MAV_SEVERITY_EMERGENCY = 0
 enums["MAV_SEVERITY"][0] = EnumEntry("MAV_SEVERITY_EMERGENCY", """System is unusable. This is a "panic" condition.""")
 MAV_SEVERITY_ALERT = 1
@@ -4464,7 +4587,8 @@ MAV_SEVERITY_ENUM_END = 8
 enums["MAV_SEVERITY"][8] = EnumEntry("MAV_SEVERITY_ENUM_END", """""")
 
 # MAV_POWER_STATUS
-enums["MAV_POWER_STATUS"] = {}
+enums["MAV_POWER_STATUS"] = Enum()
+enums["MAV_POWER_STATUS"].bitmask = True
 MAV_POWER_STATUS_BRICK_VALID = 1
 enums["MAV_POWER_STATUS"][1] = EnumEntry("MAV_POWER_STATUS_BRICK_VALID", """main brick power supply valid""")
 MAV_POWER_STATUS_SERVO_VALID = 2
@@ -4481,7 +4605,8 @@ MAV_POWER_STATUS_ENUM_END = 33
 enums["MAV_POWER_STATUS"][33] = EnumEntry("MAV_POWER_STATUS_ENUM_END", """""")
 
 # SERIAL_CONTROL_DEV
-enums["SERIAL_CONTROL_DEV"] = {}
+enums["SERIAL_CONTROL_DEV"] = Enum()
+enums["SERIAL_CONTROL_DEV"].bitmask = False
 SERIAL_CONTROL_DEV_TELEM1 = 0
 enums["SERIAL_CONTROL_DEV"][0] = EnumEntry("SERIAL_CONTROL_DEV_TELEM1", """First telemetry port""")
 SERIAL_CONTROL_DEV_TELEM2 = 1
@@ -4516,7 +4641,8 @@ SERIAL_CONTROL_DEV_ENUM_END = 110
 enums["SERIAL_CONTROL_DEV"][110] = EnumEntry("SERIAL_CONTROL_DEV_ENUM_END", """""")
 
 # SERIAL_CONTROL_FLAG
-enums["SERIAL_CONTROL_FLAG"] = {}
+enums["SERIAL_CONTROL_FLAG"] = Enum()
+enums["SERIAL_CONTROL_FLAG"].bitmask = True
 SERIAL_CONTROL_FLAG_REPLY = 1
 enums["SERIAL_CONTROL_FLAG"][1] = EnumEntry("SERIAL_CONTROL_FLAG_REPLY", """Set if this is a reply""")
 SERIAL_CONTROL_FLAG_RESPOND = 2
@@ -4531,7 +4657,8 @@ SERIAL_CONTROL_FLAG_ENUM_END = 17
 enums["SERIAL_CONTROL_FLAG"][17] = EnumEntry("SERIAL_CONTROL_FLAG_ENUM_END", """""")
 
 # MAV_DISTANCE_SENSOR
-enums["MAV_DISTANCE_SENSOR"] = {}
+enums["MAV_DISTANCE_SENSOR"] = Enum()
+enums["MAV_DISTANCE_SENSOR"].bitmask = False
 MAV_DISTANCE_SENSOR_LASER = 0
 enums["MAV_DISTANCE_SENSOR"][0] = EnumEntry("MAV_DISTANCE_SENSOR_LASER", """Laser rangefinder, e.g. LightWare SF02/F or PulsedLight units""")
 MAV_DISTANCE_SENSOR_ULTRASOUND = 1
@@ -4546,7 +4673,8 @@ MAV_DISTANCE_SENSOR_ENUM_END = 5
 enums["MAV_DISTANCE_SENSOR"][5] = EnumEntry("MAV_DISTANCE_SENSOR_ENUM_END", """""")
 
 # MAV_SENSOR_ORIENTATION
-enums["MAV_SENSOR_ORIENTATION"] = {}
+enums["MAV_SENSOR_ORIENTATION"] = Enum()
+enums["MAV_SENSOR_ORIENTATION"].bitmask = False
 MAV_SENSOR_ROTATION_NONE = 0
 enums["MAV_SENSOR_ORIENTATION"][0] = EnumEntry("MAV_SENSOR_ROTATION_NONE", """Roll: 0, Pitch: 0, Yaw: 0""")
 MAV_SENSOR_ROTATION_YAW_45 = 1
@@ -4635,7 +4763,8 @@ MAV_SENSOR_ORIENTATION_ENUM_END = 101
 enums["MAV_SENSOR_ORIENTATION"][101] = EnumEntry("MAV_SENSOR_ORIENTATION_ENUM_END", """""")
 
 # MAV_PROTOCOL_CAPABILITY
-enums["MAV_PROTOCOL_CAPABILITY"] = {}
+enums["MAV_PROTOCOL_CAPABILITY"] = Enum()
+enums["MAV_PROTOCOL_CAPABILITY"].bitmask = True
 MAV_PROTOCOL_CAPABILITY_MISSION_FLOAT = 1
 enums["MAV_PROTOCOL_CAPABILITY"][1] = EnumEntry(
     "MAV_PROTOCOL_CAPABILITY_MISSION_FLOAT",
@@ -4704,7 +4833,8 @@ MAV_PROTOCOL_CAPABILITY_ENUM_END = 524289
 enums["MAV_PROTOCOL_CAPABILITY"][524289] = EnumEntry("MAV_PROTOCOL_CAPABILITY_ENUM_END", """""")
 
 # MAV_MISSION_TYPE
-enums["MAV_MISSION_TYPE"] = {}
+enums["MAV_MISSION_TYPE"] = Enum()
+enums["MAV_MISSION_TYPE"].bitmask = False
 MAV_MISSION_TYPE_MISSION = 0
 enums["MAV_MISSION_TYPE"][0] = EnumEntry("MAV_MISSION_TYPE_MISSION", """Items are mission commands for main mission.""")
 MAV_MISSION_TYPE_FENCE = 1
@@ -4717,7 +4847,8 @@ MAV_MISSION_TYPE_ENUM_END = 256
 enums["MAV_MISSION_TYPE"][256] = EnumEntry("MAV_MISSION_TYPE_ENUM_END", """""")
 
 # MAV_ESTIMATOR_TYPE
-enums["MAV_ESTIMATOR_TYPE"] = {}
+enums["MAV_ESTIMATOR_TYPE"] = Enum()
+enums["MAV_ESTIMATOR_TYPE"].bitmask = False
 MAV_ESTIMATOR_TYPE_UNKNOWN = 0
 enums["MAV_ESTIMATOR_TYPE"][0] = EnumEntry("MAV_ESTIMATOR_TYPE_UNKNOWN", """Unknown type of the estimator.""")
 MAV_ESTIMATOR_TYPE_NAIVE = 1
@@ -4740,7 +4871,8 @@ MAV_ESTIMATOR_TYPE_ENUM_END = 9
 enums["MAV_ESTIMATOR_TYPE"][9] = EnumEntry("MAV_ESTIMATOR_TYPE_ENUM_END", """""")
 
 # MAV_BATTERY_TYPE
-enums["MAV_BATTERY_TYPE"] = {}
+enums["MAV_BATTERY_TYPE"] = Enum()
+enums["MAV_BATTERY_TYPE"].bitmask = False
 MAV_BATTERY_TYPE_UNKNOWN = 0
 enums["MAV_BATTERY_TYPE"][0] = EnumEntry("MAV_BATTERY_TYPE_UNKNOWN", """Not specified.""")
 MAV_BATTERY_TYPE_LIPO = 1
@@ -4755,7 +4887,8 @@ MAV_BATTERY_TYPE_ENUM_END = 5
 enums["MAV_BATTERY_TYPE"][5] = EnumEntry("MAV_BATTERY_TYPE_ENUM_END", """""")
 
 # MAV_BATTERY_FUNCTION
-enums["MAV_BATTERY_FUNCTION"] = {}
+enums["MAV_BATTERY_FUNCTION"] = Enum()
+enums["MAV_BATTERY_FUNCTION"].bitmask = False
 MAV_BATTERY_FUNCTION_UNKNOWN = 0
 enums["MAV_BATTERY_FUNCTION"][0] = EnumEntry("MAV_BATTERY_FUNCTION_UNKNOWN", """Battery function is unknown""")
 MAV_BATTERY_FUNCTION_ALL = 1
@@ -4770,7 +4903,8 @@ MAV_BATTERY_FUNCTION_ENUM_END = 5
 enums["MAV_BATTERY_FUNCTION"][5] = EnumEntry("MAV_BATTERY_FUNCTION_ENUM_END", """""")
 
 # MAV_BATTERY_CHARGE_STATE
-enums["MAV_BATTERY_CHARGE_STATE"] = {}
+enums["MAV_BATTERY_CHARGE_STATE"] = Enum()
+enums["MAV_BATTERY_CHARGE_STATE"].bitmask = False
 MAV_BATTERY_CHARGE_STATE_UNDEFINED = 0
 enums["MAV_BATTERY_CHARGE_STATE"][0] = EnumEntry("MAV_BATTERY_CHARGE_STATE_UNDEFINED", """Low battery state is not provided""")
 MAV_BATTERY_CHARGE_STATE_OK = 1
@@ -4791,7 +4925,8 @@ MAV_BATTERY_CHARGE_STATE_ENUM_END = 8
 enums["MAV_BATTERY_CHARGE_STATE"][8] = EnumEntry("MAV_BATTERY_CHARGE_STATE_ENUM_END", """""")
 
 # MAV_BATTERY_MODE
-enums["MAV_BATTERY_MODE"] = {}
+enums["MAV_BATTERY_MODE"] = Enum()
+enums["MAV_BATTERY_MODE"].bitmask = False
 MAV_BATTERY_MODE_UNKNOWN = 0
 enums["MAV_BATTERY_MODE"][0] = EnumEntry("MAV_BATTERY_MODE_UNKNOWN", """Battery mode not supported/unknown battery mode/normal operation.""")
 MAV_BATTERY_MODE_AUTO_DISCHARGING = 1
@@ -4802,7 +4937,8 @@ MAV_BATTERY_MODE_ENUM_END = 3
 enums["MAV_BATTERY_MODE"][3] = EnumEntry("MAV_BATTERY_MODE_ENUM_END", """""")
 
 # MAV_BATTERY_FAULT
-enums["MAV_BATTERY_FAULT"] = {}
+enums["MAV_BATTERY_FAULT"] = Enum()
+enums["MAV_BATTERY_FAULT"].bitmask = True
 MAV_BATTERY_FAULT_DEEP_DISCHARGE = 1
 enums["MAV_BATTERY_FAULT"][1] = EnumEntry("MAV_BATTERY_FAULT_DEEP_DISCHARGE", """Battery has deep discharged.""")
 MAV_BATTERY_FAULT_SPIKES = 2
@@ -4825,7 +4961,8 @@ MAV_BATTERY_FAULT_ENUM_END = 257
 enums["MAV_BATTERY_FAULT"][257] = EnumEntry("MAV_BATTERY_FAULT_ENUM_END", """""")
 
 # MAV_FUEL_TYPE
-enums["MAV_FUEL_TYPE"] = {}
+enums["MAV_FUEL_TYPE"] = Enum()
+enums["MAV_FUEL_TYPE"].bitmask = False
 MAV_FUEL_TYPE_UNKNOWN = 0
 enums["MAV_FUEL_TYPE"][0] = EnumEntry("MAV_FUEL_TYPE_UNKNOWN", """Not specified. Fuel levels are normalized (i.e. maximum is 1, and other levels are relative to 1).""")
 MAV_FUEL_TYPE_LIQUID = 1
@@ -4836,7 +4973,8 @@ MAV_FUEL_TYPE_ENUM_END = 3
 enums["MAV_FUEL_TYPE"][3] = EnumEntry("MAV_FUEL_TYPE_ENUM_END", """""")
 
 # MAV_GENERATOR_STATUS_FLAG
-enums["MAV_GENERATOR_STATUS_FLAG"] = {}
+enums["MAV_GENERATOR_STATUS_FLAG"] = Enum()
+enums["MAV_GENERATOR_STATUS_FLAG"].bitmask = True
 MAV_GENERATOR_STATUS_FLAG_OFF = 1
 enums["MAV_GENERATOR_STATUS_FLAG"][1] = EnumEntry("MAV_GENERATOR_STATUS_FLAG_OFF", """Generator is off.""")
 MAV_GENERATOR_STATUS_FLAG_READY = 2
@@ -4887,7 +5025,8 @@ MAV_GENERATOR_STATUS_FLAG_ENUM_END = 4194305
 enums["MAV_GENERATOR_STATUS_FLAG"][4194305] = EnumEntry("MAV_GENERATOR_STATUS_FLAG_ENUM_END", """""")
 
 # MAV_VTOL_STATE
-enums["MAV_VTOL_STATE"] = {}
+enums["MAV_VTOL_STATE"] = Enum()
+enums["MAV_VTOL_STATE"].bitmask = False
 MAV_VTOL_STATE_UNDEFINED = 0
 enums["MAV_VTOL_STATE"][0] = EnumEntry("MAV_VTOL_STATE_UNDEFINED", """MAV is not configured as VTOL""")
 MAV_VTOL_STATE_TRANSITION_TO_FW = 1
@@ -4902,7 +5041,8 @@ MAV_VTOL_STATE_ENUM_END = 5
 enums["MAV_VTOL_STATE"][5] = EnumEntry("MAV_VTOL_STATE_ENUM_END", """""")
 
 # MAV_LANDED_STATE
-enums["MAV_LANDED_STATE"] = {}
+enums["MAV_LANDED_STATE"] = Enum()
+enums["MAV_LANDED_STATE"].bitmask = False
 MAV_LANDED_STATE_UNDEFINED = 0
 enums["MAV_LANDED_STATE"][0] = EnumEntry("MAV_LANDED_STATE_UNDEFINED", """MAV landed state is unknown""")
 MAV_LANDED_STATE_ON_GROUND = 1
@@ -4917,7 +5057,8 @@ MAV_LANDED_STATE_ENUM_END = 5
 enums["MAV_LANDED_STATE"][5] = EnumEntry("MAV_LANDED_STATE_ENUM_END", """""")
 
 # ADSB_ALTITUDE_TYPE
-enums["ADSB_ALTITUDE_TYPE"] = {}
+enums["ADSB_ALTITUDE_TYPE"] = Enum()
+enums["ADSB_ALTITUDE_TYPE"].bitmask = False
 ADSB_ALTITUDE_TYPE_PRESSURE_QNH = 0
 enums["ADSB_ALTITUDE_TYPE"][0] = EnumEntry("ADSB_ALTITUDE_TYPE_PRESSURE_QNH", """Altitude reported from a Baro source using QNH reference""")
 ADSB_ALTITUDE_TYPE_GEOMETRIC = 1
@@ -4926,7 +5067,8 @@ ADSB_ALTITUDE_TYPE_ENUM_END = 2
 enums["ADSB_ALTITUDE_TYPE"][2] = EnumEntry("ADSB_ALTITUDE_TYPE_ENUM_END", """""")
 
 # ADSB_EMITTER_TYPE
-enums["ADSB_EMITTER_TYPE"] = {}
+enums["ADSB_EMITTER_TYPE"] = Enum()
+enums["ADSB_EMITTER_TYPE"].bitmask = False
 ADSB_EMITTER_TYPE_NO_INFO = 0
 enums["ADSB_EMITTER_TYPE"][0] = EnumEntry("ADSB_EMITTER_TYPE_NO_INFO", """""")
 ADSB_EMITTER_TYPE_LIGHT = 1
@@ -4971,7 +5113,8 @@ ADSB_EMITTER_TYPE_ENUM_END = 20
 enums["ADSB_EMITTER_TYPE"][20] = EnumEntry("ADSB_EMITTER_TYPE_ENUM_END", """""")
 
 # ADSB_FLAGS
-enums["ADSB_FLAGS"] = {}
+enums["ADSB_FLAGS"] = Enum()
+enums["ADSB_FLAGS"].bitmask = True
 ADSB_FLAGS_VALID_COORDS = 1
 enums["ADSB_FLAGS"][1] = EnumEntry("ADSB_FLAGS_VALID_COORDS", """""")
 ADSB_FLAGS_VALID_ALTITUDE = 2
@@ -4996,14 +5139,16 @@ ADSB_FLAGS_ENUM_END = 32769
 enums["ADSB_FLAGS"][32769] = EnumEntry("ADSB_FLAGS_ENUM_END", """""")
 
 # MAV_DO_REPOSITION_FLAGS
-enums["MAV_DO_REPOSITION_FLAGS"] = {}
+enums["MAV_DO_REPOSITION_FLAGS"] = Enum()
+enums["MAV_DO_REPOSITION_FLAGS"].bitmask = True
 MAV_DO_REPOSITION_FLAGS_CHANGE_MODE = 1
 enums["MAV_DO_REPOSITION_FLAGS"][1] = EnumEntry("MAV_DO_REPOSITION_FLAGS_CHANGE_MODE", """The aircraft should immediately transition into guided. This should not be set for follow me applications""")
 MAV_DO_REPOSITION_FLAGS_ENUM_END = 2
 enums["MAV_DO_REPOSITION_FLAGS"][2] = EnumEntry("MAV_DO_REPOSITION_FLAGS_ENUM_END", """""")
 
 # SPEED_TYPE
-enums["SPEED_TYPE"] = {}
+enums["SPEED_TYPE"] = Enum()
+enums["SPEED_TYPE"].bitmask = False
 SPEED_TYPE_AIRSPEED = 0
 enums["SPEED_TYPE"][0] = EnumEntry("SPEED_TYPE_AIRSPEED", """Airspeed""")
 SPEED_TYPE_GROUNDSPEED = 1
@@ -5016,7 +5161,8 @@ SPEED_TYPE_ENUM_END = 4
 enums["SPEED_TYPE"][4] = EnumEntry("SPEED_TYPE_ENUM_END", """""")
 
 # ESTIMATOR_STATUS_FLAGS
-enums["ESTIMATOR_STATUS_FLAGS"] = {}
+enums["ESTIMATOR_STATUS_FLAGS"] = Enum()
+enums["ESTIMATOR_STATUS_FLAGS"].bitmask = True
 ESTIMATOR_ATTITUDE = 1
 enums["ESTIMATOR_STATUS_FLAGS"][1] = EnumEntry("ESTIMATOR_ATTITUDE", """True if the attitude estimate is good""")
 ESTIMATOR_VELOCITY_HORIZ = 2
@@ -5045,7 +5191,8 @@ ESTIMATOR_STATUS_FLAGS_ENUM_END = 2049
 enums["ESTIMATOR_STATUS_FLAGS"][2049] = EnumEntry("ESTIMATOR_STATUS_FLAGS_ENUM_END", """""")
 
 # MOTOR_TEST_ORDER
-enums["MOTOR_TEST_ORDER"] = {}
+enums["MOTOR_TEST_ORDER"] = Enum()
+enums["MOTOR_TEST_ORDER"].bitmask = False
 MOTOR_TEST_ORDER_DEFAULT = 0
 enums["MOTOR_TEST_ORDER"][0] = EnumEntry("MOTOR_TEST_ORDER_DEFAULT", """Default autopilot motor test method.""")
 MOTOR_TEST_ORDER_SEQUENCE = 1
@@ -5056,7 +5203,8 @@ MOTOR_TEST_ORDER_ENUM_END = 3
 enums["MOTOR_TEST_ORDER"][3] = EnumEntry("MOTOR_TEST_ORDER_ENUM_END", """""")
 
 # MOTOR_TEST_THROTTLE_TYPE
-enums["MOTOR_TEST_THROTTLE_TYPE"] = {}
+enums["MOTOR_TEST_THROTTLE_TYPE"] = Enum()
+enums["MOTOR_TEST_THROTTLE_TYPE"].bitmask = False
 MOTOR_TEST_THROTTLE_PERCENT = 0
 enums["MOTOR_TEST_THROTTLE_TYPE"][0] = EnumEntry("MOTOR_TEST_THROTTLE_PERCENT", """Throttle as a percentage (0 ~ 100)""")
 MOTOR_TEST_THROTTLE_PWM = 1
@@ -5069,7 +5217,8 @@ MOTOR_TEST_THROTTLE_TYPE_ENUM_END = 4
 enums["MOTOR_TEST_THROTTLE_TYPE"][4] = EnumEntry("MOTOR_TEST_THROTTLE_TYPE_ENUM_END", """""")
 
 # GPS_INPUT_IGNORE_FLAGS
-enums["GPS_INPUT_IGNORE_FLAGS"] = {}
+enums["GPS_INPUT_IGNORE_FLAGS"] = Enum()
+enums["GPS_INPUT_IGNORE_FLAGS"].bitmask = True
 GPS_INPUT_IGNORE_FLAG_ALT = 1
 enums["GPS_INPUT_IGNORE_FLAGS"][1] = EnumEntry("GPS_INPUT_IGNORE_FLAG_ALT", """ignore altitude field""")
 GPS_INPUT_IGNORE_FLAG_HDOP = 2
@@ -5090,7 +5239,8 @@ GPS_INPUT_IGNORE_FLAGS_ENUM_END = 129
 enums["GPS_INPUT_IGNORE_FLAGS"][129] = EnumEntry("GPS_INPUT_IGNORE_FLAGS_ENUM_END", """""")
 
 # MAV_COLLISION_ACTION
-enums["MAV_COLLISION_ACTION"] = {}
+enums["MAV_COLLISION_ACTION"] = Enum()
+enums["MAV_COLLISION_ACTION"].bitmask = False
 MAV_COLLISION_ACTION_NONE = 0
 enums["MAV_COLLISION_ACTION"][0] = EnumEntry("MAV_COLLISION_ACTION_NONE", """Ignore any potential collisions""")
 MAV_COLLISION_ACTION_REPORT = 1
@@ -5109,7 +5259,8 @@ MAV_COLLISION_ACTION_ENUM_END = 7
 enums["MAV_COLLISION_ACTION"][7] = EnumEntry("MAV_COLLISION_ACTION_ENUM_END", """""")
 
 # MAV_COLLISION_THREAT_LEVEL
-enums["MAV_COLLISION_THREAT_LEVEL"] = {}
+enums["MAV_COLLISION_THREAT_LEVEL"] = Enum()
+enums["MAV_COLLISION_THREAT_LEVEL"].bitmask = False
 MAV_COLLISION_THREAT_LEVEL_NONE = 0
 enums["MAV_COLLISION_THREAT_LEVEL"][0] = EnumEntry("MAV_COLLISION_THREAT_LEVEL_NONE", """Not a threat""")
 MAV_COLLISION_THREAT_LEVEL_LOW = 1
@@ -5120,7 +5271,8 @@ MAV_COLLISION_THREAT_LEVEL_ENUM_END = 3
 enums["MAV_COLLISION_THREAT_LEVEL"][3] = EnumEntry("MAV_COLLISION_THREAT_LEVEL_ENUM_END", """""")
 
 # MAV_COLLISION_SRC
-enums["MAV_COLLISION_SRC"] = {}
+enums["MAV_COLLISION_SRC"] = Enum()
+enums["MAV_COLLISION_SRC"].bitmask = False
 MAV_COLLISION_SRC_ADSB = 0
 enums["MAV_COLLISION_SRC"][0] = EnumEntry("MAV_COLLISION_SRC_ADSB", """ID field references ADSB_VEHICLE packets""")
 MAV_COLLISION_SRC_MAVLINK_GPS_GLOBAL_INT = 1
@@ -5129,7 +5281,8 @@ MAV_COLLISION_SRC_ENUM_END = 2
 enums["MAV_COLLISION_SRC"][2] = EnumEntry("MAV_COLLISION_SRC_ENUM_END", """""")
 
 # GPS_FIX_TYPE
-enums["GPS_FIX_TYPE"] = {}
+enums["GPS_FIX_TYPE"] = Enum()
+enums["GPS_FIX_TYPE"].bitmask = False
 GPS_FIX_TYPE_NO_GPS = 0
 enums["GPS_FIX_TYPE"][0] = EnumEntry("GPS_FIX_TYPE_NO_GPS", """No GPS connected""")
 GPS_FIX_TYPE_NO_FIX = 1
@@ -5152,7 +5305,8 @@ GPS_FIX_TYPE_ENUM_END = 9
 enums["GPS_FIX_TYPE"][9] = EnumEntry("GPS_FIX_TYPE_ENUM_END", """""")
 
 # RTK_BASELINE_COORDINATE_SYSTEM
-enums["RTK_BASELINE_COORDINATE_SYSTEM"] = {}
+enums["RTK_BASELINE_COORDINATE_SYSTEM"] = Enum()
+enums["RTK_BASELINE_COORDINATE_SYSTEM"].bitmask = False
 RTK_BASELINE_COORDINATE_SYSTEM_ECEF = 0
 enums["RTK_BASELINE_COORDINATE_SYSTEM"][0] = EnumEntry("RTK_BASELINE_COORDINATE_SYSTEM_ECEF", """Earth-centered, Earth-fixed""")
 RTK_BASELINE_COORDINATE_SYSTEM_NED = 1
@@ -5161,7 +5315,8 @@ RTK_BASELINE_COORDINATE_SYSTEM_ENUM_END = 2
 enums["RTK_BASELINE_COORDINATE_SYSTEM"][2] = EnumEntry("RTK_BASELINE_COORDINATE_SYSTEM_ENUM_END", """""")
 
 # LANDING_TARGET_TYPE
-enums["LANDING_TARGET_TYPE"] = {}
+enums["LANDING_TARGET_TYPE"] = Enum()
+enums["LANDING_TARGET_TYPE"].bitmask = False
 LANDING_TARGET_TYPE_LIGHT_BEACON = 0
 enums["LANDING_TARGET_TYPE"][0] = EnumEntry("LANDING_TARGET_TYPE_LIGHT_BEACON", """Landing target signaled by light beacon (ex: IR-LOCK)""")
 LANDING_TARGET_TYPE_RADIO_BEACON = 1
@@ -5174,7 +5329,8 @@ LANDING_TARGET_TYPE_ENUM_END = 4
 enums["LANDING_TARGET_TYPE"][4] = EnumEntry("LANDING_TARGET_TYPE_ENUM_END", """""")
 
 # VTOL_TRANSITION_HEADING
-enums["VTOL_TRANSITION_HEADING"] = {}
+enums["VTOL_TRANSITION_HEADING"] = Enum()
+enums["VTOL_TRANSITION_HEADING"].bitmask = False
 VTOL_TRANSITION_HEADING_VEHICLE_DEFAULT = 0
 enums["VTOL_TRANSITION_HEADING"][0] = EnumEntry("VTOL_TRANSITION_HEADING_VEHICLE_DEFAULT", """Respect the heading configuration of the vehicle.""")
 VTOL_TRANSITION_HEADING_NEXT_WAYPOINT = 1
@@ -5189,7 +5345,8 @@ VTOL_TRANSITION_HEADING_ENUM_END = 5
 enums["VTOL_TRANSITION_HEADING"][5] = EnumEntry("VTOL_TRANSITION_HEADING_ENUM_END", """""")
 
 # CAMERA_CAP_FLAGS
-enums["CAMERA_CAP_FLAGS"] = {}
+enums["CAMERA_CAP_FLAGS"] = Enum()
+enums["CAMERA_CAP_FLAGS"].bitmask = True
 CAMERA_CAP_FLAGS_CAPTURE_VIDEO = 1
 enums["CAMERA_CAP_FLAGS"][1] = EnumEntry("CAMERA_CAP_FLAGS_CAPTURE_VIDEO", """Camera is able to record video""")
 CAMERA_CAP_FLAGS_CAPTURE_IMAGE = 2
@@ -5220,7 +5377,8 @@ CAMERA_CAP_FLAGS_ENUM_END = 4097
 enums["CAMERA_CAP_FLAGS"][4097] = EnumEntry("CAMERA_CAP_FLAGS_ENUM_END", """""")
 
 # VIDEO_STREAM_STATUS_FLAGS
-enums["VIDEO_STREAM_STATUS_FLAGS"] = {}
+enums["VIDEO_STREAM_STATUS_FLAGS"] = Enum()
+enums["VIDEO_STREAM_STATUS_FLAGS"].bitmask = True
 VIDEO_STREAM_STATUS_FLAGS_RUNNING = 1
 enums["VIDEO_STREAM_STATUS_FLAGS"][1] = EnumEntry("VIDEO_STREAM_STATUS_FLAGS_RUNNING", """Stream is active (running)""")
 VIDEO_STREAM_STATUS_FLAGS_THERMAL = 2
@@ -5231,7 +5389,8 @@ VIDEO_STREAM_STATUS_FLAGS_ENUM_END = 5
 enums["VIDEO_STREAM_STATUS_FLAGS"][5] = EnumEntry("VIDEO_STREAM_STATUS_FLAGS_ENUM_END", """""")
 
 # VIDEO_STREAM_TYPE
-enums["VIDEO_STREAM_TYPE"] = {}
+enums["VIDEO_STREAM_TYPE"] = Enum()
+enums["VIDEO_STREAM_TYPE"].bitmask = False
 VIDEO_STREAM_TYPE_RTSP = 0
 enums["VIDEO_STREAM_TYPE"][0] = EnumEntry("VIDEO_STREAM_TYPE_RTSP", """Stream is RTSP""")
 VIDEO_STREAM_TYPE_RTPUDP = 1
@@ -5244,7 +5403,8 @@ VIDEO_STREAM_TYPE_ENUM_END = 4
 enums["VIDEO_STREAM_TYPE"][4] = EnumEntry("VIDEO_STREAM_TYPE_ENUM_END", """""")
 
 # VIDEO_STREAM_ENCODING
-enums["VIDEO_STREAM_ENCODING"] = {}
+enums["VIDEO_STREAM_ENCODING"] = Enum()
+enums["VIDEO_STREAM_ENCODING"].bitmask = False
 VIDEO_STREAM_ENCODING_UNKNOWN = 0
 enums["VIDEO_STREAM_ENCODING"][0] = EnumEntry("VIDEO_STREAM_ENCODING_UNKNOWN", """Stream encoding is unknown""")
 VIDEO_STREAM_ENCODING_H264 = 1
@@ -5255,7 +5415,8 @@ VIDEO_STREAM_ENCODING_ENUM_END = 3
 enums["VIDEO_STREAM_ENCODING"][3] = EnumEntry("VIDEO_STREAM_ENCODING_ENUM_END", """""")
 
 # CAMERA_TRACKING_STATUS_FLAGS
-enums["CAMERA_TRACKING_STATUS_FLAGS"] = {}
+enums["CAMERA_TRACKING_STATUS_FLAGS"] = Enum()
+enums["CAMERA_TRACKING_STATUS_FLAGS"].bitmask = False
 CAMERA_TRACKING_STATUS_FLAGS_IDLE = 0
 enums["CAMERA_TRACKING_STATUS_FLAGS"][0] = EnumEntry("CAMERA_TRACKING_STATUS_FLAGS_IDLE", """Camera is not tracking""")
 CAMERA_TRACKING_STATUS_FLAGS_ACTIVE = 1
@@ -5266,7 +5427,8 @@ CAMERA_TRACKING_STATUS_FLAGS_ENUM_END = 3
 enums["CAMERA_TRACKING_STATUS_FLAGS"][3] = EnumEntry("CAMERA_TRACKING_STATUS_FLAGS_ENUM_END", """""")
 
 # CAMERA_TRACKING_MODE
-enums["CAMERA_TRACKING_MODE"] = {}
+enums["CAMERA_TRACKING_MODE"] = Enum()
+enums["CAMERA_TRACKING_MODE"].bitmask = False
 CAMERA_TRACKING_MODE_NONE = 0
 enums["CAMERA_TRACKING_MODE"][0] = EnumEntry("CAMERA_TRACKING_MODE_NONE", """Not tracking""")
 CAMERA_TRACKING_MODE_POINT = 1
@@ -5277,9 +5439,8 @@ CAMERA_TRACKING_MODE_ENUM_END = 3
 enums["CAMERA_TRACKING_MODE"][3] = EnumEntry("CAMERA_TRACKING_MODE_ENUM_END", """""")
 
 # CAMERA_TRACKING_TARGET_DATA
-enums["CAMERA_TRACKING_TARGET_DATA"] = {}
-CAMERA_TRACKING_TARGET_DATA_NONE = 0
-enums["CAMERA_TRACKING_TARGET_DATA"][0] = EnumEntry("CAMERA_TRACKING_TARGET_DATA_NONE", """No target data""")
+enums["CAMERA_TRACKING_TARGET_DATA"] = Enum()
+enums["CAMERA_TRACKING_TARGET_DATA"].bitmask = True
 CAMERA_TRACKING_TARGET_DATA_EMBEDDED = 1
 enums["CAMERA_TRACKING_TARGET_DATA"][1] = EnumEntry("CAMERA_TRACKING_TARGET_DATA_EMBEDDED", """Target data embedded in image data (proprietary)""")
 CAMERA_TRACKING_TARGET_DATA_RENDERED = 2
@@ -5290,11 +5451,12 @@ CAMERA_TRACKING_TARGET_DATA_ENUM_END = 5
 enums["CAMERA_TRACKING_TARGET_DATA"][5] = EnumEntry("CAMERA_TRACKING_TARGET_DATA_ENUM_END", """""")
 
 # CAMERA_ZOOM_TYPE
-enums["CAMERA_ZOOM_TYPE"] = {}
+enums["CAMERA_ZOOM_TYPE"] = Enum()
+enums["CAMERA_ZOOM_TYPE"].bitmask = False
 ZOOM_TYPE_STEP = 0
 enums["CAMERA_ZOOM_TYPE"][0] = EnumEntry("ZOOM_TYPE_STEP", """Zoom one step increment (-1 for wide, 1 for tele)""")
 ZOOM_TYPE_CONTINUOUS = 1
-enums["CAMERA_ZOOM_TYPE"][1] = EnumEntry("ZOOM_TYPE_CONTINUOUS", """Continuous zoom up/down until stopped (-1 for wide, 1 for tele, 0 to stop zooming)""")
+enums["CAMERA_ZOOM_TYPE"][1] = EnumEntry("ZOOM_TYPE_CONTINUOUS", """Continuous normalized zoom in/out rate until stopped. Range -1..1, negative: wide, positive: narrow/tele, 0 to stop zooming. Other values should be clipped to the range.""")
 ZOOM_TYPE_RANGE = 2
 enums["CAMERA_ZOOM_TYPE"][2] = EnumEntry("ZOOM_TYPE_RANGE", """Zoom value as proportion of full camera range (a percentage value between 0.0 and 100.0)""")
 ZOOM_TYPE_FOCAL_LENGTH = 3
@@ -5305,11 +5467,12 @@ CAMERA_ZOOM_TYPE_ENUM_END = 5
 enums["CAMERA_ZOOM_TYPE"][5] = EnumEntry("CAMERA_ZOOM_TYPE_ENUM_END", """""")
 
 # SET_FOCUS_TYPE
-enums["SET_FOCUS_TYPE"] = {}
+enums["SET_FOCUS_TYPE"] = Enum()
+enums["SET_FOCUS_TYPE"].bitmask = False
 FOCUS_TYPE_STEP = 0
 enums["SET_FOCUS_TYPE"][0] = EnumEntry("FOCUS_TYPE_STEP", """Focus one step increment (-1 for focusing in, 1 for focusing out towards infinity).""")
 FOCUS_TYPE_CONTINUOUS = 1
-enums["SET_FOCUS_TYPE"][1] = EnumEntry("FOCUS_TYPE_CONTINUOUS", """Continuous focus up/down until stopped (-1 for focusing in, 1 for focusing out towards infinity, 0 to stop focusing)""")
+enums["SET_FOCUS_TYPE"][1] = EnumEntry("FOCUS_TYPE_CONTINUOUS", """Continuous normalized focus in/out rate until stopped. Range -1..1, negative: in, positive: out towards infinity, 0 to stop focusing. Other values should be clipped to the range.""")
 FOCUS_TYPE_RANGE = 2
 enums["SET_FOCUS_TYPE"][2] = EnumEntry("FOCUS_TYPE_RANGE", """Focus value as proportion of full camera focus range (a value between 0.0 and 100.0)""")
 FOCUS_TYPE_METERS = 3
@@ -5324,7 +5487,8 @@ SET_FOCUS_TYPE_ENUM_END = 7
 enums["SET_FOCUS_TYPE"][7] = EnumEntry("SET_FOCUS_TYPE_ENUM_END", """""")
 
 # CAMERA_SOURCE
-enums["CAMERA_SOURCE"] = {}
+enums["CAMERA_SOURCE"] = Enum()
+enums["CAMERA_SOURCE"].bitmask = False
 CAMERA_SOURCE_DEFAULT = 0
 enums["CAMERA_SOURCE"][0] = EnumEntry("CAMERA_SOURCE_DEFAULT", """Default camera source.""")
 CAMERA_SOURCE_RGB = 1
@@ -5337,7 +5501,8 @@ CAMERA_SOURCE_ENUM_END = 4
 enums["CAMERA_SOURCE"][4] = EnumEntry("CAMERA_SOURCE_ENUM_END", """""")
 
 # PARAM_ACK
-enums["PARAM_ACK"] = {}
+enums["PARAM_ACK"] = Enum()
+enums["PARAM_ACK"].bitmask = False
 PARAM_ACK_ACCEPTED = 0
 enums["PARAM_ACK"][0] = EnumEntry("PARAM_ACK_ACCEPTED", """Parameter value ACCEPTED and SET""")
 PARAM_ACK_VALUE_UNSUPPORTED = 1
@@ -5350,7 +5515,8 @@ PARAM_ACK_ENUM_END = 4
 enums["PARAM_ACK"][4] = EnumEntry("PARAM_ACK_ENUM_END", """""")
 
 # CAMERA_MODE
-enums["CAMERA_MODE"] = {}
+enums["CAMERA_MODE"] = Enum()
+enums["CAMERA_MODE"].bitmask = False
 CAMERA_MODE_IMAGE = 0
 enums["CAMERA_MODE"][0] = EnumEntry("CAMERA_MODE_IMAGE", """Camera is in image/photo capture mode.""")
 CAMERA_MODE_VIDEO = 1
@@ -5361,7 +5527,8 @@ CAMERA_MODE_ENUM_END = 3
 enums["CAMERA_MODE"][3] = EnumEntry("CAMERA_MODE_ENUM_END", """""")
 
 # MAV_ARM_AUTH_DENIED_REASON
-enums["MAV_ARM_AUTH_DENIED_REASON"] = {}
+enums["MAV_ARM_AUTH_DENIED_REASON"] = Enum()
+enums["MAV_ARM_AUTH_DENIED_REASON"].bitmask = False
 MAV_ARM_AUTH_DENIED_REASON_GENERIC = 0
 enums["MAV_ARM_AUTH_DENIED_REASON"][0] = EnumEntry("MAV_ARM_AUTH_DENIED_REASON_GENERIC", """Not a specific reason""")
 MAV_ARM_AUTH_DENIED_REASON_NONE = 1
@@ -5378,7 +5545,8 @@ MAV_ARM_AUTH_DENIED_REASON_ENUM_END = 6
 enums["MAV_ARM_AUTH_DENIED_REASON"][6] = EnumEntry("MAV_ARM_AUTH_DENIED_REASON_ENUM_END", """""")
 
 # RC_TYPE
-enums["RC_TYPE"] = {}
+enums["RC_TYPE"] = Enum()
+enums["RC_TYPE"].bitmask = False
 RC_TYPE_SPEKTRUM = 0
 enums["RC_TYPE"][0] = EnumEntry("RC_TYPE_SPEKTRUM", """Spektrum""")
 RC_TYPE_CRSF = 1
@@ -5387,7 +5555,8 @@ RC_TYPE_ENUM_END = 2
 enums["RC_TYPE"][2] = EnumEntry("RC_TYPE_ENUM_END", """""")
 
 # RC_SUB_TYPE
-enums["RC_SUB_TYPE"] = {}
+enums["RC_SUB_TYPE"] = Enum()
+enums["RC_SUB_TYPE"].bitmask = False
 RC_SUB_TYPE_SPEKTRUM_DSM2 = 0
 enums["RC_SUB_TYPE"][0] = EnumEntry("RC_SUB_TYPE_SPEKTRUM_DSM2", """Spektrum DSM2""")
 RC_SUB_TYPE_SPEKTRUM_DSMX = 1
@@ -5398,7 +5567,8 @@ RC_SUB_TYPE_ENUM_END = 3
 enums["RC_SUB_TYPE"][3] = EnumEntry("RC_SUB_TYPE_ENUM_END", """""")
 
 # POSITION_TARGET_TYPEMASK
-enums["POSITION_TARGET_TYPEMASK"] = {}
+enums["POSITION_TARGET_TYPEMASK"] = Enum()
+enums["POSITION_TARGET_TYPEMASK"].bitmask = True
 POSITION_TARGET_TYPEMASK_X_IGNORE = 1
 enums["POSITION_TARGET_TYPEMASK"][1] = EnumEntry("POSITION_TARGET_TYPEMASK_X_IGNORE", """Ignore position x""")
 POSITION_TARGET_TYPEMASK_Y_IGNORE = 2
@@ -5427,7 +5597,8 @@ POSITION_TARGET_TYPEMASK_ENUM_END = 2049
 enums["POSITION_TARGET_TYPEMASK"][2049] = EnumEntry("POSITION_TARGET_TYPEMASK_ENUM_END", """""")
 
 # ATTITUDE_TARGET_TYPEMASK
-enums["ATTITUDE_TARGET_TYPEMASK"] = {}
+enums["ATTITUDE_TARGET_TYPEMASK"] = Enum()
+enums["ATTITUDE_TARGET_TYPEMASK"].bitmask = True
 ATTITUDE_TARGET_TYPEMASK_BODY_ROLL_RATE_IGNORE = 1
 enums["ATTITUDE_TARGET_TYPEMASK"][1] = EnumEntry("ATTITUDE_TARGET_TYPEMASK_BODY_ROLL_RATE_IGNORE", """Ignore body roll rate""")
 ATTITUDE_TARGET_TYPEMASK_BODY_PITCH_RATE_IGNORE = 2
@@ -5444,7 +5615,8 @@ ATTITUDE_TARGET_TYPEMASK_ENUM_END = 129
 enums["ATTITUDE_TARGET_TYPEMASK"][129] = EnumEntry("ATTITUDE_TARGET_TYPEMASK_ENUM_END", """""")
 
 # UTM_FLIGHT_STATE
-enums["UTM_FLIGHT_STATE"] = {}
+enums["UTM_FLIGHT_STATE"] = Enum()
+enums["UTM_FLIGHT_STATE"].bitmask = False
 UTM_FLIGHT_STATE_UNKNOWN = 1
 enums["UTM_FLIGHT_STATE"][1] = EnumEntry("UTM_FLIGHT_STATE_UNKNOWN", """The flight state can't be determined.""")
 UTM_FLIGHT_STATE_GROUND = 2
@@ -5459,7 +5631,8 @@ UTM_FLIGHT_STATE_ENUM_END = 33
 enums["UTM_FLIGHT_STATE"][33] = EnumEntry("UTM_FLIGHT_STATE_ENUM_END", """""")
 
 # UTM_DATA_AVAIL_FLAGS
-enums["UTM_DATA_AVAIL_FLAGS"] = {}
+enums["UTM_DATA_AVAIL_FLAGS"] = Enum()
+enums["UTM_DATA_AVAIL_FLAGS"].bitmask = True
 UTM_DATA_AVAIL_FLAGS_TIME_VALID = 1
 enums["UTM_DATA_AVAIL_FLAGS"][1] = EnumEntry("UTM_DATA_AVAIL_FLAGS_TIME_VALID", """The field time contains valid data.""")
 UTM_DATA_AVAIL_FLAGS_UAS_ID_AVAILABLE = 2
@@ -5480,7 +5653,8 @@ UTM_DATA_AVAIL_FLAGS_ENUM_END = 129
 enums["UTM_DATA_AVAIL_FLAGS"][129] = EnumEntry("UTM_DATA_AVAIL_FLAGS_ENUM_END", """""")
 
 # CELLULAR_STATUS_FLAG
-enums["CELLULAR_STATUS_FLAG"] = {}
+enums["CELLULAR_STATUS_FLAG"] = Enum()
+enums["CELLULAR_STATUS_FLAG"].bitmask = False
 CELLULAR_STATUS_FLAG_UNKNOWN = 0
 enums["CELLULAR_STATUS_FLAG"][0] = EnumEntry("CELLULAR_STATUS_FLAG_UNKNOWN", """State unknown or not reportable.""")
 CELLULAR_STATUS_FLAG_FAILED = 1
@@ -5511,7 +5685,8 @@ CELLULAR_STATUS_FLAG_ENUM_END = 13
 enums["CELLULAR_STATUS_FLAG"][13] = EnumEntry("CELLULAR_STATUS_FLAG_ENUM_END", """""")
 
 # CELLULAR_NETWORK_FAILED_REASON
-enums["CELLULAR_NETWORK_FAILED_REASON"] = {}
+enums["CELLULAR_NETWORK_FAILED_REASON"] = Enum()
+enums["CELLULAR_NETWORK_FAILED_REASON"].bitmask = False
 CELLULAR_NETWORK_FAILED_REASON_NONE = 0
 enums["CELLULAR_NETWORK_FAILED_REASON"][0] = EnumEntry("CELLULAR_NETWORK_FAILED_REASON_NONE", """No error""")
 CELLULAR_NETWORK_FAILED_REASON_UNKNOWN = 1
@@ -5524,7 +5699,8 @@ CELLULAR_NETWORK_FAILED_REASON_ENUM_END = 4
 enums["CELLULAR_NETWORK_FAILED_REASON"][4] = EnumEntry("CELLULAR_NETWORK_FAILED_REASON_ENUM_END", """""")
 
 # CELLULAR_NETWORK_RADIO_TYPE
-enums["CELLULAR_NETWORK_RADIO_TYPE"] = {}
+enums["CELLULAR_NETWORK_RADIO_TYPE"] = Enum()
+enums["CELLULAR_NETWORK_RADIO_TYPE"].bitmask = False
 CELLULAR_NETWORK_RADIO_TYPE_NONE = 0
 enums["CELLULAR_NETWORK_RADIO_TYPE"][0] = EnumEntry("CELLULAR_NETWORK_RADIO_TYPE_NONE", """""")
 CELLULAR_NETWORK_RADIO_TYPE_GSM = 1
@@ -5539,7 +5715,8 @@ CELLULAR_NETWORK_RADIO_TYPE_ENUM_END = 5
 enums["CELLULAR_NETWORK_RADIO_TYPE"][5] = EnumEntry("CELLULAR_NETWORK_RADIO_TYPE_ENUM_END", """""")
 
 # PRECISION_LAND_MODE
-enums["PRECISION_LAND_MODE"] = {}
+enums["PRECISION_LAND_MODE"] = Enum()
+enums["PRECISION_LAND_MODE"].bitmask = False
 PRECISION_LAND_MODE_DISABLED = 0
 enums["PRECISION_LAND_MODE"][0] = EnumEntry("PRECISION_LAND_MODE_DISABLED", """Normal (non-precision) landing.""")
 PRECISION_LAND_MODE_OPPORTUNISTIC = 1
@@ -5550,7 +5727,8 @@ PRECISION_LAND_MODE_ENUM_END = 3
 enums["PRECISION_LAND_MODE"][3] = EnumEntry("PRECISION_LAND_MODE_ENUM_END", """""")
 
 # PARACHUTE_ACTION
-enums["PARACHUTE_ACTION"] = {}
+enums["PARACHUTE_ACTION"] = Enum()
+enums["PARACHUTE_ACTION"].bitmask = False
 PARACHUTE_DISABLE = 0
 enums["PARACHUTE_ACTION"][0] = EnumEntry("PARACHUTE_DISABLE", """Disable auto-release of parachute (i.e. release triggered by crash detectors).""")
 PARACHUTE_ENABLE = 1
@@ -5561,7 +5739,8 @@ PARACHUTE_ACTION_ENUM_END = 3
 enums["PARACHUTE_ACTION"][3] = EnumEntry("PARACHUTE_ACTION_ENUM_END", """""")
 
 # MAV_TUNNEL_PAYLOAD_TYPE
-enums["MAV_TUNNEL_PAYLOAD_TYPE"] = {}
+enums["MAV_TUNNEL_PAYLOAD_TYPE"] = Enum()
+enums["MAV_TUNNEL_PAYLOAD_TYPE"].bitmask = False
 MAV_TUNNEL_PAYLOAD_TYPE_UNKNOWN = 0
 enums["MAV_TUNNEL_PAYLOAD_TYPE"][0] = EnumEntry("MAV_TUNNEL_PAYLOAD_TYPE_UNKNOWN", """Encoding of payload unknown.""")
 MAV_TUNNEL_PAYLOAD_TYPE_STORM32_RESERVED0 = 200
@@ -5584,11 +5763,18 @@ MAV_TUNNEL_PAYLOAD_TYPE_STORM32_RESERVED8 = 208
 enums["MAV_TUNNEL_PAYLOAD_TYPE"][208] = EnumEntry("MAV_TUNNEL_PAYLOAD_TYPE_STORM32_RESERVED8", """Registered for STorM32 gimbal controller.""")
 MAV_TUNNEL_PAYLOAD_TYPE_STORM32_RESERVED9 = 209
 enums["MAV_TUNNEL_PAYLOAD_TYPE"][209] = EnumEntry("MAV_TUNNEL_PAYLOAD_TYPE_STORM32_RESERVED9", """Registered for STorM32 gimbal controller.""")
-MAV_TUNNEL_PAYLOAD_TYPE_ENUM_END = 210
-enums["MAV_TUNNEL_PAYLOAD_TYPE"][210] = EnumEntry("MAV_TUNNEL_PAYLOAD_TYPE_ENUM_END", """""")
+MAV_TUNNEL_PAYLOAD_TYPE_MODALAI_REMOTE_OSD = 210
+enums["MAV_TUNNEL_PAYLOAD_TYPE"][210] = EnumEntry("MAV_TUNNEL_PAYLOAD_TYPE_MODALAI_REMOTE_OSD", """Registered for ModalAI remote OSD protocol.""")
+MAV_TUNNEL_PAYLOAD_TYPE_MODALAI_ESC_UART_PASSTHRU = 211
+enums["MAV_TUNNEL_PAYLOAD_TYPE"][211] = EnumEntry("MAV_TUNNEL_PAYLOAD_TYPE_MODALAI_ESC_UART_PASSTHRU", """Registered for ModalAI ESC UART passthru protocol.""")
+MAV_TUNNEL_PAYLOAD_TYPE_MODALAI_IO_UART_PASSTHRU = 212
+enums["MAV_TUNNEL_PAYLOAD_TYPE"][212] = EnumEntry("MAV_TUNNEL_PAYLOAD_TYPE_MODALAI_IO_UART_PASSTHRU", """Registered for ModalAI vendor use.""")
+MAV_TUNNEL_PAYLOAD_TYPE_ENUM_END = 213
+enums["MAV_TUNNEL_PAYLOAD_TYPE"][213] = EnumEntry("MAV_TUNNEL_PAYLOAD_TYPE_ENUM_END", """""")
 
 # MAV_ODID_ID_TYPE
-enums["MAV_ODID_ID_TYPE"] = {}
+enums["MAV_ODID_ID_TYPE"] = Enum()
+enums["MAV_ODID_ID_TYPE"].bitmask = False
 MAV_ODID_ID_TYPE_NONE = 0
 enums["MAV_ODID_ID_TYPE"][0] = EnumEntry("MAV_ODID_ID_TYPE_NONE", """No type defined.""")
 MAV_ODID_ID_TYPE_SERIAL_NUMBER = 1
@@ -5603,7 +5789,8 @@ MAV_ODID_ID_TYPE_ENUM_END = 5
 enums["MAV_ODID_ID_TYPE"][5] = EnumEntry("MAV_ODID_ID_TYPE_ENUM_END", """""")
 
 # MAV_ODID_UA_TYPE
-enums["MAV_ODID_UA_TYPE"] = {}
+enums["MAV_ODID_UA_TYPE"] = Enum()
+enums["MAV_ODID_UA_TYPE"].bitmask = False
 MAV_ODID_UA_TYPE_NONE = 0
 enums["MAV_ODID_UA_TYPE"][0] = EnumEntry("MAV_ODID_UA_TYPE_NONE", """No UA (Unmanned Aircraft) type defined.""")
 MAV_ODID_UA_TYPE_AEROPLANE = 1
@@ -5640,7 +5827,8 @@ MAV_ODID_UA_TYPE_ENUM_END = 16
 enums["MAV_ODID_UA_TYPE"][16] = EnumEntry("MAV_ODID_UA_TYPE_ENUM_END", """""")
 
 # MAV_ODID_STATUS
-enums["MAV_ODID_STATUS"] = {}
+enums["MAV_ODID_STATUS"] = Enum()
+enums["MAV_ODID_STATUS"].bitmask = False
 MAV_ODID_STATUS_UNDECLARED = 0
 enums["MAV_ODID_STATUS"][0] = EnumEntry("MAV_ODID_STATUS_UNDECLARED", """The status of the (UA) Unmanned Aircraft is undefined.""")
 MAV_ODID_STATUS_GROUND = 1
@@ -5655,7 +5843,8 @@ MAV_ODID_STATUS_ENUM_END = 5
 enums["MAV_ODID_STATUS"][5] = EnumEntry("MAV_ODID_STATUS_ENUM_END", """""")
 
 # MAV_ODID_HEIGHT_REF
-enums["MAV_ODID_HEIGHT_REF"] = {}
+enums["MAV_ODID_HEIGHT_REF"] = Enum()
+enums["MAV_ODID_HEIGHT_REF"].bitmask = False
 MAV_ODID_HEIGHT_REF_OVER_TAKEOFF = 0
 enums["MAV_ODID_HEIGHT_REF"][0] = EnumEntry("MAV_ODID_HEIGHT_REF_OVER_TAKEOFF", """The height field is relative to the take-off location.""")
 MAV_ODID_HEIGHT_REF_OVER_GROUND = 1
@@ -5664,7 +5853,8 @@ MAV_ODID_HEIGHT_REF_ENUM_END = 2
 enums["MAV_ODID_HEIGHT_REF"][2] = EnumEntry("MAV_ODID_HEIGHT_REF_ENUM_END", """""")
 
 # MAV_ODID_HOR_ACC
-enums["MAV_ODID_HOR_ACC"] = {}
+enums["MAV_ODID_HOR_ACC"] = Enum()
+enums["MAV_ODID_HOR_ACC"].bitmask = False
 MAV_ODID_HOR_ACC_UNKNOWN = 0
 enums["MAV_ODID_HOR_ACC"][0] = EnumEntry("MAV_ODID_HOR_ACC_UNKNOWN", """The horizontal accuracy is unknown.""")
 MAV_ODID_HOR_ACC_10NM = 1
@@ -5695,7 +5885,8 @@ MAV_ODID_HOR_ACC_ENUM_END = 13
 enums["MAV_ODID_HOR_ACC"][13] = EnumEntry("MAV_ODID_HOR_ACC_ENUM_END", """""")
 
 # MAV_ODID_VER_ACC
-enums["MAV_ODID_VER_ACC"] = {}
+enums["MAV_ODID_VER_ACC"] = Enum()
+enums["MAV_ODID_VER_ACC"].bitmask = False
 MAV_ODID_VER_ACC_UNKNOWN = 0
 enums["MAV_ODID_VER_ACC"][0] = EnumEntry("MAV_ODID_VER_ACC_UNKNOWN", """The vertical accuracy is unknown.""")
 MAV_ODID_VER_ACC_150_METER = 1
@@ -5714,7 +5905,8 @@ MAV_ODID_VER_ACC_ENUM_END = 7
 enums["MAV_ODID_VER_ACC"][7] = EnumEntry("MAV_ODID_VER_ACC_ENUM_END", """""")
 
 # MAV_ODID_SPEED_ACC
-enums["MAV_ODID_SPEED_ACC"] = {}
+enums["MAV_ODID_SPEED_ACC"] = Enum()
+enums["MAV_ODID_SPEED_ACC"].bitmask = False
 MAV_ODID_SPEED_ACC_UNKNOWN = 0
 enums["MAV_ODID_SPEED_ACC"][0] = EnumEntry("MAV_ODID_SPEED_ACC_UNKNOWN", """The speed accuracy is unknown.""")
 MAV_ODID_SPEED_ACC_10_METERS_PER_SECOND = 1
@@ -5729,7 +5921,8 @@ MAV_ODID_SPEED_ACC_ENUM_END = 5
 enums["MAV_ODID_SPEED_ACC"][5] = EnumEntry("MAV_ODID_SPEED_ACC_ENUM_END", """""")
 
 # MAV_ODID_TIME_ACC
-enums["MAV_ODID_TIME_ACC"] = {}
+enums["MAV_ODID_TIME_ACC"] = Enum()
+enums["MAV_ODID_TIME_ACC"].bitmask = False
 MAV_ODID_TIME_ACC_UNKNOWN = 0
 enums["MAV_ODID_TIME_ACC"][0] = EnumEntry("MAV_ODID_TIME_ACC_UNKNOWN", """The timestamp accuracy is unknown.""")
 MAV_ODID_TIME_ACC_0_1_SECOND = 1
@@ -5766,7 +5959,8 @@ MAV_ODID_TIME_ACC_ENUM_END = 16
 enums["MAV_ODID_TIME_ACC"][16] = EnumEntry("MAV_ODID_TIME_ACC_ENUM_END", """""")
 
 # MAV_ODID_AUTH_TYPE
-enums["MAV_ODID_AUTH_TYPE"] = {}
+enums["MAV_ODID_AUTH_TYPE"] = Enum()
+enums["MAV_ODID_AUTH_TYPE"].bitmask = False
 MAV_ODID_AUTH_TYPE_NONE = 0
 enums["MAV_ODID_AUTH_TYPE"][0] = EnumEntry("MAV_ODID_AUTH_TYPE_NONE", """No authentication type is specified.""")
 MAV_ODID_AUTH_TYPE_UAS_ID_SIGNATURE = 1
@@ -5783,7 +5977,8 @@ MAV_ODID_AUTH_TYPE_ENUM_END = 6
 enums["MAV_ODID_AUTH_TYPE"][6] = EnumEntry("MAV_ODID_AUTH_TYPE_ENUM_END", """""")
 
 # MAV_ODID_DESC_TYPE
-enums["MAV_ODID_DESC_TYPE"] = {}
+enums["MAV_ODID_DESC_TYPE"] = Enum()
+enums["MAV_ODID_DESC_TYPE"].bitmask = False
 MAV_ODID_DESC_TYPE_TEXT = 0
 enums["MAV_ODID_DESC_TYPE"][0] = EnumEntry("MAV_ODID_DESC_TYPE_TEXT", """Optional free-form text description of the purpose of the flight.""")
 MAV_ODID_DESC_TYPE_EMERGENCY = 1
@@ -5794,7 +5989,8 @@ MAV_ODID_DESC_TYPE_ENUM_END = 3
 enums["MAV_ODID_DESC_TYPE"][3] = EnumEntry("MAV_ODID_DESC_TYPE_ENUM_END", """""")
 
 # MAV_ODID_OPERATOR_LOCATION_TYPE
-enums["MAV_ODID_OPERATOR_LOCATION_TYPE"] = {}
+enums["MAV_ODID_OPERATOR_LOCATION_TYPE"] = Enum()
+enums["MAV_ODID_OPERATOR_LOCATION_TYPE"].bitmask = False
 MAV_ODID_OPERATOR_LOCATION_TYPE_TAKEOFF = 0
 enums["MAV_ODID_OPERATOR_LOCATION_TYPE"][0] = EnumEntry("MAV_ODID_OPERATOR_LOCATION_TYPE_TAKEOFF", """The location/altitude of the operator is the same as the take-off location.""")
 MAV_ODID_OPERATOR_LOCATION_TYPE_LIVE_GNSS = 1
@@ -5805,7 +6001,8 @@ MAV_ODID_OPERATOR_LOCATION_TYPE_ENUM_END = 3
 enums["MAV_ODID_OPERATOR_LOCATION_TYPE"][3] = EnumEntry("MAV_ODID_OPERATOR_LOCATION_TYPE_ENUM_END", """""")
 
 # MAV_ODID_CLASSIFICATION_TYPE
-enums["MAV_ODID_CLASSIFICATION_TYPE"] = {}
+enums["MAV_ODID_CLASSIFICATION_TYPE"] = Enum()
+enums["MAV_ODID_CLASSIFICATION_TYPE"].bitmask = False
 MAV_ODID_CLASSIFICATION_TYPE_UNDECLARED = 0
 enums["MAV_ODID_CLASSIFICATION_TYPE"][0] = EnumEntry("MAV_ODID_CLASSIFICATION_TYPE_UNDECLARED", """The classification type for the UA is undeclared.""")
 MAV_ODID_CLASSIFICATION_TYPE_EU = 1
@@ -5814,7 +6011,8 @@ MAV_ODID_CLASSIFICATION_TYPE_ENUM_END = 2
 enums["MAV_ODID_CLASSIFICATION_TYPE"][2] = EnumEntry("MAV_ODID_CLASSIFICATION_TYPE_ENUM_END", """""")
 
 # MAV_ODID_CATEGORY_EU
-enums["MAV_ODID_CATEGORY_EU"] = {}
+enums["MAV_ODID_CATEGORY_EU"] = Enum()
+enums["MAV_ODID_CATEGORY_EU"].bitmask = False
 MAV_ODID_CATEGORY_EU_UNDECLARED = 0
 enums["MAV_ODID_CATEGORY_EU"][0] = EnumEntry("MAV_ODID_CATEGORY_EU_UNDECLARED", """The category for the UA, according to the EU specification, is undeclared.""")
 MAV_ODID_CATEGORY_EU_OPEN = 1
@@ -5827,7 +6025,8 @@ MAV_ODID_CATEGORY_EU_ENUM_END = 4
 enums["MAV_ODID_CATEGORY_EU"][4] = EnumEntry("MAV_ODID_CATEGORY_EU_ENUM_END", """""")
 
 # MAV_ODID_CLASS_EU
-enums["MAV_ODID_CLASS_EU"] = {}
+enums["MAV_ODID_CLASS_EU"] = Enum()
+enums["MAV_ODID_CLASS_EU"].bitmask = False
 MAV_ODID_CLASS_EU_UNDECLARED = 0
 enums["MAV_ODID_CLASS_EU"][0] = EnumEntry("MAV_ODID_CLASS_EU_UNDECLARED", """The class for the UA, according to the EU specification, is undeclared.""")
 MAV_ODID_CLASS_EU_CLASS_0 = 1
@@ -5848,14 +6047,16 @@ MAV_ODID_CLASS_EU_ENUM_END = 8
 enums["MAV_ODID_CLASS_EU"][8] = EnumEntry("MAV_ODID_CLASS_EU_ENUM_END", """""")
 
 # MAV_ODID_OPERATOR_ID_TYPE
-enums["MAV_ODID_OPERATOR_ID_TYPE"] = {}
+enums["MAV_ODID_OPERATOR_ID_TYPE"] = Enum()
+enums["MAV_ODID_OPERATOR_ID_TYPE"].bitmask = False
 MAV_ODID_OPERATOR_ID_TYPE_CAA = 0
 enums["MAV_ODID_OPERATOR_ID_TYPE"][0] = EnumEntry("MAV_ODID_OPERATOR_ID_TYPE_CAA", """CAA (Civil Aviation Authority) registered operator ID.""")
 MAV_ODID_OPERATOR_ID_TYPE_ENUM_END = 1
 enums["MAV_ODID_OPERATOR_ID_TYPE"][1] = EnumEntry("MAV_ODID_OPERATOR_ID_TYPE_ENUM_END", """""")
 
 # MAV_ODID_ARM_STATUS
-enums["MAV_ODID_ARM_STATUS"] = {}
+enums["MAV_ODID_ARM_STATUS"] = Enum()
+enums["MAV_ODID_ARM_STATUS"].bitmask = False
 MAV_ODID_ARM_STATUS_GOOD_TO_ARM = 0
 enums["MAV_ODID_ARM_STATUS"][0] = EnumEntry("MAV_ODID_ARM_STATUS_GOOD_TO_ARM", """Passing arming checks.""")
 MAV_ODID_ARM_STATUS_PRE_ARM_FAIL_GENERIC = 1
@@ -5864,7 +6065,8 @@ MAV_ODID_ARM_STATUS_ENUM_END = 2
 enums["MAV_ODID_ARM_STATUS"][2] = EnumEntry("MAV_ODID_ARM_STATUS_ENUM_END", """""")
 
 # TUNE_FORMAT
-enums["TUNE_FORMAT"] = {}
+enums["TUNE_FORMAT"] = Enum()
+enums["TUNE_FORMAT"].bitmask = False
 TUNE_FORMAT_QBASIC1_1 = 1
 enums["TUNE_FORMAT"][1] = EnumEntry("TUNE_FORMAT_QBASIC1_1", """Format is QBasic 1.1 Play: https://www.qbasic.net/en/reference/qb11/Statement/PLAY-006.htm.""")
 TUNE_FORMAT_MML_MODERN = 2
@@ -5873,7 +6075,8 @@ TUNE_FORMAT_ENUM_END = 3
 enums["TUNE_FORMAT"][3] = EnumEntry("TUNE_FORMAT_ENUM_END", """""")
 
 # AIS_TYPE
-enums["AIS_TYPE"] = {}
+enums["AIS_TYPE"] = Enum()
+enums["AIS_TYPE"].bitmask = False
 AIS_TYPE_UNKNOWN = 0
 enums["AIS_TYPE"][0] = EnumEntry("AIS_TYPE_UNKNOWN", """Not available (default).""")
 AIS_TYPE_RESERVED_1 = 1
@@ -6078,7 +6281,8 @@ AIS_TYPE_ENUM_END = 100
 enums["AIS_TYPE"][100] = EnumEntry("AIS_TYPE_ENUM_END", """""")
 
 # AIS_NAV_STATUS
-enums["AIS_NAV_STATUS"] = {}
+enums["AIS_NAV_STATUS"] = Enum()
+enums["AIS_NAV_STATUS"].bitmask = False
 UNDER_WAY = 0
 enums["AIS_NAV_STATUS"][0] = EnumEntry("UNDER_WAY", """Under way using engine.""")
 AIS_NAV_ANCHORED = 1
@@ -6115,7 +6319,8 @@ AIS_NAV_STATUS_ENUM_END = 16
 enums["AIS_NAV_STATUS"][16] = EnumEntry("AIS_NAV_STATUS_ENUM_END", """""")
 
 # AIS_FLAGS
-enums["AIS_FLAGS"] = {}
+enums["AIS_FLAGS"] = Enum()
+enums["AIS_FLAGS"].bitmask = True
 AIS_FLAGS_POSITION_ACCURACY = 1
 enums["AIS_FLAGS"][1] = EnumEntry("AIS_FLAGS_POSITION_ACCURACY", """1 = Position accuracy less than 10m, 0 = position accuracy greater than 10m.""")
 AIS_FLAGS_VALID_COG = 2
@@ -6146,7 +6351,8 @@ AIS_FLAGS_ENUM_END = 4097
 enums["AIS_FLAGS"][4097] = EnumEntry("AIS_FLAGS_ENUM_END", """""")
 
 # FAILURE_UNIT
-enums["FAILURE_UNIT"] = {}
+enums["FAILURE_UNIT"] = Enum()
+enums["FAILURE_UNIT"].bitmask = False
 FAILURE_UNIT_SENSOR_GYRO = 0
 enums["FAILURE_UNIT"][0] = EnumEntry("FAILURE_UNIT_SENSOR_GYRO", """""")
 FAILURE_UNIT_SENSOR_ACCEL = 1
@@ -6181,7 +6387,8 @@ FAILURE_UNIT_ENUM_END = 106
 enums["FAILURE_UNIT"][106] = EnumEntry("FAILURE_UNIT_ENUM_END", """""")
 
 # FAILURE_TYPE
-enums["FAILURE_TYPE"] = {}
+enums["FAILURE_TYPE"] = Enum()
+enums["FAILURE_TYPE"].bitmask = False
 FAILURE_TYPE_OK = 0
 enums["FAILURE_TYPE"][0] = EnumEntry("FAILURE_TYPE_OK", """No failure injected, used to reset a previous failure.""")
 FAILURE_TYPE_OFF = 1
@@ -6202,7 +6409,8 @@ FAILURE_TYPE_ENUM_END = 8
 enums["FAILURE_TYPE"][8] = EnumEntry("FAILURE_TYPE_ENUM_END", """""")
 
 # NAV_VTOL_LAND_OPTIONS
-enums["NAV_VTOL_LAND_OPTIONS"] = {}
+enums["NAV_VTOL_LAND_OPTIONS"] = Enum()
+enums["NAV_VTOL_LAND_OPTIONS"].bitmask = False
 NAV_VTOL_LAND_OPTIONS_DEFAULT = 0
 enums["NAV_VTOL_LAND_OPTIONS"][0] = EnumEntry("NAV_VTOL_LAND_OPTIONS_DEFAULT", """Default autopilot landing behaviour.""")
 NAV_VTOL_LAND_OPTIONS_FW_DESCENT = 1
@@ -6218,7 +6426,8 @@ NAV_VTOL_LAND_OPTIONS_ENUM_END = 3
 enums["NAV_VTOL_LAND_OPTIONS"][3] = EnumEntry("NAV_VTOL_LAND_OPTIONS_ENUM_END", """""")
 
 # MAV_WINCH_STATUS_FLAG
-enums["MAV_WINCH_STATUS_FLAG"] = {}
+enums["MAV_WINCH_STATUS_FLAG"] = Enum()
+enums["MAV_WINCH_STATUS_FLAG"].bitmask = True
 MAV_WINCH_STATUS_HEALTHY = 1
 enums["MAV_WINCH_STATUS_FLAG"][1] = EnumEntry("MAV_WINCH_STATUS_HEALTHY", """Winch is healthy""")
 MAV_WINCH_STATUS_FULLY_RETRACTED = 2
@@ -6251,7 +6460,8 @@ MAV_WINCH_STATUS_FLAG_ENUM_END = 8193
 enums["MAV_WINCH_STATUS_FLAG"][8193] = EnumEntry("MAV_WINCH_STATUS_FLAG_ENUM_END", """""")
 
 # MAG_CAL_STATUS
-enums["MAG_CAL_STATUS"] = {}
+enums["MAG_CAL_STATUS"] = Enum()
+enums["MAG_CAL_STATUS"].bitmask = False
 MAG_CAL_NOT_STARTED = 0
 enums["MAG_CAL_STATUS"][0] = EnumEntry("MAG_CAL_NOT_STARTED", """""")
 MAG_CAL_WAITING_TO_START = 1
@@ -6272,23 +6482,24 @@ MAG_CAL_STATUS_ENUM_END = 8
 enums["MAG_CAL_STATUS"][8] = EnumEntry("MAG_CAL_STATUS_ENUM_END", """""")
 
 # MAV_EVENT_ERROR_REASON
-enums["MAV_EVENT_ERROR_REASON"] = {}
+enums["MAV_EVENT_ERROR_REASON"] = Enum()
+enums["MAV_EVENT_ERROR_REASON"].bitmask = False
 MAV_EVENT_ERROR_REASON_UNAVAILABLE = 0
 enums["MAV_EVENT_ERROR_REASON"][0] = EnumEntry("MAV_EVENT_ERROR_REASON_UNAVAILABLE", """The requested event is not available (anymore).""")
 MAV_EVENT_ERROR_REASON_ENUM_END = 1
 enums["MAV_EVENT_ERROR_REASON"][1] = EnumEntry("MAV_EVENT_ERROR_REASON_ENUM_END", """""")
 
 # MAV_EVENT_CURRENT_SEQUENCE_FLAGS
-enums["MAV_EVENT_CURRENT_SEQUENCE_FLAGS"] = {}
+enums["MAV_EVENT_CURRENT_SEQUENCE_FLAGS"] = Enum()
+enums["MAV_EVENT_CURRENT_SEQUENCE_FLAGS"].bitmask = False
 MAV_EVENT_CURRENT_SEQUENCE_FLAGS_RESET = 1
 enums["MAV_EVENT_CURRENT_SEQUENCE_FLAGS"][1] = EnumEntry("MAV_EVENT_CURRENT_SEQUENCE_FLAGS_RESET", """A sequence reset has happened (e.g. vehicle reboot).""")
 MAV_EVENT_CURRENT_SEQUENCE_FLAGS_ENUM_END = 2
 enums["MAV_EVENT_CURRENT_SEQUENCE_FLAGS"][2] = EnumEntry("MAV_EVENT_CURRENT_SEQUENCE_FLAGS_ENUM_END", """""")
 
 # HIL_SENSOR_UPDATED_FLAGS
-enums["HIL_SENSOR_UPDATED_FLAGS"] = {}
-HIL_SENSOR_UPDATED_NONE = 0
-enums["HIL_SENSOR_UPDATED_FLAGS"][0] = EnumEntry("HIL_SENSOR_UPDATED_NONE", """None of the fields in HIL_SENSOR have been updated""")
+enums["HIL_SENSOR_UPDATED_FLAGS"] = Enum()
+enums["HIL_SENSOR_UPDATED_FLAGS"].bitmask = True
 HIL_SENSOR_UPDATED_XACC = 1
 enums["HIL_SENSOR_UPDATED_FLAGS"][1] = EnumEntry("HIL_SENSOR_UPDATED_XACC", """The value in the xacc field has been updated""")
 HIL_SENSOR_UPDATED_YACC = 2
@@ -6321,9 +6532,8 @@ HIL_SENSOR_UPDATED_FLAGS_ENUM_END = 2147483649
 enums["HIL_SENSOR_UPDATED_FLAGS"][2147483649] = EnumEntry("HIL_SENSOR_UPDATED_FLAGS_ENUM_END", """""")
 
 # HIGHRES_IMU_UPDATED_FLAGS
-enums["HIGHRES_IMU_UPDATED_FLAGS"] = {}
-HIGHRES_IMU_UPDATED_NONE = 0
-enums["HIGHRES_IMU_UPDATED_FLAGS"][0] = EnumEntry("HIGHRES_IMU_UPDATED_NONE", """None of the fields in HIGHRES_IMU have been updated""")
+enums["HIGHRES_IMU_UPDATED_FLAGS"] = Enum()
+enums["HIGHRES_IMU_UPDATED_FLAGS"].bitmask = True
 HIGHRES_IMU_UPDATED_XACC = 1
 enums["HIGHRES_IMU_UPDATED_FLAGS"][1] = EnumEntry("HIGHRES_IMU_UPDATED_XACC", """The value in the xacc field has been updated""")
 HIGHRES_IMU_UPDATED_YACC = 2
@@ -6354,7 +6564,8 @@ HIGHRES_IMU_UPDATED_FLAGS_ENUM_END = 4097
 enums["HIGHRES_IMU_UPDATED_FLAGS"][4097] = EnumEntry("HIGHRES_IMU_UPDATED_FLAGS_ENUM_END", """""")
 
 # CAN_FILTER_OP
-enums["CAN_FILTER_OP"] = {}
+enums["CAN_FILTER_OP"] = Enum()
+enums["CAN_FILTER_OP"].bitmask = False
 CAN_FILTER_REPLACE = 0
 enums["CAN_FILTER_OP"][0] = EnumEntry("CAN_FILTER_REPLACE", """""")
 CAN_FILTER_ADD = 1
@@ -6365,7 +6576,8 @@ CAN_FILTER_OP_ENUM_END = 3
 enums["CAN_FILTER_OP"][3] = EnumEntry("CAN_FILTER_OP_ENUM_END", """""")
 
 # MAV_FTP_ERR
-enums["MAV_FTP_ERR"] = {}
+enums["MAV_FTP_ERR"] = Enum()
+enums["MAV_FTP_ERR"].bitmask = False
 MAV_FTP_ERR_NONE = 0
 enums["MAV_FTP_ERR"][0] = EnumEntry("MAV_FTP_ERR_NONE", """None: No error""")
 MAV_FTP_ERR_FAIL = 1
@@ -6396,7 +6608,8 @@ MAV_FTP_ERR_ENUM_END = 11
 enums["MAV_FTP_ERR"][11] = EnumEntry("MAV_FTP_ERR_ENUM_END", """""")
 
 # MAV_FTP_OPCODE
-enums["MAV_FTP_OPCODE"] = {}
+enums["MAV_FTP_OPCODE"] = Enum()
+enums["MAV_FTP_OPCODE"].bitmask = False
 MAV_FTP_OPCODE_NONE = 0
 enums["MAV_FTP_OPCODE"][0] = EnumEntry("MAV_FTP_OPCODE_NONE", """None. Ignored, always ACKed""")
 MAV_FTP_OPCODE_TERMINATESESSION = 1
@@ -6437,7 +6650,8 @@ MAV_FTP_OPCODE_ENUM_END = 130
 enums["MAV_FTP_OPCODE"][130] = EnumEntry("MAV_FTP_OPCODE_ENUM_END", """""")
 
 # MISSION_STATE
-enums["MISSION_STATE"] = {}
+enums["MISSION_STATE"] = Enum()
+enums["MISSION_STATE"].bitmask = False
 MISSION_STATE_UNKNOWN = 0
 enums["MISSION_STATE"][0] = EnumEntry("MISSION_STATE_UNKNOWN", """The mission status reporting is not supported.""")
 MISSION_STATE_NO_MISSION = 1
@@ -6454,7 +6668,8 @@ MISSION_STATE_ENUM_END = 6
 enums["MISSION_STATE"][6] = EnumEntry("MISSION_STATE_ENUM_END", """""")
 
 # SAFETY_SWITCH_STATE
-enums["SAFETY_SWITCH_STATE"] = {}
+enums["SAFETY_SWITCH_STATE"] = Enum()
+enums["SAFETY_SWITCH_STATE"].bitmask = False
 SAFETY_SWITCH_STATE_SAFE = 0
 enums["SAFETY_SWITCH_STATE"][0] = EnumEntry("SAFETY_SWITCH_STATE_SAFE", """Safety switch is engaged and vehicle should be safe to approach.""")
 SAFETY_SWITCH_STATE_DANGEROUS = 1
@@ -6463,7 +6678,8 @@ SAFETY_SWITCH_STATE_ENUM_END = 2
 enums["SAFETY_SWITCH_STATE"][2] = EnumEntry("SAFETY_SWITCH_STATE_ENUM_END", """""")
 
 # ILLUMINATOR_MODE
-enums["ILLUMINATOR_MODE"] = {}
+enums["ILLUMINATOR_MODE"] = Enum()
+enums["ILLUMINATOR_MODE"].bitmask = False
 ILLUMINATOR_MODE_UNKNOWN = 0
 enums["ILLUMINATOR_MODE"][0] = EnumEntry("ILLUMINATOR_MODE_UNKNOWN", """Illuminator mode is not specified/unknown""")
 ILLUMINATOR_MODE_INTERNAL_CONTROL = 1
@@ -6474,7 +6690,8 @@ ILLUMINATOR_MODE_ENUM_END = 3
 enums["ILLUMINATOR_MODE"][3] = EnumEntry("ILLUMINATOR_MODE_ENUM_END", """""")
 
 # ILLUMINATOR_ERROR_FLAGS
-enums["ILLUMINATOR_ERROR_FLAGS"] = {}
+enums["ILLUMINATOR_ERROR_FLAGS"] = Enum()
+enums["ILLUMINATOR_ERROR_FLAGS"].bitmask = True
 ILLUMINATOR_ERROR_FLAGS_THERMAL_THROTTLING = 1
 enums["ILLUMINATOR_ERROR_FLAGS"][1] = EnumEntry("ILLUMINATOR_ERROR_FLAGS_THERMAL_THROTTLING", """Illuminator thermal throttling error.""")
 ILLUMINATOR_ERROR_FLAGS_OVER_TEMPERATURE_SHUTDOWN = 2
@@ -6485,7 +6702,8 @@ ILLUMINATOR_ERROR_FLAGS_ENUM_END = 5
 enums["ILLUMINATOR_ERROR_FLAGS"][5] = EnumEntry("ILLUMINATOR_ERROR_FLAGS_ENUM_END", """""")
 
 # MAV_STANDARD_MODE
-enums["MAV_STANDARD_MODE"] = {}
+enums["MAV_STANDARD_MODE"] = Enum()
+enums["MAV_STANDARD_MODE"].bitmask = False
 MAV_STANDARD_MODE_NON_STANDARD = 0
 enums["MAV_STANDARD_MODE"][0] = EnumEntry(
     "MAV_STANDARD_MODE_NON_STANDARD",
@@ -6581,7 +6799,8 @@ MAV_STANDARD_MODE_ENUM_END = 9
 enums["MAV_STANDARD_MODE"][9] = EnumEntry("MAV_STANDARD_MODE_ENUM_END", """""")
 
 # MAV_MODE_PROPERTY
-enums["MAV_MODE_PROPERTY"] = {}
+enums["MAV_MODE_PROPERTY"] = Enum()
+enums["MAV_MODE_PROPERTY"].bitmask = True
 MAV_MODE_PROPERTY_ADVANCED = 1
 enums["MAV_MODE_PROPERTY"][1] = EnumEntry(
     "MAV_MODE_PROPERTY_ADVANCED",
@@ -6597,20 +6816,37 @@ enums["MAV_MODE_PROPERTY"][2] = EnumEntry(
           The mode might still be selected by the FC directly (for example as part of a failsafe).
         """,
 )
-MAV_MODE_PROPERTY_ENUM_END = 3
-enums["MAV_MODE_PROPERTY"][3] = EnumEntry("MAV_MODE_PROPERTY_ENUM_END", """""")
+MAV_MODE_PROPERTY_AUTO_MODE = 4
+enums["MAV_MODE_PROPERTY"][4] = EnumEntry(
+    "MAV_MODE_PROPERTY_AUTO_MODE",
+    """If set, this mode is automatically controlled (it may use but does not require a manual controller).
+          If unset the mode is a assumed to require user input (be a manual mode).
+        """,
+)
+MAV_MODE_PROPERTY_ENUM_END = 5
+enums["MAV_MODE_PROPERTY"][5] = EnumEntry("MAV_MODE_PROPERTY_ENUM_END", """""")
+
+# HIL_ACTUATOR_CONTROLS_FLAGS
+enums["HIL_ACTUATOR_CONTROLS_FLAGS"] = Enum()
+enums["HIL_ACTUATOR_CONTROLS_FLAGS"].bitmask = True
+HIL_ACTUATOR_CONTROLS_FLAGS_LOCKSTEP = 1
+enums["HIL_ACTUATOR_CONTROLS_FLAGS"][1] = EnumEntry("HIL_ACTUATOR_CONTROLS_FLAGS_LOCKSTEP", """Simulation is using lockstep""")
+HIL_ACTUATOR_CONTROLS_FLAGS_ENUM_END = 2
+enums["HIL_ACTUATOR_CONTROLS_FLAGS"][2] = EnumEntry("HIL_ACTUATOR_CONTROLS_FLAGS_ENUM_END", """""")
 
 # AIRSPEED_SENSOR_FLAGS
-enums["AIRSPEED_SENSOR_FLAGS"] = {}
-AIRSPEED_SENSOR_UNHEALTHY = 0
-enums["AIRSPEED_SENSOR_FLAGS"][0] = EnumEntry("AIRSPEED_SENSOR_UNHEALTHY", """Airspeed sensor is unhealthy""")
-AIRSPEED_SENSOR_USING = 1
-enums["AIRSPEED_SENSOR_FLAGS"][1] = EnumEntry("AIRSPEED_SENSOR_USING", """True if the data from this sensor is being actively used by the flight controller for guidance, navigation or control.""")
-AIRSPEED_SENSOR_FLAGS_ENUM_END = 2
-enums["AIRSPEED_SENSOR_FLAGS"][2] = EnumEntry("AIRSPEED_SENSOR_FLAGS_ENUM_END", """""")
+enums["AIRSPEED_SENSOR_FLAGS"] = Enum()
+enums["AIRSPEED_SENSOR_FLAGS"].bitmask = True
+AIRSPEED_SENSOR_UNHEALTHY = 1
+enums["AIRSPEED_SENSOR_FLAGS"][1] = EnumEntry("AIRSPEED_SENSOR_UNHEALTHY", """Airspeed sensor is unhealthy""")
+AIRSPEED_SENSOR_USING = 2
+enums["AIRSPEED_SENSOR_FLAGS"][2] = EnumEntry("AIRSPEED_SENSOR_USING", """True if the data from this sensor is being actively used by the flight controller for guidance, navigation or control.""")
+AIRSPEED_SENSOR_FLAGS_ENUM_END = 3
+enums["AIRSPEED_SENSOR_FLAGS"][3] = EnumEntry("AIRSPEED_SENSOR_FLAGS_ENUM_END", """""")
 
 # MAV_BATTERY_STATUS_FLAGS
-enums["MAV_BATTERY_STATUS_FLAGS"] = {}
+enums["MAV_BATTERY_STATUS_FLAGS"] = Enum()
+enums["MAV_BATTERY_STATUS_FLAGS"].bitmask = True
 MAV_BATTERY_STATUS_FLAGS_NOT_READY_TO_USE = 1
 enums["MAV_BATTERY_STATUS_FLAGS"][1] = EnumEntry(
     "MAV_BATTERY_STATUS_FLAGS_NOT_READY_TO_USE",
@@ -6734,7 +6970,8 @@ MAV_BATTERY_STATUS_FLAGS_ENUM_END = 2147483649
 enums["MAV_BATTERY_STATUS_FLAGS"][2147483649] = EnumEntry("MAV_BATTERY_STATUS_FLAGS_ENUM_END", """""")
 
 # GCS_CONTROL_STATUS_FLAGS
-enums["GCS_CONTROL_STATUS_FLAGS"] = {}
+enums["GCS_CONTROL_STATUS_FLAGS"] = Enum()
+enums["GCS_CONTROL_STATUS_FLAGS"].bitmask = True
 GCS_CONTROL_STATUS_FLAGS_SYSTEM_MANAGER = 1
 enums["GCS_CONTROL_STATUS_FLAGS"][1] = EnumEntry("GCS_CONTROL_STATUS_FLAGS_SYSTEM_MANAGER", """If set, this CONTROL_STATUS publishes the controlling GCS for the whole system. If unset, the CONTROL_STATUS indicates the controlling GCS for just the component emitting the message. Note that to request control of the system a GCS should send MAV_CMD_REQUEST_OPERATOR_CONTROL to the component emitting CONTROL_STATUS with this flag set.""")
 GCS_CONTROL_STATUS_FLAGS_TAKEOVER_ALLOWED = 2
@@ -6743,7 +6980,8 @@ GCS_CONTROL_STATUS_FLAGS_ENUM_END = 3
 enums["GCS_CONTROL_STATUS_FLAGS"][3] = EnumEntry("GCS_CONTROL_STATUS_FLAGS_ENUM_END", """""")
 
 # TARGET_ABSOLUTE_SENSOR_CAPABILITY_FLAGS
-enums["TARGET_ABSOLUTE_SENSOR_CAPABILITY_FLAGS"] = {}
+enums["TARGET_ABSOLUTE_SENSOR_CAPABILITY_FLAGS"] = Enum()
+enums["TARGET_ABSOLUTE_SENSOR_CAPABILITY_FLAGS"].bitmask = True
 TARGET_ABSOLUTE_SENSOR_CAPABILITY_POSITION = 1
 enums["TARGET_ABSOLUTE_SENSOR_CAPABILITY_FLAGS"][1] = EnumEntry("TARGET_ABSOLUTE_SENSOR_CAPABILITY_POSITION", """""")
 TARGET_ABSOLUTE_SENSOR_CAPABILITY_VELOCITY = 2
@@ -6758,7 +6996,8 @@ TARGET_ABSOLUTE_SENSOR_CAPABILITY_FLAGS_ENUM_END = 17
 enums["TARGET_ABSOLUTE_SENSOR_CAPABILITY_FLAGS"][17] = EnumEntry("TARGET_ABSOLUTE_SENSOR_CAPABILITY_FLAGS_ENUM_END", """""")
 
 # TARGET_OBS_FRAME
-enums["TARGET_OBS_FRAME"] = {}
+enums["TARGET_OBS_FRAME"] = Enum()
+enums["TARGET_OBS_FRAME"].bitmask = False
 TARGET_OBS_FRAME_LOCAL_NED = 0
 enums["TARGET_OBS_FRAME"][0] = EnumEntry("TARGET_OBS_FRAME_LOCAL_NED", """NED local tangent frame (x: North, y: East, z: Down) with origin fixed relative to earth.""")
 TARGET_OBS_FRAME_BODY_FRD = 1
@@ -6771,7 +7010,8 @@ TARGET_OBS_FRAME_ENUM_END = 4
 enums["TARGET_OBS_FRAME"][4] = EnumEntry("TARGET_OBS_FRAME_ENUM_END", """""")
 
 # RADIO_RC_CHANNELS_FLAGS
-enums["RADIO_RC_CHANNELS_FLAGS"] = {}
+enums["RADIO_RC_CHANNELS_FLAGS"] = Enum()
+enums["RADIO_RC_CHANNELS_FLAGS"].bitmask = True
 RADIO_RC_CHANNELS_FLAGS_FAILSAFE = 1
 enums["RADIO_RC_CHANNELS_FLAGS"][1] = EnumEntry("RADIO_RC_CHANNELS_FLAGS_FAILSAFE", """Failsafe is active. The content of the RC channels data in the RADIO_RC_CHANNELS message is implementation dependent.""")
 RADIO_RC_CHANNELS_FLAGS_OUTDATED = 2
@@ -6780,7 +7020,8 @@ RADIO_RC_CHANNELS_FLAGS_ENUM_END = 3
 enums["RADIO_RC_CHANNELS_FLAGS"][3] = EnumEntry("RADIO_RC_CHANNELS_FLAGS_ENUM_END", """""")
 
 # GPS_SYSTEM_ERROR_FLAGS
-enums["GPS_SYSTEM_ERROR_FLAGS"] = {}
+enums["GPS_SYSTEM_ERROR_FLAGS"] = Enum()
+enums["GPS_SYSTEM_ERROR_FLAGS"].bitmask = True
 GPS_SYSTEM_ERROR_INCOMING_CORRECTIONS = 1
 enums["GPS_SYSTEM_ERROR_FLAGS"][1] = EnumEntry("GPS_SYSTEM_ERROR_INCOMING_CORRECTIONS", """There are problems with incoming correction streams.""")
 GPS_SYSTEM_ERROR_CONFIGURATION = 2
@@ -6799,7 +7040,8 @@ GPS_SYSTEM_ERROR_FLAGS_ENUM_END = 65
 enums["GPS_SYSTEM_ERROR_FLAGS"][65] = EnumEntry("GPS_SYSTEM_ERROR_FLAGS_ENUM_END", """""")
 
 # GPS_AUTHENTICATION_STATE
-enums["GPS_AUTHENTICATION_STATE"] = {}
+enums["GPS_AUTHENTICATION_STATE"] = Enum()
+enums["GPS_AUTHENTICATION_STATE"].bitmask = False
 GPS_AUTHENTICATION_STATE_UNKNOWN = 0
 enums["GPS_AUTHENTICATION_STATE"][0] = EnumEntry("GPS_AUTHENTICATION_STATE_UNKNOWN", """The GPS receiver does not provide GPS signal authentication info.""")
 GPS_AUTHENTICATION_STATE_INITIALIZING = 1
@@ -6814,7 +7056,8 @@ GPS_AUTHENTICATION_STATE_ENUM_END = 5
 enums["GPS_AUTHENTICATION_STATE"][5] = EnumEntry("GPS_AUTHENTICATION_STATE_ENUM_END", """""")
 
 # GPS_JAMMING_STATE
-enums["GPS_JAMMING_STATE"] = {}
+enums["GPS_JAMMING_STATE"] = Enum()
+enums["GPS_JAMMING_STATE"].bitmask = False
 GPS_JAMMING_STATE_UNKNOWN = 0
 enums["GPS_JAMMING_STATE"][0] = EnumEntry("GPS_JAMMING_STATE_UNKNOWN", """The GPS receiver does not provide GPS signal jamming info.""")
 GPS_JAMMING_STATE_OK = 1
@@ -6827,7 +7070,8 @@ GPS_JAMMING_STATE_ENUM_END = 4
 enums["GPS_JAMMING_STATE"][4] = EnumEntry("GPS_JAMMING_STATE_ENUM_END", """""")
 
 # GPS_SPOOFING_STATE
-enums["GPS_SPOOFING_STATE"] = {}
+enums["GPS_SPOOFING_STATE"] = Enum()
+enums["GPS_SPOOFING_STATE"].bitmask = False
 GPS_SPOOFING_STATE_UNKNOWN = 0
 enums["GPS_SPOOFING_STATE"][0] = EnumEntry("GPS_SPOOFING_STATE_UNKNOWN", """The GPS receiver does not provide GPS signal spoofing info.""")
 GPS_SPOOFING_STATE_OK = 1
@@ -6840,7 +7084,8 @@ GPS_SPOOFING_STATE_ENUM_END = 4
 enums["GPS_SPOOFING_STATE"][4] = EnumEntry("GPS_SPOOFING_STATE_ENUM_END", """""")
 
 # GPS_RAIM_STATE
-enums["GPS_RAIM_STATE"] = {}
+enums["GPS_RAIM_STATE"] = Enum()
+enums["GPS_RAIM_STATE"].bitmask = False
 GPS_RAIM_STATE_UNKNOWN = 0
 enums["GPS_RAIM_STATE"][0] = EnumEntry("GPS_RAIM_STATE_UNKNOWN", """RAIM capability is unknown.""")
 GPS_RAIM_STATE_DISABLED = 1
@@ -6853,7 +7098,8 @@ GPS_RAIM_STATE_ENUM_END = 4
 enums["GPS_RAIM_STATE"][4] = EnumEntry("GPS_RAIM_STATE_ENUM_END", """""")
 
 # ICAROUS_TRACK_BAND_TYPES
-enums["ICAROUS_TRACK_BAND_TYPES"] = {}
+enums["ICAROUS_TRACK_BAND_TYPES"] = Enum()
+enums["ICAROUS_TRACK_BAND_TYPES"].bitmask = False
 ICAROUS_TRACK_BAND_TYPE_NONE = 0
 enums["ICAROUS_TRACK_BAND_TYPES"][0] = EnumEntry("ICAROUS_TRACK_BAND_TYPE_NONE", """""")
 ICAROUS_TRACK_BAND_TYPE_NEAR = 1
@@ -6864,7 +7110,8 @@ ICAROUS_TRACK_BAND_TYPES_ENUM_END = 3
 enums["ICAROUS_TRACK_BAND_TYPES"][3] = EnumEntry("ICAROUS_TRACK_BAND_TYPES_ENUM_END", """""")
 
 # ICAROUS_FMS_STATE
-enums["ICAROUS_FMS_STATE"] = {}
+enums["ICAROUS_FMS_STATE"] = Enum()
+enums["ICAROUS_FMS_STATE"].bitmask = False
 ICAROUS_FMS_STATE_IDLE = 0
 enums["ICAROUS_FMS_STATE"][0] = EnumEntry("ICAROUS_FMS_STATE_IDLE", """""")
 ICAROUS_FMS_STATE_TAKEOFF = 1
@@ -6881,7 +7128,8 @@ ICAROUS_FMS_STATE_ENUM_END = 6
 enums["ICAROUS_FMS_STATE"][6] = EnumEntry("ICAROUS_FMS_STATE_ENUM_END", """""")
 
 # MAV_AUTOPILOT
-enums["MAV_AUTOPILOT"] = {}
+enums["MAV_AUTOPILOT"] = Enum()
+enums["MAV_AUTOPILOT"].bitmask = False
 MAV_AUTOPILOT_GENERIC = 0
 enums["MAV_AUTOPILOT"][0] = EnumEntry("MAV_AUTOPILOT_GENERIC", """Generic autopilot, full support for everything""")
 MAV_AUTOPILOT_RESERVED = 1
@@ -6928,7 +7176,8 @@ MAV_AUTOPILOT_ENUM_END = 21
 enums["MAV_AUTOPILOT"][21] = EnumEntry("MAV_AUTOPILOT_ENUM_END", """""")
 
 # MAV_TYPE
-enums["MAV_TYPE"] = {}
+enums["MAV_TYPE"] = Enum()
+enums["MAV_TYPE"].bitmask = False
 MAV_TYPE_GENERIC = 0
 enums["MAV_TYPE"][0] = EnumEntry("MAV_TYPE_GENERIC", """Generic micro air vehicle""")
 MAV_TYPE_FIXED_WING = 1
@@ -7019,11 +7268,14 @@ MAV_TYPE_GENERIC_MULTIROTOR = 43
 enums["MAV_TYPE"][43] = EnumEntry("MAV_TYPE_GENERIC_MULTIROTOR", """Generic multirotor that does not fit into a specific type or whose type is unknown""")
 MAV_TYPE_ILLUMINATOR = 44
 enums["MAV_TYPE"][44] = EnumEntry("MAV_TYPE_ILLUMINATOR", """Illuminator. An illuminator is a light source that is used for lighting up dark areas external to the sytstem: e.g. a torch or searchlight (as opposed to a light source for illuminating the system itself, e.g. an indicator light).""")
-MAV_TYPE_ENUM_END = 45
-enums["MAV_TYPE"][45] = EnumEntry("MAV_TYPE_ENUM_END", """""")
+MAV_TYPE_SPACECRAFT_ORBITER = 45
+enums["MAV_TYPE"][45] = EnumEntry("MAV_TYPE_SPACECRAFT_ORBITER", """Orbiter spacecraft. Includes satellites orbiting terrestrial and extra-terrestrial bodies. Follows NASA Spacecraft Classification.""")
+MAV_TYPE_ENUM_END = 46
+enums["MAV_TYPE"][46] = EnumEntry("MAV_TYPE_ENUM_END", """""")
 
 # MAV_MODE_FLAG
-enums["MAV_MODE_FLAG"] = {}
+enums["MAV_MODE_FLAG"] = Enum()
+enums["MAV_MODE_FLAG"].bitmask = True
 MAV_MODE_FLAG_CUSTOM_MODE_ENABLED = 1
 enums["MAV_MODE_FLAG"][1] = EnumEntry("MAV_MODE_FLAG_CUSTOM_MODE_ENABLED", """0b00000001 Reserved for future use.""")
 MAV_MODE_FLAG_TEST_ENABLED = 2
@@ -7044,7 +7296,8 @@ MAV_MODE_FLAG_ENUM_END = 129
 enums["MAV_MODE_FLAG"][129] = EnumEntry("MAV_MODE_FLAG_ENUM_END", """""")
 
 # MAV_MODE_FLAG_DECODE_POSITION
-enums["MAV_MODE_FLAG_DECODE_POSITION"] = {}
+enums["MAV_MODE_FLAG_DECODE_POSITION"] = Enum()
+enums["MAV_MODE_FLAG_DECODE_POSITION"].bitmask = True
 MAV_MODE_FLAG_DECODE_POSITION_CUSTOM_MODE = 1
 enums["MAV_MODE_FLAG_DECODE_POSITION"][1] = EnumEntry("MAV_MODE_FLAG_DECODE_POSITION_CUSTOM_MODE", """Eighth bit: 00000001""")
 MAV_MODE_FLAG_DECODE_POSITION_TEST = 2
@@ -7065,7 +7318,8 @@ MAV_MODE_FLAG_DECODE_POSITION_ENUM_END = 129
 enums["MAV_MODE_FLAG_DECODE_POSITION"][129] = EnumEntry("MAV_MODE_FLAG_DECODE_POSITION_ENUM_END", """""")
 
 # MAV_STATE
-enums["MAV_STATE"] = {}
+enums["MAV_STATE"] = Enum()
+enums["MAV_STATE"].bitmask = False
 MAV_STATE_UNINIT = 0
 enums["MAV_STATE"][0] = EnumEntry("MAV_STATE_UNINIT", """Uninitialized system, state is unknown.""")
 MAV_STATE_BOOT = 1
@@ -7088,7 +7342,8 @@ MAV_STATE_ENUM_END = 9
 enums["MAV_STATE"][9] = EnumEntry("MAV_STATE_ENUM_END", """""")
 
 # MAV_COMPONENT
-enums["MAV_COMPONENT"] = {}
+enums["MAV_COMPONENT"] = Enum()
+enums["MAV_COMPONENT"].bitmask = False
 MAV_COMP_ID_ALL = 0
 enums["MAV_COMPONENT"][0] = EnumEntry("MAV_COMP_ID_ALL", """Target id (target_component) used to broadcast messages to all components of the receiving system. Components should attempt to process messages with this component ID and forward to components on any other interfaces. Note: This is not a valid *source* component id for a message.""")
 MAV_COMP_ID_AUTOPILOT1 = 1
@@ -7365,7 +7620,8 @@ MAV_COMPONENT_ENUM_END = 251
 enums["MAV_COMPONENT"][251] = EnumEntry("MAV_COMPONENT_ENUM_END", """""")
 
 # UALBERTA_AUTOPILOT_MODE
-enums["UALBERTA_AUTOPILOT_MODE"] = {}
+enums["UALBERTA_AUTOPILOT_MODE"] = Enum()
+enums["UALBERTA_AUTOPILOT_MODE"].bitmask = False
 MODE_MANUAL_DIRECT = 1
 enums["UALBERTA_AUTOPILOT_MODE"][1] = EnumEntry("MODE_MANUAL_DIRECT", """Raw input pulse widts sent to output""")
 MODE_MANUAL_SCALED = 2
@@ -7380,7 +7636,8 @@ UALBERTA_AUTOPILOT_MODE_ENUM_END = 6
 enums["UALBERTA_AUTOPILOT_MODE"][6] = EnumEntry("UALBERTA_AUTOPILOT_MODE_ENUM_END", """""")
 
 # UALBERTA_NAV_MODE
-enums["UALBERTA_NAV_MODE"] = {}
+enums["UALBERTA_NAV_MODE"] = Enum()
+enums["UALBERTA_NAV_MODE"].bitmask = False
 NAV_AHRS_INIT = 1
 enums["UALBERTA_NAV_MODE"][1] = EnumEntry("NAV_AHRS_INIT", """""")
 NAV_AHRS = 2
@@ -7393,7 +7650,8 @@ UALBERTA_NAV_MODE_ENUM_END = 5
 enums["UALBERTA_NAV_MODE"][5] = EnumEntry("UALBERTA_NAV_MODE_ENUM_END", """""")
 
 # UALBERTA_PILOT_MODE
-enums["UALBERTA_PILOT_MODE"] = {}
+enums["UALBERTA_PILOT_MODE"] = Enum()
+enums["UALBERTA_PILOT_MODE"].bitmask = False
 PILOT_MANUAL = 1
 enums["UALBERTA_PILOT_MODE"][1] = EnumEntry("PILOT_MANUAL", """""")
 PILOT_AUTO = 2
@@ -7404,7 +7662,8 @@ UALBERTA_PILOT_MODE_ENUM_END = 4
 enums["UALBERTA_PILOT_MODE"][4] = EnumEntry("UALBERTA_PILOT_MODE_ENUM_END", """""")
 
 # UAVIONIX_ADSB_OUT_DYNAMIC_STATE
-enums["UAVIONIX_ADSB_OUT_DYNAMIC_STATE"] = {}
+enums["UAVIONIX_ADSB_OUT_DYNAMIC_STATE"] = Enum()
+enums["UAVIONIX_ADSB_OUT_DYNAMIC_STATE"].bitmask = True
 UAVIONIX_ADSB_OUT_DYNAMIC_STATE_INTENT_CHANGE = 1
 enums["UAVIONIX_ADSB_OUT_DYNAMIC_STATE"][1] = EnumEntry("UAVIONIX_ADSB_OUT_DYNAMIC_STATE_INTENT_CHANGE", """""")
 UAVIONIX_ADSB_OUT_DYNAMIC_STATE_AUTOPILOT_ENABLED = 2
@@ -7419,9 +7678,8 @@ UAVIONIX_ADSB_OUT_DYNAMIC_STATE_ENUM_END = 17
 enums["UAVIONIX_ADSB_OUT_DYNAMIC_STATE"][17] = EnumEntry("UAVIONIX_ADSB_OUT_DYNAMIC_STATE_ENUM_END", """""")
 
 # UAVIONIX_ADSB_OUT_RF_SELECT
-enums["UAVIONIX_ADSB_OUT_RF_SELECT"] = {}
-UAVIONIX_ADSB_OUT_RF_SELECT_STANDBY = 0
-enums["UAVIONIX_ADSB_OUT_RF_SELECT"][0] = EnumEntry("UAVIONIX_ADSB_OUT_RF_SELECT_STANDBY", """""")
+enums["UAVIONIX_ADSB_OUT_RF_SELECT"] = Enum()
+enums["UAVIONIX_ADSB_OUT_RF_SELECT"].bitmask = True
 UAVIONIX_ADSB_OUT_RF_SELECT_RX_ENABLED = 1
 enums["UAVIONIX_ADSB_OUT_RF_SELECT"][1] = EnumEntry("UAVIONIX_ADSB_OUT_RF_SELECT_RX_ENABLED", """""")
 UAVIONIX_ADSB_OUT_RF_SELECT_TX_ENABLED = 2
@@ -7430,7 +7688,8 @@ UAVIONIX_ADSB_OUT_RF_SELECT_ENUM_END = 3
 enums["UAVIONIX_ADSB_OUT_RF_SELECT"][3] = EnumEntry("UAVIONIX_ADSB_OUT_RF_SELECT_ENUM_END", """""")
 
 # UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX
-enums["UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX"] = {}
+enums["UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX"] = Enum()
+enums["UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX"].bitmask = False
 UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX_NONE_0 = 0
 enums["UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX"][0] = EnumEntry("UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX_NONE_0", """""")
 UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX_NONE_1 = 1
@@ -7447,9 +7706,8 @@ UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX_ENUM_END = 6
 enums["UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX"][6] = EnumEntry("UAVIONIX_ADSB_OUT_DYNAMIC_GPS_FIX_ENUM_END", """""")
 
 # UAVIONIX_ADSB_RF_HEALTH
-enums["UAVIONIX_ADSB_RF_HEALTH"] = {}
-UAVIONIX_ADSB_RF_HEALTH_INITIALIZING = 0
-enums["UAVIONIX_ADSB_RF_HEALTH"][0] = EnumEntry("UAVIONIX_ADSB_RF_HEALTH_INITIALIZING", """""")
+enums["UAVIONIX_ADSB_RF_HEALTH"] = Enum()
+enums["UAVIONIX_ADSB_RF_HEALTH"].bitmask = True
 UAVIONIX_ADSB_RF_HEALTH_OK = 1
 enums["UAVIONIX_ADSB_RF_HEALTH"][1] = EnumEntry("UAVIONIX_ADSB_RF_HEALTH_OK", """""")
 UAVIONIX_ADSB_RF_HEALTH_FAIL_TX = 2
@@ -7460,7 +7718,8 @@ UAVIONIX_ADSB_RF_HEALTH_ENUM_END = 17
 enums["UAVIONIX_ADSB_RF_HEALTH"][17] = EnumEntry("UAVIONIX_ADSB_RF_HEALTH_ENUM_END", """""")
 
 # UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE
-enums["UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE"] = {}
+enums["UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE"] = Enum()
+enums["UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE"].bitmask = False
 UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE_NO_DATA = 0
 enums["UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE"][0] = EnumEntry("UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE_NO_DATA", """""")
 UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE_L15M_W23M = 1
@@ -7497,7 +7756,8 @@ UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE_ENUM_END = 16
 enums["UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE"][16] = EnumEntry("UAVIONIX_ADSB_OUT_CFG_AIRCRAFT_SIZE_ENUM_END", """""")
 
 # UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT
-enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT"] = {}
+enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT"] = Enum()
+enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT"].bitmask = False
 UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT_NO_DATA = 0
 enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT"][0] = EnumEntry("UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT_NO_DATA", """""")
 UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT_LEFT_2M = 1
@@ -7518,7 +7778,8 @@ UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT_ENUM_END = 8
 enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT"][8] = EnumEntry("UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT_ENUM_END", """""")
 
 # UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON
-enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON"] = {}
+enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON"] = Enum()
+enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON"].bitmask = False
 UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON_NO_DATA = 0
 enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON"][0] = EnumEntry("UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON_NO_DATA", """""")
 UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON_APPLIED_BY_SENSOR = 1
@@ -7527,7 +7788,8 @@ UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON_ENUM_END = 2
 enums["UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON"][2] = EnumEntry("UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON_ENUM_END", """""")
 
 # UAVIONIX_ADSB_EMERGENCY_STATUS
-enums["UAVIONIX_ADSB_EMERGENCY_STATUS"] = {}
+enums["UAVIONIX_ADSB_EMERGENCY_STATUS"] = Enum()
+enums["UAVIONIX_ADSB_EMERGENCY_STATUS"].bitmask = False
 UAVIONIX_ADSB_OUT_NO_EMERGENCY = 0
 enums["UAVIONIX_ADSB_EMERGENCY_STATUS"][0] = EnumEntry("UAVIONIX_ADSB_OUT_NO_EMERGENCY", """""")
 UAVIONIX_ADSB_OUT_GENERAL_EMERGENCY = 1
@@ -7547,8 +7809,125 @@ enums["UAVIONIX_ADSB_EMERGENCY_STATUS"][7] = EnumEntry("UAVIONIX_ADSB_OUT_RESERV
 UAVIONIX_ADSB_EMERGENCY_STATUS_ENUM_END = 8
 enums["UAVIONIX_ADSB_EMERGENCY_STATUS"][8] = EnumEntry("UAVIONIX_ADSB_EMERGENCY_STATUS_ENUM_END", """""")
 
+# UAVIONIX_ADSB_OUT_CONTROL_STATE
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"] = Enum()
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"].bitmask = True
+UAVIONIX_ADSB_OUT_CONTROL_STATE_EXTERNAL_BARO_CROSSCHECKED = 1
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"][1] = EnumEntry("UAVIONIX_ADSB_OUT_CONTROL_STATE_EXTERNAL_BARO_CROSSCHECKED", """""")
+UAVIONIX_ADSB_OUT_CONTROL_STATE_ON_GROUND = 4
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"][4] = EnumEntry("UAVIONIX_ADSB_OUT_CONTROL_STATE_ON_GROUND", """""")
+UAVIONIX_ADSB_OUT_CONTROL_STATE_IDENT_BUTTON_ACTIVE = 8
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"][8] = EnumEntry("UAVIONIX_ADSB_OUT_CONTROL_STATE_IDENT_BUTTON_ACTIVE", """""")
+UAVIONIX_ADSB_OUT_CONTROL_STATE_MODE_A_ENABLED = 16
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"][16] = EnumEntry("UAVIONIX_ADSB_OUT_CONTROL_STATE_MODE_A_ENABLED", """""")
+UAVIONIX_ADSB_OUT_CONTROL_STATE_MODE_C_ENABLED = 32
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"][32] = EnumEntry("UAVIONIX_ADSB_OUT_CONTROL_STATE_MODE_C_ENABLED", """""")
+UAVIONIX_ADSB_OUT_CONTROL_STATE_MODE_S_ENABLED = 64
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"][64] = EnumEntry("UAVIONIX_ADSB_OUT_CONTROL_STATE_MODE_S_ENABLED", """""")
+UAVIONIX_ADSB_OUT_CONTROL_STATE_1090ES_TX_ENABLED = 128
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"][128] = EnumEntry("UAVIONIX_ADSB_OUT_CONTROL_STATE_1090ES_TX_ENABLED", """""")
+UAVIONIX_ADSB_OUT_CONTROL_STATE_ENUM_END = 129
+enums["UAVIONIX_ADSB_OUT_CONTROL_STATE"][129] = EnumEntry("UAVIONIX_ADSB_OUT_CONTROL_STATE_ENUM_END", """""")
+
+# UAVIONIX_ADSB_XBIT
+enums["UAVIONIX_ADSB_XBIT"] = Enum()
+enums["UAVIONIX_ADSB_XBIT"].bitmask = True
+UAVIONIX_ADSB_XBIT_ENABLED = 128
+enums["UAVIONIX_ADSB_XBIT"][128] = EnumEntry("UAVIONIX_ADSB_XBIT_ENABLED", """""")
+UAVIONIX_ADSB_XBIT_ENUM_END = 129
+enums["UAVIONIX_ADSB_XBIT"][129] = EnumEntry("UAVIONIX_ADSB_XBIT_ENUM_END", """""")
+
+# UAVIONIX_ADSB_OUT_STATUS_STATE
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"] = Enum()
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"].bitmask = True
+UAVIONIX_ADSB_OUT_STATUS_STATE_ON_GROUND = 1
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][1] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_ON_GROUND", """""")
+UAVIONIX_ADSB_OUT_STATUS_STATE_INTERROGATED_SINCE_LAST = 2
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][2] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_INTERROGATED_SINCE_LAST", """""")
+UAVIONIX_ADSB_OUT_STATUS_STATE_XBIT_ENABLED = 4
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][4] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_XBIT_ENABLED", """""")
+UAVIONIX_ADSB_OUT_STATUS_STATE_IDENT_ACTIVE = 8
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][8] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_IDENT_ACTIVE", """""")
+UAVIONIX_ADSB_OUT_STATUS_STATE_MODE_A_ENABLED = 16
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][16] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_MODE_A_ENABLED", """""")
+UAVIONIX_ADSB_OUT_STATUS_STATE_MODE_C_ENABLED = 32
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][32] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_MODE_C_ENABLED", """""")
+UAVIONIX_ADSB_OUT_STATUS_STATE_MODE_S_ENABLED = 64
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][64] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_MODE_S_ENABLED", """""")
+UAVIONIX_ADSB_OUT_STATUS_STATE_1090ES_TX_ENABLED = 128
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][128] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_1090ES_TX_ENABLED", """""")
+UAVIONIX_ADSB_OUT_STATUS_STATE_ENUM_END = 129
+enums["UAVIONIX_ADSB_OUT_STATUS_STATE"][129] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_STATE_ENUM_END", """""")
+
+# UAVIONIX_ADSB_OUT_STATUS_NIC_NACP
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"] = Enum()
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"].bitmask = False
+UAVIONIX_ADSB_NIC_CR_20_NM = 1
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][1] = EnumEntry("UAVIONIX_ADSB_NIC_CR_20_NM", """""")
+UAVIONIX_ADSB_NIC_CR_8_NM = 2
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][2] = EnumEntry("UAVIONIX_ADSB_NIC_CR_8_NM", """""")
+UAVIONIX_ADSB_NIC_CR_4_NM = 3
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][3] = EnumEntry("UAVIONIX_ADSB_NIC_CR_4_NM", """""")
+UAVIONIX_ADSB_NIC_CR_2_NM = 4
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][4] = EnumEntry("UAVIONIX_ADSB_NIC_CR_2_NM", """""")
+UAVIONIX_ADSB_NIC_CR_1_NM = 5
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][5] = EnumEntry("UAVIONIX_ADSB_NIC_CR_1_NM", """""")
+UAVIONIX_ADSB_NIC_CR_0_3_NM = 6
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][6] = EnumEntry("UAVIONIX_ADSB_NIC_CR_0_3_NM", """""")
+UAVIONIX_ADSB_NIC_CR_0_2_NM = 7
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][7] = EnumEntry("UAVIONIX_ADSB_NIC_CR_0_2_NM", """""")
+UAVIONIX_ADSB_NIC_CR_0_1_NM = 8
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][8] = EnumEntry("UAVIONIX_ADSB_NIC_CR_0_1_NM", """""")
+UAVIONIX_ADSB_NIC_CR_75_M = 9
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][9] = EnumEntry("UAVIONIX_ADSB_NIC_CR_75_M", """""")
+UAVIONIX_ADSB_NIC_CR_25_M = 10
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][10] = EnumEntry("UAVIONIX_ADSB_NIC_CR_25_M", """""")
+UAVIONIX_ADSB_NIC_CR_7_5_M = 11
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][11] = EnumEntry("UAVIONIX_ADSB_NIC_CR_7_5_M", """""")
+UAVIONIX_ADSB_NACP_EPU_10_NM = 16
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][16] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_10_NM", """""")
+UAVIONIX_ADSB_NACP_EPU_4_NM = 32
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][32] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_4_NM", """""")
+UAVIONIX_ADSB_NACP_EPU_2_NM = 48
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][48] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_2_NM", """""")
+UAVIONIX_ADSB_NACP_EPU_1_NM = 64
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][64] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_1_NM", """""")
+UAVIONIX_ADSB_NACP_EPU_0_5_NM = 80
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][80] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_0_5_NM", """""")
+UAVIONIX_ADSB_NACP_EPU_0_3_NM = 96
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][96] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_0_3_NM", """""")
+UAVIONIX_ADSB_NACP_EPU_0_1_NM = 112
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][112] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_0_1_NM", """""")
+UAVIONIX_ADSB_NACP_EPU_0_05_NM = 128
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][128] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_0_05_NM", """""")
+UAVIONIX_ADSB_NACP_EPU_30_M = 144
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][144] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_30_M", """""")
+UAVIONIX_ADSB_NACP_EPU_10_M = 160
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][160] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_10_M", """""")
+UAVIONIX_ADSB_NACP_EPU_3_M = 176
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][176] = EnumEntry("UAVIONIX_ADSB_NACP_EPU_3_M", """""")
+UAVIONIX_ADSB_OUT_STATUS_NIC_NACP_ENUM_END = 177
+enums["UAVIONIX_ADSB_OUT_STATUS_NIC_NACP"][177] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_NIC_NACP_ENUM_END", """""")
+
+# UAVIONIX_ADSB_OUT_STATUS_FAULT
+enums["UAVIONIX_ADSB_OUT_STATUS_FAULT"] = Enum()
+enums["UAVIONIX_ADSB_OUT_STATUS_FAULT"].bitmask = True
+UAVIONIX_ADSB_OUT_STATUS_FAULT_STATUS_MESSAGE_UNAVAIL = 8
+enums["UAVIONIX_ADSB_OUT_STATUS_FAULT"][8] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_FAULT_STATUS_MESSAGE_UNAVAIL", """""")
+UAVIONIX_ADSB_OUT_STATUS_FAULT_GPS_NO_POS = 16
+enums["UAVIONIX_ADSB_OUT_STATUS_FAULT"][16] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_FAULT_GPS_NO_POS", """""")
+UAVIONIX_ADSB_OUT_STATUS_FAULT_GPS_UNAVAIL = 32
+enums["UAVIONIX_ADSB_OUT_STATUS_FAULT"][32] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_FAULT_GPS_UNAVAIL", """""")
+UAVIONIX_ADSB_OUT_STATUS_FAULT_TX_SYSTEM_FAIL = 64
+enums["UAVIONIX_ADSB_OUT_STATUS_FAULT"][64] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_FAULT_TX_SYSTEM_FAIL", """""")
+UAVIONIX_ADSB_OUT_STATUS_FAULT_MAINT_REQ = 128
+enums["UAVIONIX_ADSB_OUT_STATUS_FAULT"][128] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_FAULT_MAINT_REQ", """""")
+UAVIONIX_ADSB_OUT_STATUS_FAULT_ENUM_END = 129
+enums["UAVIONIX_ADSB_OUT_STATUS_FAULT"][129] = EnumEntry("UAVIONIX_ADSB_OUT_STATUS_FAULT_ENUM_END", """""")
+
 # MAV_STORM32_TUNNEL_PAYLOAD_TYPE
-enums["MAV_STORM32_TUNNEL_PAYLOAD_TYPE"] = {}
+enums["MAV_STORM32_TUNNEL_PAYLOAD_TYPE"] = Enum()
+enums["MAV_STORM32_TUNNEL_PAYLOAD_TYPE"].bitmask = False
 MAV_STORM32_TUNNEL_PAYLOAD_TYPE_STORM32_CH1_IN = 200
 enums["MAV_STORM32_TUNNEL_PAYLOAD_TYPE"][200] = EnumEntry("MAV_STORM32_TUNNEL_PAYLOAD_TYPE_STORM32_CH1_IN", """Registered for STorM32 gimbal controller. For communication with gimbal or camera.""")
 MAV_STORM32_TUNNEL_PAYLOAD_TYPE_STORM32_CH1_OUT = 201
@@ -7564,55 +7943,17 @@ enums["MAV_STORM32_TUNNEL_PAYLOAD_TYPE"][205] = EnumEntry("MAV_STORM32_TUNNEL_PA
 MAV_STORM32_TUNNEL_PAYLOAD_TYPE_ENUM_END = 206
 enums["MAV_STORM32_TUNNEL_PAYLOAD_TYPE"][206] = EnumEntry("MAV_STORM32_TUNNEL_PAYLOAD_TYPE_ENUM_END", """""")
 
-# MAV_STORM32_GIMBAL_PREARM_FLAGS
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"] = {}
-MAV_STORM32_GIMBAL_PREARM_FLAGS_IS_NORMAL = 1
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][1] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_IS_NORMAL", """STorM32 gimbal is in normal state.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_IMUS_WORKING = 2
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][2] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_IMUS_WORKING", """The IMUs are healthy and working normally.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_MOTORS_WORKING = 4
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][4] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_MOTORS_WORKING", """The motors are active and working normally.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_ENCODERS_WORKING = 8
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][8] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_ENCODERS_WORKING", """The encoders are healthy and working normally.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_VOLTAGE_OK = 16
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][16] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_VOLTAGE_OK", """A battery voltage is applied and is in range.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_VIRTUALCHANNELS_RECEIVING = 32
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][32] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_VIRTUALCHANNELS_RECEIVING", """Virtual input channels are receiving data.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_MAVLINK_RECEIVING = 64
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][64] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_MAVLINK_RECEIVING", """Mavlink messages are being received.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_STORM32LINK_QFIX = 128
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][128] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_STORM32LINK_QFIX", """The STorM32Link data indicates QFix.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_STORM32LINK_WORKING = 256
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][256] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_STORM32LINK_WORKING", """The STorM32Link is working.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_CAMERA_CONNECTED = 512
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][512] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_CAMERA_CONNECTED", """The camera has been found and is connected.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_AUX0_LOW = 1024
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][1024] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_AUX0_LOW", """The signal on the AUX0 input pin is low.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_AUX1_LOW = 2048
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][2048] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_AUX1_LOW", """The signal on the AUX1 input pin is low.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_NTLOGGER_WORKING = 4096
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][4096] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_NTLOGGER_WORKING", """The NTLogger is working normally.""")
-MAV_STORM32_GIMBAL_PREARM_FLAGS_ENUM_END = 4097
-enums["MAV_STORM32_GIMBAL_PREARM_FLAGS"][4097] = EnumEntry("MAV_STORM32_GIMBAL_PREARM_FLAGS_ENUM_END", """""")
-
-# MAV_STORM32_CAMERA_PREARM_FLAGS
-enums["MAV_STORM32_CAMERA_PREARM_FLAGS"] = {}
-MAV_STORM32_CAMERA_PREARM_FLAGS_CONNECTED = 1
-enums["MAV_STORM32_CAMERA_PREARM_FLAGS"][1] = EnumEntry("MAV_STORM32_CAMERA_PREARM_FLAGS_CONNECTED", """The camera has been found and is connected.""")
-MAV_STORM32_CAMERA_PREARM_FLAGS_ENUM_END = 2
-enums["MAV_STORM32_CAMERA_PREARM_FLAGS"][2] = EnumEntry("MAV_STORM32_CAMERA_PREARM_FLAGS_ENUM_END", """""")
-
 # MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS
-enums["MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS"] = {}
+enums["MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS"] = Enum()
+enums["MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS"].bitmask = True
 MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS_HAS_PROFILES = 1
 enums["MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS"][1] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS_HAS_PROFILES", """The gimbal manager supports several profiles.""")
 MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS_ENUM_END = 2
 enums["MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS"][2] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_CAP_FLAGS_ENUM_END", """""")
 
 # MAV_STORM32_GIMBAL_MANAGER_FLAGS
-enums["MAV_STORM32_GIMBAL_MANAGER_FLAGS"] = {}
-MAV_STORM32_GIMBAL_MANAGER_FLAGS_NONE = 0
-enums["MAV_STORM32_GIMBAL_MANAGER_FLAGS"][0] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_FLAGS_NONE", """0 = ignore.""")
+enums["MAV_STORM32_GIMBAL_MANAGER_FLAGS"] = Enum()
+enums["MAV_STORM32_GIMBAL_MANAGER_FLAGS"].bitmask = True
 MAV_STORM32_GIMBAL_MANAGER_FLAGS_RC_ACTIVE = 1
 enums["MAV_STORM32_GIMBAL_MANAGER_FLAGS"][1] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_FLAGS_RC_ACTIVE", """Request to set RC input to active, or report RC input is active. Implies RC mixed. RC exclusive is achieved by setting all clients to inactive.""")
 MAV_STORM32_GIMBAL_MANAGER_FLAGS_CLIENT_ONBOARD_ACTIVE = 2
@@ -7639,7 +7980,8 @@ MAV_STORM32_GIMBAL_MANAGER_FLAGS_ENUM_END = 1025
 enums["MAV_STORM32_GIMBAL_MANAGER_FLAGS"][1025] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_FLAGS_ENUM_END", """""")
 
 # MAV_STORM32_GIMBAL_MANAGER_CLIENT
-enums["MAV_STORM32_GIMBAL_MANAGER_CLIENT"] = {}
+enums["MAV_STORM32_GIMBAL_MANAGER_CLIENT"] = Enum()
+enums["MAV_STORM32_GIMBAL_MANAGER_CLIENT"].bitmask = False
 MAV_STORM32_GIMBAL_MANAGER_CLIENT_NONE = 0
 enums["MAV_STORM32_GIMBAL_MANAGER_CLIENT"][0] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_CLIENT_NONE", """For convenience.""")
 MAV_STORM32_GIMBAL_MANAGER_CLIENT_ONBOARD = 1
@@ -7662,7 +8004,8 @@ MAV_STORM32_GIMBAL_MANAGER_CLIENT_ENUM_END = 9
 enums["MAV_STORM32_GIMBAL_MANAGER_CLIENT"][9] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_CLIENT_ENUM_END", """""")
 
 # MAV_STORM32_GIMBAL_MANAGER_PROFILE
-enums["MAV_STORM32_GIMBAL_MANAGER_PROFILE"] = {}
+enums["MAV_STORM32_GIMBAL_MANAGER_PROFILE"] = Enum()
+enums["MAV_STORM32_GIMBAL_MANAGER_PROFILE"].bitmask = False
 MAV_STORM32_GIMBAL_MANAGER_PROFILE_DEFAULT = 0
 enums["MAV_STORM32_GIMBAL_MANAGER_PROFILE"][0] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_PROFILE_DEFAULT", """Default profile. Implementation specific.""")
 MAV_STORM32_GIMBAL_MANAGER_PROFILE_CUSTOM = 1
@@ -7679,7 +8022,8 @@ MAV_STORM32_GIMBAL_MANAGER_PROFILE_ENUM_END = 6
 enums["MAV_STORM32_GIMBAL_MANAGER_PROFILE"][6] = EnumEntry("MAV_STORM32_GIMBAL_MANAGER_PROFILE_ENUM_END", """""")
 
 # MAV_QSHOT_MODE
-enums["MAV_QSHOT_MODE"] = {}
+enums["MAV_QSHOT_MODE"] = Enum()
+enums["MAV_QSHOT_MODE"].bitmask = False
 MAV_QSHOT_MODE_UNDEFINED = 0
 enums["MAV_QSHOT_MODE"][0] = EnumEntry("MAV_QSHOT_MODE_UNDEFINED", """Undefined shot mode. Can be used to determine if qshots should be used or not.""")
 MAV_QSHOT_MODE_DEFAULT = 1
@@ -7703,8 +8047,49 @@ enums["MAV_QSHOT_MODE"][9] = EnumEntry("MAV_QSHOT_MODE_HOME_TARGETING", """Start
 MAV_QSHOT_MODE_ENUM_END = 10
 enums["MAV_QSHOT_MODE"][10] = EnumEntry("MAV_QSHOT_MODE_ENUM_END", """""")
 
+# MLRS_RADIO_LINK_STATS_FLAGS
+enums["MLRS_RADIO_LINK_STATS_FLAGS"] = Enum()
+enums["MLRS_RADIO_LINK_STATS_FLAGS"].bitmask = True
+MLRS_RADIO_LINK_STATS_FLAGS_RSSI_DBM = 1
+enums["MLRS_RADIO_LINK_STATS_FLAGS"][1] = EnumEntry("MLRS_RADIO_LINK_STATS_FLAGS_RSSI_DBM", """Rssi values are in negative dBm. Values 1..254 corresponds to -1..-254 dBm. 0: no reception, UINT8_MAX: unknown.""")
+MLRS_RADIO_LINK_STATS_FLAGS_RX_RECEIVE_ANTENNA2 = 2
+enums["MLRS_RADIO_LINK_STATS_FLAGS"][2] = EnumEntry("MLRS_RADIO_LINK_STATS_FLAGS_RX_RECEIVE_ANTENNA2", """Rx receive antenna. When set the data received on antenna 2 are taken, else the data stems from antenna 1.""")
+MLRS_RADIO_LINK_STATS_FLAGS_RX_TRANSMIT_ANTENNA1 = 4
+enums["MLRS_RADIO_LINK_STATS_FLAGS"][4] = EnumEntry("MLRS_RADIO_LINK_STATS_FLAGS_RX_TRANSMIT_ANTENNA1", """Rx transmit antenna. Data are transmitted on antenna 1.""")
+MLRS_RADIO_LINK_STATS_FLAGS_RX_TRANSMIT_ANTENNA2 = 8
+enums["MLRS_RADIO_LINK_STATS_FLAGS"][8] = EnumEntry("MLRS_RADIO_LINK_STATS_FLAGS_RX_TRANSMIT_ANTENNA2", """Rx transmit antenna. Data are transmitted on antenna 2.""")
+MLRS_RADIO_LINK_STATS_FLAGS_TX_RECEIVE_ANTENNA2 = 16
+enums["MLRS_RADIO_LINK_STATS_FLAGS"][16] = EnumEntry("MLRS_RADIO_LINK_STATS_FLAGS_TX_RECEIVE_ANTENNA2", """Tx receive antenna. When set the data received on antenna 2 are taken, else the data stems from antenna 1.""")
+MLRS_RADIO_LINK_STATS_FLAGS_TX_TRANSMIT_ANTENNA1 = 32
+enums["MLRS_RADIO_LINK_STATS_FLAGS"][32] = EnumEntry("MLRS_RADIO_LINK_STATS_FLAGS_TX_TRANSMIT_ANTENNA1", """Tx transmit antenna. Data are transmitted on antenna 1.""")
+MLRS_RADIO_LINK_STATS_FLAGS_TX_TRANSMIT_ANTENNA2 = 64
+enums["MLRS_RADIO_LINK_STATS_FLAGS"][64] = EnumEntry("MLRS_RADIO_LINK_STATS_FLAGS_TX_TRANSMIT_ANTENNA2", """Tx transmit antenna. Data are transmitted on antenna 2.""")
+MLRS_RADIO_LINK_STATS_FLAGS_ENUM_END = 65
+enums["MLRS_RADIO_LINK_STATS_FLAGS"][65] = EnumEntry("MLRS_RADIO_LINK_STATS_FLAGS_ENUM_END", """""")
+
+# MLRS_RADIO_LINK_TYPE
+enums["MLRS_RADIO_LINK_TYPE"] = Enum()
+enums["MLRS_RADIO_LINK_TYPE"].bitmask = False
+MLRS_RADIO_LINK_TYPE_GENERIC = 0
+enums["MLRS_RADIO_LINK_TYPE"][0] = EnumEntry("MLRS_RADIO_LINK_TYPE_GENERIC", """Unknown radio link type.""")
+MLRS_RADIO_LINK_TYPE_HERELINK = 1
+enums["MLRS_RADIO_LINK_TYPE"][1] = EnumEntry("MLRS_RADIO_LINK_TYPE_HERELINK", """Radio link is HereLink.""")
+MLRS_RADIO_LINK_TYPE_DRAGONLINK = 2
+enums["MLRS_RADIO_LINK_TYPE"][2] = EnumEntry("MLRS_RADIO_LINK_TYPE_DRAGONLINK", """Radio link is Dragon Link.""")
+MLRS_RADIO_LINK_TYPE_RFD900 = 3
+enums["MLRS_RADIO_LINK_TYPE"][3] = EnumEntry("MLRS_RADIO_LINK_TYPE_RFD900", """Radio link is RFD900.""")
+MLRS_RADIO_LINK_TYPE_CROSSFIRE = 4
+enums["MLRS_RADIO_LINK_TYPE"][4] = EnumEntry("MLRS_RADIO_LINK_TYPE_CROSSFIRE", """Radio link is Crossfire.""")
+MLRS_RADIO_LINK_TYPE_EXPRESSLRS = 5
+enums["MLRS_RADIO_LINK_TYPE"][5] = EnumEntry("MLRS_RADIO_LINK_TYPE_EXPRESSLRS", """Radio link is ExpressLRS.""")
+MLRS_RADIO_LINK_TYPE_MLRS = 6
+enums["MLRS_RADIO_LINK_TYPE"][6] = EnumEntry("MLRS_RADIO_LINK_TYPE_MLRS", """Radio link is mLRS.""")
+MLRS_RADIO_LINK_TYPE_ENUM_END = 7
+enums["MLRS_RADIO_LINK_TYPE"][7] = EnumEntry("MLRS_RADIO_LINK_TYPE_ENUM_END", """""")
+
 # MAV_AVSS_COMMAND_FAILURE_REASON
-enums["MAV_AVSS_COMMAND_FAILURE_REASON"] = {}
+enums["MAV_AVSS_COMMAND_FAILURE_REASON"] = Enum()
+enums["MAV_AVSS_COMMAND_FAILURE_REASON"].bitmask = False
 PRS_NOT_STEADY = 1
 enums["MAV_AVSS_COMMAND_FAILURE_REASON"][1] = EnumEntry("PRS_NOT_STEADY", """AVSS defined command failure reason. PRS not steady.""")
 PRS_DTM_NOT_ARMED = 2
@@ -7715,7 +8100,8 @@ MAV_AVSS_COMMAND_FAILURE_REASON_ENUM_END = 4
 enums["MAV_AVSS_COMMAND_FAILURE_REASON"][4] = EnumEntry("MAV_AVSS_COMMAND_FAILURE_REASON_ENUM_END", """""")
 
 # AVSS_M300_OPERATION_MODE
-enums["AVSS_M300_OPERATION_MODE"] = {}
+enums["AVSS_M300_OPERATION_MODE"] = Enum()
+enums["AVSS_M300_OPERATION_MODE"].bitmask = False
 MODE_M300_MANUAL_CTRL = 0
 enums["AVSS_M300_OPERATION_MODE"][0] = EnumEntry("MODE_M300_MANUAL_CTRL", """In manual control mode""")
 MODE_M300_ATTITUDE = 1
@@ -7748,7 +8134,8 @@ AVSS_M300_OPERATION_MODE_ENUM_END = 42
 enums["AVSS_M300_OPERATION_MODE"][42] = EnumEntry("AVSS_M300_OPERATION_MODE_ENUM_END", """""")
 
 # AVSS_HORSEFLY_OPERATION_MODE
-enums["AVSS_HORSEFLY_OPERATION_MODE"] = {}
+enums["AVSS_HORSEFLY_OPERATION_MODE"] = Enum()
+enums["AVSS_HORSEFLY_OPERATION_MODE"].bitmask = False
 MODE_HORSEFLY_MANUAL_CTRL = 0
 enums["AVSS_HORSEFLY_OPERATION_MODE"][0] = EnumEntry("MODE_HORSEFLY_MANUAL_CTRL", """In manual control mode""")
 MODE_HORSEFLY_AUTO_TAKEOFF = 1
@@ -7763,7 +8150,8 @@ AVSS_HORSEFLY_OPERATION_MODE_ENUM_END = 5
 enums["AVSS_HORSEFLY_OPERATION_MODE"][5] = EnumEntry("AVSS_HORSEFLY_OPERATION_MODE_ENUM_END", """""")
 
 # AIRLINK_AUTH_RESPONSE_TYPE
-enums["AIRLINK_AUTH_RESPONSE_TYPE"] = {}
+enums["AIRLINK_AUTH_RESPONSE_TYPE"] = Enum()
+enums["AIRLINK_AUTH_RESPONSE_TYPE"].bitmask = False
 AIRLINK_ERROR_LOGIN_OR_PASS = 0
 enums["AIRLINK_AUTH_RESPONSE_TYPE"][0] = EnumEntry("AIRLINK_ERROR_LOGIN_OR_PASS", """Login or password error""")
 AIRLINK_AUTH_OK = 1
@@ -7771,73 +8159,37 @@ enums["AIRLINK_AUTH_RESPONSE_TYPE"][1] = EnumEntry("AIRLINK_AUTH_OK", """Auth su
 AIRLINK_AUTH_RESPONSE_TYPE_ENUM_END = 2
 enums["AIRLINK_AUTH_RESPONSE_TYPE"][2] = EnumEntry("AIRLINK_AUTH_RESPONSE_TYPE_ENUM_END", """""")
 
-# AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE
-enums["AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE"] = {}
-AIRLINK_HPR_PARTNER_NOT_READY = 0
-enums["AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE"][0] = EnumEntry("AIRLINK_HPR_PARTNER_NOT_READY", """""")
-AIRLINK_HPR_PARTNER_READY = 1
-enums["AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE"][1] = EnumEntry("AIRLINK_HPR_PARTNER_READY", """""")
-AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE_ENUM_END = 2
-enums["AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE"][2] = EnumEntry("AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE_ENUM_END", """""")
-
-# AIRLINK_EYE_IP_VERSION
-enums["AIRLINK_EYE_IP_VERSION"] = {}
-AIRLINK_IP_V4 = 0
-enums["AIRLINK_EYE_IP_VERSION"][0] = EnumEntry("AIRLINK_IP_V4", """""")
-AIRLINK_IP_V6 = 1
-enums["AIRLINK_EYE_IP_VERSION"][1] = EnumEntry("AIRLINK_IP_V6", """""")
-AIRLINK_EYE_IP_VERSION_ENUM_END = 2
-enums["AIRLINK_EYE_IP_VERSION"][2] = EnumEntry("AIRLINK_EYE_IP_VERSION_ENUM_END", """""")
-
-# AIRLINK_EYE_HOLE_PUSH_TYPE
-enums["AIRLINK_EYE_HOLE_PUSH_TYPE"] = {}
-AIRLINK_HP_NOT_PENETRATED = 0
-enums["AIRLINK_EYE_HOLE_PUSH_TYPE"][0] = EnumEntry("AIRLINK_HP_NOT_PENETRATED", """""")
-AIRLINK_HP_BROKEN = 1
-enums["AIRLINK_EYE_HOLE_PUSH_TYPE"][1] = EnumEntry("AIRLINK_HP_BROKEN", """""")
-AIRLINK_EYE_HOLE_PUSH_TYPE_ENUM_END = 2
-enums["AIRLINK_EYE_HOLE_PUSH_TYPE"][2] = EnumEntry("AIRLINK_EYE_HOLE_PUSH_TYPE_ENUM_END", """""")
-
-# AIRLINK_EYE_TURN_INIT_TYPE
-enums["AIRLINK_EYE_TURN_INIT_TYPE"] = {}
-AIRLINK_TURN_INIT_START = 0
-enums["AIRLINK_EYE_TURN_INIT_TYPE"][0] = EnumEntry("AIRLINK_TURN_INIT_START", """""")
-AIRLINK_TURN_INIT_OK = 1
-enums["AIRLINK_EYE_TURN_INIT_TYPE"][1] = EnumEntry("AIRLINK_TURN_INIT_OK", """""")
-AIRLINK_TURN_INIT_BAD = 2
-enums["AIRLINK_EYE_TURN_INIT_TYPE"][2] = EnumEntry("AIRLINK_TURN_INIT_BAD", """""")
-AIRLINK_EYE_TURN_INIT_TYPE_ENUM_END = 3
-enums["AIRLINK_EYE_TURN_INIT_TYPE"][3] = EnumEntry("AIRLINK_EYE_TURN_INIT_TYPE_ENUM_END", """""")
-
-# MARSH_COMPONENT
-enums["MARSH_COMPONENT"] = {}
-MARSH_COMP_ID_MANAGER = 25
-enums["MARSH_COMPONENT"][25] = EnumEntry("MARSH_COMP_ID_MANAGER", """The simulation manager responsible for routing packets between different nodes. Typically MARSH Manager, see https://marsh-sim.github.io/manager.html""")
-MARSH_COMP_ID_FLIGHT_MODEL = 26
-enums["MARSH_COMPONENT"][26] = EnumEntry("MARSH_COMP_ID_FLIGHT_MODEL", """Component simulating flight dynamics of the aircraft.""")
-MARSH_COMP_ID_CONTROLS = 27
-enums["MARSH_COMPONENT"][27] = EnumEntry("MARSH_COMP_ID_CONTROLS", """Component providing pilot control inputs.""")
-MARSH_COMP_ID_VISUALISATION = 28
-enums["MARSH_COMPONENT"][28] = EnumEntry("MARSH_COMP_ID_VISUALISATION", """Component showing the visual situation to the pilot.""")
-MARSH_COMP_ID_INSTRUMENTS = 29
-enums["MARSH_COMPONENT"][29] = EnumEntry("MARSH_COMP_ID_INSTRUMENTS", """Component implementing pilot instrument panel.""")
-MARSH_COMP_ID_MOTION_PLATFORM = 30
-enums["MARSH_COMPONENT"][30] = EnumEntry("MARSH_COMP_ID_MOTION_PLATFORM", """Component that moves the entire cockpit for motion cueing.""")
-MARSH_COMP_ID_GSEAT = 31
-enums["MARSH_COMPONENT"][31] = EnumEntry("MARSH_COMP_ID_GSEAT", """Component for in-seat motion cueing.""")
-MARSH_COMP_ID_EYE_TRACKER = 32
-enums["MARSH_COMPONENT"][32] = EnumEntry("MARSH_COMP_ID_EYE_TRACKER", """Component providing gaze data of pilot eyes.""")
-MARSH_COMP_ID_CONTROL_LOADING = 33
-enums["MARSH_COMPONENT"][33] = EnumEntry("MARSH_COMP_ID_CONTROL_LOADING", """Component measuring and actuating forces on pilot control inputs.""")
-MARSH_COMP_ID_VIBRATION_SOURCE = 34
-enums["MARSH_COMPONENT"][34] = EnumEntry("MARSH_COMP_ID_VIBRATION_SOURCE", """Component providing vibrations for system identification, road rumble, gusts, etc.""")
-MARSH_COMP_ID_PILOT_TARGET = 35
-enums["MARSH_COMPONENT"][35] = EnumEntry("MARSH_COMP_ID_PILOT_TARGET", """Component providing target for the pilot to follow like controls positions, aircraft state, ILS path etc.""")
-MARSH_COMPONENT_ENUM_END = 36
-enums["MARSH_COMPONENT"][36] = EnumEntry("MARSH_COMPONENT_ENUM_END", """""")
+# MARSH_TYPE
+enums["MARSH_TYPE"] = Enum()
+enums["MARSH_TYPE"].bitmask = False
+MARSH_TYPE_MANAGER = 100
+enums["MARSH_TYPE"][100] = EnumEntry("MARSH_TYPE_MANAGER", """The simulation manager responsible for routing packets between different nodes. Typically MARSH Manager, see https://marsh-sim.github.io/manager.html""")
+MARSH_TYPE_FLIGHT_MODEL = 101
+enums["MARSH_TYPE"][101] = EnumEntry("MARSH_TYPE_FLIGHT_MODEL", """Component simulating flight dynamics of the aircraft.""")
+MARSH_TYPE_CONTROLS = 102
+enums["MARSH_TYPE"][102] = EnumEntry("MARSH_TYPE_CONTROLS", """Component providing pilot control inputs.""")
+MARSH_TYPE_VISUALISATION = 103
+enums["MARSH_TYPE"][103] = EnumEntry("MARSH_TYPE_VISUALISATION", """Component showing the visual situation to the pilot.""")
+MARSH_TYPE_INSTRUMENTS = 104
+enums["MARSH_TYPE"][104] = EnumEntry("MARSH_TYPE_INSTRUMENTS", """Component implementing pilot instrument panel.""")
+MARSH_TYPE_MOTION_PLATFORM = 105
+enums["MARSH_TYPE"][105] = EnumEntry("MARSH_TYPE_MOTION_PLATFORM", """Component that moves the entire cockpit for motion cueing.""")
+MARSH_TYPE_GSEAT = 106
+enums["MARSH_TYPE"][106] = EnumEntry("MARSH_TYPE_GSEAT", """Component for in-seat motion cueing.""")
+MARSH_TYPE_EYE_TRACKER = 107
+enums["MARSH_TYPE"][107] = EnumEntry("MARSH_TYPE_EYE_TRACKER", """Component providing gaze data of pilot eyes.""")
+MARSH_TYPE_CONTROL_LOADING = 108
+enums["MARSH_TYPE"][108] = EnumEntry("MARSH_TYPE_CONTROL_LOADING", """Component measuring and actuating forces on pilot control inputs.""")
+MARSH_TYPE_VIBRATION_SOURCE = 109
+enums["MARSH_TYPE"][109] = EnumEntry("MARSH_TYPE_VIBRATION_SOURCE", """Component providing vibrations for system identification, road rumble, gusts, etc.""")
+MARSH_TYPE_PILOT_TARGET = 110
+enums["MARSH_TYPE"][110] = EnumEntry("MARSH_TYPE_PILOT_TARGET", """Component providing target for the pilot to follow like controls positions, aircraft state, ILS path etc.""")
+MARSH_TYPE_ENUM_END = 111
+enums["MARSH_TYPE"][111] = EnumEntry("MARSH_TYPE_ENUM_END", """""")
 
 # MARSH_MODE_FLAGS
-enums["MARSH_MODE_FLAGS"] = {}
+enums["MARSH_MODE_FLAGS"] = Enum()
+enums["MARSH_MODE_FLAGS"].bitmask = False
 MARSH_MODE_SINGLE_MESSAGE = 16777216
 enums["MARSH_MODE_FLAGS"][16777216] = EnumEntry(
     "MARSH_MODE_SINGLE_MESSAGE",
@@ -7850,7 +8202,8 @@ MARSH_MODE_FLAGS_ENUM_END = 33554433
 enums["MARSH_MODE_FLAGS"][33554433] = EnumEntry("MARSH_MODE_FLAGS_ENUM_END", """""")
 
 # CONTROL_AXIS
-enums["CONTROL_AXIS"] = {}
+enums["CONTROL_AXIS"] = Enum()
+enums["CONTROL_AXIS"].bitmask = False
 CONTROL_AXIS_ROLL = 0
 enums["CONTROL_AXIS"][0] = EnumEntry("CONTROL_AXIS_ROLL", """Roll axis, with positive values corresponding to stick right movement, causing the vehicle to roll right. For helicopters this is lateral cyclic.""")
 CONTROL_AXIS_PITCH = 1
@@ -7863,7 +8216,8 @@ CONTROL_AXIS_ENUM_END = 4
 enums["CONTROL_AXIS"][4] = EnumEntry("CONTROL_AXIS_ENUM_END", """""")
 
 # MARSH_MANUAL_SETPOINT_MODE
-enums["MARSH_MANUAL_SETPOINT_MODE"] = {}
+enums["MARSH_MANUAL_SETPOINT_MODE"] = Enum()
+enums["MARSH_MANUAL_SETPOINT_MODE"].bitmask = False
 MARSH_MANUAL_SETPOINT_MODE_TARGET = 0
 enums["MARSH_MANUAL_SETPOINT_MODE"][0] = EnumEntry("MARSH_MANUAL_SETPOINT_MODE_TARGET", """Values for target inceptors positions that the pilot should follow.""")
 MARSH_MANUAL_SETPOINT_MODE_TRIM = 1
@@ -7872,7 +8226,8 @@ MARSH_MANUAL_SETPOINT_MODE_ENUM_END = 2
 enums["MARSH_MANUAL_SETPOINT_MODE"][2] = EnumEntry("MARSH_MANUAL_SETPOINT_MODE_ENUM_END", """""")
 
 # MOTION_PLATFORM_MODE
-enums["MOTION_PLATFORM_MODE"] = {}
+enums["MOTION_PLATFORM_MODE"] = Enum()
+enums["MOTION_PLATFORM_MODE"].bitmask = False
 MOTION_PLATFORM_MODE_UNKNOWN = 0
 enums["MOTION_PLATFORM_MODE"][0] = EnumEntry("MOTION_PLATFORM_MODE_UNKNOWN", """Mode information is unsupported on this device.""")
 MOTION_PLATFORM_MODE_UNINITIALIZED = 1
@@ -7891,7 +8246,8 @@ MOTION_PLATFORM_MODE_ENUM_END = 7
 enums["MOTION_PLATFORM_MODE"][7] = EnumEntry("MOTION_PLATFORM_MODE_ENUM_END", """""")
 
 # MOTION_PLATFORM_HEALTH
-enums["MOTION_PLATFORM_HEALTH"] = {}
+enums["MOTION_PLATFORM_HEALTH"] = Enum()
+enums["MOTION_PLATFORM_HEALTH"].bitmask = False
 MOTION_PLATFORM_HEALTH_OK = 0
 enums["MOTION_PLATFORM_HEALTH"][0] = EnumEntry("MOTION_PLATFORM_HEALTH_OK", """System is operating correctly.""")
 MOTION_PLATFORM_HEALTH_WARNING = 1
@@ -7902,149 +8258,6 @@ MOTION_PLATFORM_HEALTH_CRITICAL = 3
 enums["MOTION_PLATFORM_HEALTH"][3] = EnumEntry("MOTION_PLATFORM_HEALTH_CRITICAL", """There is a major failure that requires immediate operator action to maintain safety.""")
 MOTION_PLATFORM_HEALTH_ENUM_END = 4
 enums["MOTION_PLATFORM_HEALTH"][4] = EnumEntry("MOTION_PLATFORM_HEALTH_ENUM_END", """""")
-
-# REXROTH_MOTION_PLATFORM_ERROR
-enums["REXROTH_MOTION_PLATFORM_ERROR"] = {}
-REXROTH_ERR_OK = 0
-enums["REXROTH_MOTION_PLATFORM_ERROR"][0] = EnumEntry("REXROTH_ERR_OK", """No error.""")
-REXROTH_ERR_WA_EXCESSIVE_TORQUE_DIFFERENCE = 59
-enums["REXROTH_MOTION_PLATFORM_ERROR"][59] = EnumEntry("REXROTH_ERR_WA_EXCESSIVE_TORQUE_DIFFERENCE", """""")
-REXROTH_ERR_WA_REMOTE_ACCESS_ACTIVE = 60
-enums["REXROTH_MOTION_PLATFORM_ERROR"][60] = EnumEntry("REXROTH_ERR_WA_REMOTE_ACCESS_ACTIVE", """""")
-REXROTH_ERR_WA_NON_CRITICAL_CIRCUIT_BREAKER = 61
-enums["REXROTH_MOTION_PLATFORM_ERROR"][61] = EnumEntry("REXROTH_ERR_WA_NON_CRITICAL_CIRCUIT_BREAKER", """""")
-REXROTH_ERR_WA_SEAL_CHECK_POSITION_HIGH = 62
-enums["REXROTH_MOTION_PLATFORM_ERROR"][62] = EnumEntry("REXROTH_ERR_WA_SEAL_CHECK_POSITION_HIGH", """""")
-REXROTH_ERR_WA_SEAL_CHECK_POSITION_LOW = 63
-enums["REXROTH_MOTION_PLATFORM_ERROR"][63] = EnumEntry("REXROTH_ERR_WA_SEAL_CHECK_POSITION_LOW", """""")
-REXROTH_ERR_WA_FRAMECOUNTER_FAIL = 64
-enums["REXROTH_MOTION_PLATFORM_ERROR"][64] = EnumEntry("REXROTH_ERR_WA_FRAMECOUNTER_FAIL", """""")
-REXROTH_ERR_WA_UNEXPECTED_STARTUP = 65
-enums["REXROTH_MOTION_PLATFORM_ERROR"][65] = EnumEntry("REXROTH_ERR_WA_UNEXPECTED_STARTUP", """""")
-REXROTH_ERR_WA_UPS_BATTERY_FAIL = 75
-enums["REXROTH_MOTION_PLATFORM_ERROR"][75] = EnumEntry("REXROTH_ERR_WA_UPS_BATTERY_FAIL", """""")
-REXROTH_ERR_WA_PLATFORM_SETTLE_ERROR = 77
-enums["REXROTH_MOTION_PLATFORM_ERROR"][77] = EnumEntry("REXROTH_ERR_WA_PLATFORM_SETTLE_ERROR", """""")
-REXROTH_ERR_WA_BLEEDER_TEMPERATURE = 88
-enums["REXROTH_MOTION_PLATFORM_ERROR"][88] = EnumEntry("REXROTH_ERR_WA_BLEEDER_TEMPERATURE", """""")
-REXROTH_ERR_WA_PRESSURE_HIGH = 92
-enums["REXROTH_MOTION_PLATFORM_ERROR"][92] = EnumEntry("REXROTH_ERR_WA_PRESSURE_HIGH", """""")
-REXROTH_ERR_WA_PRESSURE_LOW = 93
-enums["REXROTH_MOTION_PLATFORM_ERROR"][93] = EnumEntry("REXROTH_ERR_WA_PRESSURE_LOW", """""")
-REXROTH_ERR_WA_BRAKE_UPS_POWER_WARNING = 94
-enums["REXROTH_MOTION_PLATFORM_ERROR"][94] = EnumEntry("REXROTH_ERR_WA_BRAKE_UPS_POWER_WARNING", """""")
-REXROTH_ERR_WA_MOTOR_TEMPERATURE_WARNING = 95
-enums["REXROTH_MOTION_PLATFORM_ERROR"][95] = EnumEntry("REXROTH_ERR_WA_MOTOR_TEMPERATURE_WARNING", """""")
-REXROTH_ERR_FD_FORCED_DISENGAGE_CIRCUIT_OPENED = 96
-enums["REXROTH_MOTION_PLATFORM_ERROR"][96] = EnumEntry("REXROTH_ERR_FD_FORCED_DISENGAGE_CIRCUIT_OPENED", """""")
-REXROTH_ERR_FD_INVALID_MODE = 97
-enums["REXROTH_MOTION_PLATFORM_ERROR"][97] = EnumEntry("REXROTH_ERR_FD_INVALID_MODE", """""")
-REXROTH_ERR_FD_HOST_DATA_TIME_OUT = 98
-enums["REXROTH_MOTION_PLATFORM_ERROR"][98] = EnumEntry("REXROTH_ERR_FD_HOST_DATA_TIME_OUT", """""")
-REXROTH_ERR_FD_FRAMECOUNTER_FAIL = 99
-enums["REXROTH_MOTION_PLATFORM_ERROR"][99] = EnumEntry("REXROTH_ERR_FD_FRAMECOUNTER_FAIL", """""")
-REXROTH_ERR_ES_MOTION_ENABLE_CIRCUIT_OPENED = 100
-enums["REXROTH_MOTION_PLATFORM_ERROR"][100] = EnumEntry("REXROTH_ERR_ES_MOTION_ENABLE_CIRCUIT_OPENED", """""")
-REXROTH_ERR_FD_DOORS_AND_PADS_CIRCUIT_OPENED = 101
-enums["REXROTH_MOTION_PLATFORM_ERROR"][101] = EnumEntry("REXROTH_ERR_FD_DOORS_AND_PADS_CIRCUIT_OPENED", """""")
-REXROTH_ERR_FD_LOADCHECK_SYSTEM_OVERLOAD = 102
-enums["REXROTH_MOTION_PLATFORM_ERROR"][102] = EnumEntry("REXROTH_ERR_FD_LOADCHECK_SYSTEM_OVERLOAD", """""")
-REXROTH_ERR_FD_LOADCHECK_ACTUATOR_OVERLOAD = 103
-enums["REXROTH_MOTION_PLATFORM_ERROR"][103] = EnumEntry("REXROTH_ERR_FD_LOADCHECK_ACTUATOR_OVERLOAD", """""")
-REXROTH_ERR_FD_BRAKE_UPS_POWER_ERROR = 104
-enums["REXROTH_MOTION_PLATFORM_ERROR"][104] = EnumEntry("REXROTH_ERR_FD_BRAKE_UPS_POWER_ERROR", """""")
-REXROTH_ERR_FD_MOTOR_TEMPERATURE_ERROR = 105
-enums["REXROTH_MOTION_PLATFORM_ERROR"][105] = EnumEntry("REXROTH_ERR_FD_MOTOR_TEMPERATURE_ERROR", """""")
-REXROTH_ERR_FD_MOTION_ENABLE_CIRCUIT_OPENED = 107
-enums["REXROTH_MOTION_PLATFORM_ERROR"][107] = EnumEntry("REXROTH_ERR_FD_MOTION_ENABLE_CIRCUIT_OPENED", """""")
-REXROTH_ERR_FD_HOST_DATA_INVALID = 110
-enums["REXROTH_MOTION_PLATFORM_ERROR"][110] = EnumEntry("REXROTH_ERR_FD_HOST_DATA_INVALID", """""")
-REXROTH_ERR_FD_LOADCHECK_ACTUATOR_UNDERLOAD = 113
-enums["REXROTH_MOTION_PLATFORM_ERROR"][113] = EnumEntry("REXROTH_ERR_FD_LOADCHECK_ACTUATOR_UNDERLOAD", """""")
-REXROTH_ERR_FD_SEAL_CHECK_POSITION_TOO_HIGH = 115
-enums["REXROTH_MOTION_PLATFORM_ERROR"][115] = EnumEntry("REXROTH_ERR_FD_SEAL_CHECK_POSITION_TOO_HIGH", """""")
-REXROTH_ERR_FD_SEAL_CHECK_POSITION_TOO_LOW = 116
-enums["REXROTH_MOTION_PLATFORM_ERROR"][116] = EnumEntry("REXROTH_ERR_FD_SEAL_CHECK_POSITION_TOO_LOW", """""")
-REXROTH_ERR_FD_RAMP_NOT_UP = 117
-enums["REXROTH_MOTION_PLATFORM_ERROR"][117] = EnumEntry("REXROTH_ERR_FD_RAMP_NOT_UP", """""")
-REXROTH_ERR_FD_DRIVE_WARNING = 120
-enums["REXROTH_MOTION_PLATFORM_ERROR"][120] = EnumEntry("REXROTH_ERR_FD_DRIVE_WARNING", """""")
-REXROTH_ERR_FD_PRESSURE_TOO_HIGH = 123
-enums["REXROTH_MOTION_PLATFORM_ERROR"][123] = EnumEntry("REXROTH_ERR_FD_PRESSURE_TOO_HIGH", """""")
-REXROTH_ERR_FD_PRESSURE_TOO_LOW = 124
-enums["REXROTH_MOTION_PLATFORM_ERROR"][124] = EnumEntry("REXROTH_ERR_FD_PRESSURE_TOO_LOW", """""")
-REXROTH_ERR_FD_ACTUATOR_POSITION_DOES_NOT_MATCH_SWITCH_POSITION = 125
-enums["REXROTH_MOTION_PLATFORM_ERROR"][125] = EnumEntry("REXROTH_ERR_FD_ACTUATOR_POSITION_DOES_NOT_MATCH_SWITCH_POSITION", """""")
-REXROTH_ERR_FD_SETTLED_SWITCH_NOT_DETECTED_BY_SAFETY_HOMING_PROCEDURE = 126
-enums["REXROTH_MOTION_PLATFORM_ERROR"][126] = EnumEntry("REXROTH_ERR_FD_SETTLED_SWITCH_NOT_DETECTED_BY_SAFETY_HOMING_PROCEDURE", """""")
-REXROTH_ERR_FD_POWER_OFF_LINE_FAILURE = 127
-enums["REXROTH_MOTION_PLATFORM_ERROR"][127] = EnumEntry("REXROTH_ERR_FD_POWER_OFF_LINE_FAILURE", """""")
-REXROTH_ERR_ES_EMERGENCY_STOP_CIRCUIT_OPENED = 160
-enums["REXROTH_MOTION_PLATFORM_ERROR"][160] = EnumEntry("REXROTH_ERR_ES_EMERGENCY_STOP_CIRCUIT_OPENED", """""")
-REXROTH_ERR_ES_RAMP_NOT_UP = 164
-enums["REXROTH_MOTION_PLATFORM_ERROR"][164] = EnumEntry("REXROTH_ERR_ES_RAMP_NOT_UP", """""")
-REXROTH_ERR_ES_MOVE_RAMP_UP_TIMEOUT = 172
-enums["REXROTH_MOTION_PLATFORM_ERROR"][172] = EnumEntry("REXROTH_ERR_ES_MOVE_RAMP_UP_TIMEOUT", """""")
-REXROTH_ERR_ES_MOVE_RAMP_DOWN_TIMEOUT = 173
-enums["REXROTH_MOTION_PLATFORM_ERROR"][173] = EnumEntry("REXROTH_ERR_ES_MOVE_RAMP_DOWN_TIMEOUT", """""")
-REXROTH_ERR_ES_MOVE_PLATFORM_UP_TIMEOUT = 174
-enums["REXROTH_MOTION_PLATFORM_ERROR"][174] = EnumEntry("REXROTH_ERR_ES_MOVE_PLATFORM_UP_TIMEOUT", """""")
-REXROTH_ERR_ES_MOVE_PLATFORM_DOWN_TIMEOUT = 175
-enums["REXROTH_MOTION_PLATFORM_ERROR"][175] = EnumEntry("REXROTH_ERR_ES_MOVE_PLATFORM_DOWN_TIMEOUT", """""")
-REXROTH_ERR_ES_CIRCUIT_BREAKER = 184
-enums["REXROTH_MOTION_PLATFORM_ERROR"][184] = EnumEntry("REXROTH_ERR_ES_CIRCUIT_BREAKER", """""")
-REXROTH_ERR_ES_YAW_TABLE_POSITION_LIMIT_ACTIVE = 185
-enums["REXROTH_MOTION_PLATFORM_ERROR"][185] = EnumEntry("REXROTH_ERR_ES_YAW_TABLE_POSITION_LIMIT_ACTIVE", """""")
-REXROTH_ERR_ES_XY_CUSHION = 186
-enums["REXROTH_MOTION_PLATFORM_ERROR"][186] = EnumEntry("REXROTH_ERR_ES_XY_CUSHION", """""")
-REXROTH_ERR_ES_EXCESSIVE_POSITION_DIFFERENCE = 193
-enums["REXROTH_MOTION_PLATFORM_ERROR"][193] = EnumEntry("REXROTH_ERR_ES_EXCESSIVE_POSITION_DIFFERENCE", """""")
-REXROTH_ERR_ES_BRAKE_POWER_FAIL = 194
-enums["REXROTH_MOTION_PLATFORM_ERROR"][194] = EnumEntry("REXROTH_ERR_ES_BRAKE_POWER_FAIL", """""")
-REXROTH_ERR_ES_MANUAL_BRAKE_RELEASE = 195
-enums["REXROTH_MOTION_PLATFORM_ERROR"][195] = EnumEntry("REXROTH_ERR_ES_MANUAL_BRAKE_RELEASE", """""")
-REXROTH_ERR_ES_RAMP_SWITCH_FAILURE = 206
-enums["REXROTH_MOTION_PLATFORM_ERROR"][206] = EnumEntry("REXROTH_ERR_ES_RAMP_SWITCH_FAILURE", """""")
-REXROTH_ERR_ES_BUFFER_CHECK_TIMEOUT = 207
-enums["REXROTH_MOTION_PLATFORM_ERROR"][207] = EnumEntry("REXROTH_ERR_ES_BUFFER_CHECK_TIMEOUT", """""")
-REXROTH_ERR_ES_BUFFER_CHECK_ERROR = 208
-enums["REXROTH_MOTION_PLATFORM_ERROR"][208] = EnumEntry("REXROTH_ERR_ES_BUFFER_CHECK_ERROR", """""")
-REXROTH_ERR_ES_ACTUATOR_POSITION_DOES_NOT_MATCH_SWITCH_POSITION = 209
-enums["REXROTH_MOTION_PLATFORM_ERROR"][209] = EnumEntry("REXROTH_ERR_ES_ACTUATOR_POSITION_DOES_NOT_MATCH_SWITCH_POSITION", """""")
-REXROTH_ERR_ES_BB_CONTACT_DRIVE_OPEN = 222
-enums["REXROTH_MOTION_PLATFORM_ERROR"][222] = EnumEntry("REXROTH_ERR_ES_BB_CONTACT_DRIVE_OPEN", """""")
-REXROTH_ERR_ES_DRIVE_ERROR = 223
-enums["REXROTH_MOTION_PLATFORM_ERROR"][223] = EnumEntry("REXROTH_ERR_ES_DRIVE_ERROR", """""")
-REXROTH_ERR_FB_FD_DRIVE_ERROR = 224
-enums["REXROTH_MOTION_PLATFORM_ERROR"][224] = EnumEntry("REXROTH_ERR_FB_FD_DRIVE_ERROR", """""")
-REXROTH_ERR_ES_POWER_ON_TIMEOUT = 225
-enums["REXROTH_MOTION_PLATFORM_ERROR"][225] = EnumEntry("REXROTH_ERR_ES_POWER_ON_TIMEOUT", """""")
-REXROTH_ERR_ES_POWER_OFF_TIMEOUT = 226
-enums["REXROTH_MOTION_PLATFORM_ERROR"][226] = EnumEntry("REXROTH_ERR_ES_POWER_OFF_TIMEOUT", """""")
-REXROTH_ERR_ES_BB_CONTACT_BLEEDER_OPEN = 230
-enums["REXROTH_MOTION_PLATFORM_ERROR"][230] = EnumEntry("REXROTH_ERR_ES_BB_CONTACT_BLEEDER_OPEN", """""")
-REXROTH_ERR_ES_BB_CONTACT_POWER_SUPPLY_OPEN = 231
-enums["REXROTH_MOTION_PLATFORM_ERROR"][231] = EnumEntry("REXROTH_ERR_ES_BB_CONTACT_POWER_SUPPLY_OPEN", """""")
-REXROTH_ERR_ES_DRIVE_ON_TIMEOUT = 235
-enums["REXROTH_MOTION_PLATFORM_ERROR"][235] = EnumEntry("REXROTH_ERR_ES_DRIVE_ON_TIMEOUT", """""")
-REXROTH_ERR_ES_DRIVE_OFF_TIMEOUT = 236
-enums["REXROTH_MOTION_PLATFORM_ERROR"][236] = EnumEntry("REXROTH_ERR_ES_DRIVE_OFF_TIMEOUT", """""")
-REXROTH_ERR_ES_SMOKE_OR_FIRE_DETECTED = 237
-enums["REXROTH_MOTION_PLATFORM_ERROR"][237] = EnumEntry("REXROTH_ERR_ES_SMOKE_OR_FIRE_DETECTED", """""")
-REXROTH_ERR_ES_ACTUAL_TORQUE_LIMIT_INVALID = 238
-enums["REXROTH_MOTION_PLATFORM_ERROR"][238] = EnumEntry("REXROTH_ERR_ES_ACTUAL_TORQUE_LIMIT_INVALID", """""")
-REXROTH_ERR_ES_ABSOLUTE_ENCODER_NOT_IN_REFERENCE = 239
-enums["REXROTH_MOTION_PLATFORM_ERROR"][239] = EnumEntry("REXROTH_ERR_ES_ABSOLUTE_ENCODER_NOT_IN_REFERENCE", """""")
-REXROTH_ERR_FB_SERCOS_BUS = 240
-enums["REXROTH_MOTION_PLATFORM_ERROR"][240] = EnumEntry("REXROTH_ERR_FB_SERCOS_BUS", """""")
-REXROTH_ERR_FB_SERCOS_SLAVE = 241
-enums["REXROTH_MOTION_PLATFORM_ERROR"][241] = EnumEntry("REXROTH_ERR_FB_SERCOS_SLAVE", """""")
-REXROTH_ERR_ES_SOFTWARE_CRASHED = 250
-enums["REXROTH_MOTION_PLATFORM_ERROR"][250] = EnumEntry("REXROTH_ERR_ES_SOFTWARE_CRASHED", """""")
-REXROTH_ERR_EPO_LINE_FAILURE = 255
-enums["REXROTH_MOTION_PLATFORM_ERROR"][255] = EnumEntry("REXROTH_ERR_EPO_LINE_FAILURE", """""")
-REXROTH_MOTION_PLATFORM_ERROR_ENUM_END = 256
-enums["REXROTH_MOTION_PLATFORM_ERROR"][256] = EnumEntry("REXROTH_MOTION_PLATFORM_ERROR_ENUM_END", """""")
 
 # message IDs
 MAVLINK_MSG_ID_BAD_DATA = -1
@@ -8396,14 +8609,23 @@ MAVLINK_MSG_ID_UALBERTA_SYS_STATUS = 222
 MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG = 10001
 MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_DYNAMIC = 10002
 MAVLINK_MSG_ID_UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT = 10003
+MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_REGISTRATION = 10004
+MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_FLIGHTID = 10005
+MAVLINK_MSG_ID_UAVIONIX_ADSB_GET = 10006
+MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CONTROL = 10007
+MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_STATUS = 10008
 MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_INFORMATION = 60010
 MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_STATUS = 60011
 MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_CONTROL = 60012
 MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_CONTROL_PITCHYAW = 60013
 MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_CORRECT_ROLL = 60014
 MAVLINK_MSG_ID_QSHOT_STATUS = 60020
+MAVLINK_MSG_ID_AUTOPILOT_STATE_FOR_GIMBAL_DEVICE_EXT = 60000
 MAVLINK_MSG_ID_FRSKY_PASSTHROUGH_ARRAY = 60040
 MAVLINK_MSG_ID_PARAM_VALUE_ARRAY = 60041
+MAVLINK_MSG_ID_MLRS_RADIO_LINK_STATS = 60045
+MAVLINK_MSG_ID_MLRS_RADIO_LINK_INFORMATION = 60046
+MAVLINK_MSG_ID_MLRS_RADIO_LINK_FLOW_CONTROL = 60047
 MAVLINK_MSG_ID_AVSS_PRS_SYS_STATUS = 60050
 MAVLINK_MSG_ID_AVSS_DRONE_POSITION = 60051
 MAVLINK_MSG_ID_AVSS_DRONE_IMU = 60052
@@ -8415,15 +8637,11 @@ MAVLINK_MSG_ID_CUBEPILOT_FIRMWARE_UPDATE_START = 50004
 MAVLINK_MSG_ID_CUBEPILOT_FIRMWARE_UPDATE_RESP = 50005
 MAVLINK_MSG_ID_AIRLINK_AUTH = 52000
 MAVLINK_MSG_ID_AIRLINK_AUTH_RESPONSE = 52001
-MAVLINK_MSG_ID_AIRLINK_EYE_GS_HOLE_PUSH_REQUEST = 52002
-MAVLINK_MSG_ID_AIRLINK_EYE_GS_HOLE_PUSH_RESPONSE = 52003
-MAVLINK_MSG_ID_AIRLINK_EYE_HP = 52004
-MAVLINK_MSG_ID_AIRLINK_EYE_TURN_INIT = 52005
-MAVLINK_MSG_ID_CONTROL_LOADING_AXIS = 24401
-MAVLINK_MSG_ID_MOTION_PLATFORM_STATE = 24402
-MAVLINK_MSG_ID_REXROTH_MOTION_PLATFORM = 24403
-MAVLINK_MSG_ID_MOTION_CUE_EXTRA = 24404
-MAVLINK_MSG_ID_EYE_TRACKING_DATA = 24405
+MAVLINK_MSG_ID_CONTROL_LOADING_AXIS = 52501
+MAVLINK_MSG_ID_MOTION_PLATFORM_STATE = 52502
+MAVLINK_MSG_ID_REXROTH_MOTION_PLATFORM = 52503
+MAVLINK_MSG_ID_MOTION_CUE_EXTRA = 52504
+MAVLINK_MSG_ID_EYE_TRACKING_DATA = 52505
 MAVLINK_MSG_ID_LOWEHEISER_GOV_EFI = 10151
 
 
@@ -9432,7 +9650,7 @@ class MAVLink_rally_point_message(MAVLink_message):
     fieldnames = ["target_system", "target_component", "idx", "count", "lat", "lng", "alt", "break_alt", "land_dir", "flags"]
     ordered_fieldnames = ["lat", "lng", "alt", "break_alt", "land_dir", "target_system", "target_component", "idx", "count", "flags"]
     fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint8_t", "int32_t", "int32_t", "int16_t", "int16_t", "uint16_t", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {"flags": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {"flags": "RALLY_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {"lat": "degE7", "lng": "degE7", "alt": "m", "break_alt": "m", "land_dir": "cdeg"}
     native_format = bytearray(b"<iihhHBBBBB")
@@ -9956,7 +10174,7 @@ class MAVLink_mag_cal_progress_message(MAVLink_message):
     fieldnames = ["compass_id", "cal_mask", "cal_status", "attempt", "completion_pct", "completion_mask", "direction_x", "direction_y", "direction_z"]
     ordered_fieldnames = ["direction_x", "direction_y", "direction_z", "compass_id", "cal_mask", "cal_status", "attempt", "completion_pct", "completion_mask"]
     fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint8_t", "float", "float", "float"]
-    fielddisplays_by_name: Dict[str, str] = {"cal_mask": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {"cal_status": "MAG_CAL_STATUS"}
     fieldunits_by_name: Dict[str, str] = {"completion_pct": "%"}
     native_format = bytearray(b"<fffBBBBBB")
@@ -13827,7 +14045,7 @@ class MAVLink_mission_current_message(MAVLink_message):
     mission is running).         This message should be streamed all
     the time (nominally at 1Hz).         This message should be
     emitted following a call to MAV_CMD_DO_SET_MISSION_CURRENT or
-    SET_MISSION_CURRENT.
+    MISSION_SET_CURRENT.
     """
 
     id = MAVLINK_MSG_ID_MISSION_CURRENT
@@ -15582,7 +15800,7 @@ setattr(MAVLink_hil_state_message, "name", mavlink_msg_deprecated_name_property(
 class MAVLink_hil_controls_message(MAVLink_message):
     """
     Sent from autopilot to simulation. Hardware in the loop control
-    outputs
+    outputs. Alternative to HIL_ACTUATOR_CONTROLS.
     """
 
     id = MAVLINK_MSG_ID_HIL_CONTROLS
@@ -15685,7 +15903,7 @@ setattr(MAVLink_hil_rc_inputs_raw_message, "name", mavlink_msg_deprecated_name_p
 class MAVLink_hil_actuator_controls_message(MAVLink_message):
     """
     Sent from autopilot to simulation. Hardware in the loop control
-    outputs (replacement for HIL_CONTROLS)
+    outputs. Alternative to HIL_CONTROLS.
     """
 
     id = MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS
@@ -15694,7 +15912,7 @@ class MAVLink_hil_actuator_controls_message(MAVLink_message):
     ordered_fieldnames = ["time_usec", "flags", "controls", "mode"]
     fieldtypes = ["uint64_t", "float", "uint8_t", "uint64_t"]
     fielddisplays_by_name: Dict[str, str] = {"mode": "bitmask", "flags": "bitmask"}
-    fieldenums_by_name: Dict[str, str] = {"mode": "MAV_MODE_FLAG"}
+    fieldenums_by_name: Dict[str, str] = {"mode": "MAV_MODE_FLAG", "flags": "HIL_ACTUATOR_CONTROLS_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {"time_usec": "us"}
     native_format = bytearray(b"<QQfB")
     orders = [0, 2, 3, 1]
@@ -17289,7 +17507,7 @@ class MAVLink_terrain_request_message(MAVLink_message):
     fieldnames = ["lat", "lon", "grid_spacing", "mask"]
     ordered_fieldnames = ["mask", "lat", "lon", "grid_spacing"]
     fieldtypes = ["int32_t", "int32_t", "uint16_t", "uint64_t"]
-    fielddisplays_by_name: Dict[str, str] = {"mask": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {}
     fieldunits_by_name: Dict[str, str] = {"lat": "degE7", "lon": "degE7", "grid_spacing": "m"}
     native_format = bytearray(b"<QiiH")
@@ -18060,7 +18278,7 @@ class MAVLink_mag_cal_report_message(MAVLink_message):
     fieldnames = ["compass_id", "cal_mask", "cal_status", "autosaved", "fitness", "ofs_x", "ofs_y", "ofs_z", "diag_x", "diag_y", "diag_z", "offdiag_x", "offdiag_y", "offdiag_z", "orientation_confidence", "old_orientation", "new_orientation", "scale_factor"]
     ordered_fieldnames = ["fitness", "ofs_x", "ofs_y", "ofs_z", "diag_x", "diag_y", "diag_z", "offdiag_x", "offdiag_y", "offdiag_z", "compass_id", "cal_mask", "cal_status", "autosaved", "orientation_confidence", "old_orientation", "new_orientation", "scale_factor"]
     fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint8_t", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "uint8_t", "uint8_t", "float"]
-    fielddisplays_by_name: Dict[str, str] = {"cal_mask": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {"cal_status": "MAG_CAL_STATUS", "old_orientation": "MAV_SENSOR_ORIENTATION", "new_orientation": "MAV_SENSOR_ORIENTATION"}
     fieldunits_by_name: Dict[str, str] = {"fitness": "mgauss"}
     native_format = bytearray(b"<ffffffffffBBBBfBBf")
@@ -18376,7 +18594,7 @@ class MAVLink_high_latency_message(MAVLink_message):
     fieldnames = ["base_mode", "custom_mode", "landed_state", "roll", "pitch", "heading", "throttle", "heading_sp", "latitude", "longitude", "altitude_amsl", "altitude_sp", "airspeed", "airspeed_sp", "groundspeed", "climb_rate", "gps_nsat", "gps_fix_type", "battery_remaining", "temperature", "temperature_air", "failsafe", "wp_num", "wp_distance"]
     ordered_fieldnames = ["custom_mode", "latitude", "longitude", "roll", "pitch", "heading", "heading_sp", "altitude_amsl", "altitude_sp", "wp_distance", "base_mode", "landed_state", "throttle", "airspeed", "airspeed_sp", "groundspeed", "climb_rate", "gps_nsat", "gps_fix_type", "battery_remaining", "temperature", "temperature_air", "failsafe", "wp_num"]
     fieldtypes = ["uint8_t", "uint32_t", "uint8_t", "int16_t", "int16_t", "uint16_t", "int8_t", "int16_t", "int32_t", "int32_t", "int16_t", "int16_t", "uint8_t", "uint8_t", "uint8_t", "int8_t", "uint8_t", "uint8_t", "uint8_t", "int8_t", "int8_t", "uint8_t", "uint8_t", "uint16_t"]
-    fielddisplays_by_name: Dict[str, str] = {"base_mode": "bitmask", "custom_mode": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {"base_mode": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"base_mode": "MAV_MODE_FLAG", "landed_state": "MAV_LANDED_STATE", "gps_fix_type": "GPS_FIX_TYPE"}
     fieldunits_by_name: Dict[str, str] = {"roll": "cdeg", "pitch": "cdeg", "heading": "cdeg", "throttle": "%", "heading_sp": "cdeg", "latitude": "degE7", "longitude": "degE7", "altitude_amsl": "m", "altitude_sp": "m", "airspeed": "m/s", "airspeed_sp": "m/s", "groundspeed": "m/s", "climb_rate": "m/s", "battery_remaining": "%", "temperature": "degC", "temperature_air": "degC", "wp_distance": "m"}
     native_format = bytearray(b"<IiihhHhhhHBBbBBBbBBBbbBB")
@@ -18438,7 +18656,7 @@ class MAVLink_high_latency2_message(MAVLink_message):
     fieldnames = ["timestamp", "type", "autopilot", "custom_mode", "latitude", "longitude", "altitude", "target_altitude", "heading", "target_heading", "target_distance", "throttle", "airspeed", "airspeed_sp", "groundspeed", "windspeed", "wind_heading", "eph", "epv", "temperature_air", "climb_rate", "battery", "wp_num", "failure_flags", "custom0", "custom1", "custom2"]
     ordered_fieldnames = ["timestamp", "latitude", "longitude", "custom_mode", "altitude", "target_altitude", "target_distance", "wp_num", "failure_flags", "type", "autopilot", "heading", "target_heading", "throttle", "airspeed", "airspeed_sp", "groundspeed", "windspeed", "wind_heading", "eph", "epv", "temperature_air", "climb_rate", "battery", "custom0", "custom1", "custom2"]
     fieldtypes = ["uint32_t", "uint8_t", "uint8_t", "uint16_t", "int32_t", "int32_t", "int16_t", "int16_t", "uint8_t", "uint8_t", "uint16_t", "uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint8_t", "int8_t", "int8_t", "int8_t", "uint16_t", "uint16_t", "int8_t", "int8_t", "int8_t"]
-    fielddisplays_by_name: Dict[str, str] = {"custom_mode": "bitmask", "failure_flags": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {"failure_flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"type": "MAV_TYPE", "autopilot": "MAV_AUTOPILOT", "failure_flags": "HL_FAILURE_FLAG"}
     fieldunits_by_name: Dict[str, str] = {"timestamp": "ms", "latitude": "degE7", "longitude": "degE7", "altitude": "m", "target_altitude": "m", "heading": "deg/2", "target_heading": "deg/2", "target_distance": "dam", "throttle": "%", "airspeed": "m/s*5", "airspeed_sp": "m/s*5", "groundspeed": "m/s*5", "windspeed": "m/s*5", "wind_heading": "deg/2", "eph": "dm", "epv": "dm", "temperature_air": "degC", "climb_rate": "dm/s", "battery": "%"}
     native_format = bytearray(b"<IiiHhhHHHBBBBBBBBBBBBbbbbbb")
@@ -19191,7 +19409,7 @@ class MAVLink_button_change_message(MAVLink_message):
     fieldnames = ["time_boot_ms", "last_change_ms", "state"]
     ordered_fieldnames = ["time_boot_ms", "last_change_ms", "state"]
     fieldtypes = ["uint32_t", "uint32_t", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {"state": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {}
     fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "last_change_ms": "ms"}
     native_format = bytearray(b"<IIB")
@@ -19749,7 +19967,7 @@ class MAVLink_video_stream_information_message(MAVLink_message):
     fieldnames = ["stream_id", "count", "type", "flags", "framerate", "resolution_h", "resolution_v", "bitrate", "rotation", "hfov", "name", "uri", "encoding", "camera_device_id"]
     ordered_fieldnames = ["framerate", "bitrate", "flags", "resolution_h", "resolution_v", "rotation", "hfov", "stream_id", "count", "type", "name", "uri", "encoding", "camera_device_id"]
     fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint16_t", "float", "uint16_t", "uint16_t", "uint32_t", "uint16_t", "uint16_t", "char", "char", "uint8_t", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
+    fielddisplays_by_name: Dict[str, str] = {"flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"type": "VIDEO_STREAM_TYPE", "flags": "VIDEO_STREAM_STATUS_FLAGS", "encoding": "VIDEO_STREAM_ENCODING"}
     fieldunits_by_name: Dict[str, str] = {"framerate": "Hz", "resolution_h": "pix", "resolution_v": "pix", "bitrate": "bits/s", "rotation": "deg", "hfov": "deg"}
     native_format = bytearray(b"<fIHHHHHBBBccBB")
@@ -19803,7 +20021,7 @@ class MAVLink_video_stream_status_message(MAVLink_message):
     fieldnames = ["stream_id", "flags", "framerate", "resolution_h", "resolution_v", "bitrate", "rotation", "hfov", "camera_device_id"]
     ordered_fieldnames = ["framerate", "bitrate", "flags", "resolution_h", "resolution_v", "rotation", "hfov", "stream_id", "camera_device_id"]
     fieldtypes = ["uint8_t", "uint16_t", "float", "uint16_t", "uint16_t", "uint32_t", "uint16_t", "uint16_t", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
+    fielddisplays_by_name: Dict[str, str] = {"flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"flags": "VIDEO_STREAM_STATUS_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {"framerate": "Hz", "resolution_h": "pix", "resolution_v": "pix", "bitrate": "bits/s", "rotation": "deg", "hfov": "deg"}
     native_format = bytearray(b"<fIHHHHHBB")
@@ -19899,7 +20117,7 @@ class MAVLink_camera_tracking_image_status_message(MAVLink_message):
     fieldnames = ["tracking_status", "tracking_mode", "target_data", "point_x", "point_y", "radius", "rec_top_x", "rec_top_y", "rec_bottom_x", "rec_bottom_y", "camera_device_id"]
     ordered_fieldnames = ["point_x", "point_y", "radius", "rec_top_x", "rec_top_y", "rec_bottom_x", "rec_bottom_y", "tracking_status", "tracking_mode", "target_data", "camera_device_id"]
     fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "float", "float", "float", "float", "float", "float", "float", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
+    fielddisplays_by_name: Dict[str, str] = {"target_data": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"tracking_status": "CAMERA_TRACKING_STATUS_FLAGS", "tracking_mode": "CAMERA_TRACKING_MODE", "target_data": "CAMERA_TRACKING_TARGET_DATA"}
     fieldunits_by_name: Dict[str, str] = {}
     native_format = bytearray(b"<fffffffBBBB")
@@ -20195,7 +20413,7 @@ class MAVLink_gimbal_device_information_message(MAVLink_message):
     fieldnames = ["time_boot_ms", "vendor_name", "model_name", "custom_name", "firmware_version", "hardware_version", "uid", "cap_flags", "custom_cap_flags", "roll_min", "roll_max", "pitch_min", "pitch_max", "yaw_min", "yaw_max", "gimbal_device_id"]
     ordered_fieldnames = ["uid", "time_boot_ms", "firmware_version", "hardware_version", "roll_min", "roll_max", "pitch_min", "pitch_max", "yaw_min", "yaw_max", "cap_flags", "custom_cap_flags", "vendor_name", "model_name", "custom_name", "gimbal_device_id"]
     fieldtypes = ["uint32_t", "char", "char", "char", "uint32_t", "uint32_t", "uint64_t", "uint16_t", "uint16_t", "float", "float", "float", "float", "float", "float", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {"cap_flags": "bitmask", "custom_cap_flags": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {"cap_flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"cap_flags": "GIMBAL_DEVICE_CAP_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "roll_min": "rad", "roll_max": "rad", "pitch_min": "rad", "pitch_max": "rad", "yaw_min": "rad", "yaw_max": "rad"}
     native_format = bytearray(b"<QIIIffffffHHcccB")
@@ -20543,7 +20761,7 @@ class MAVLink_esc_info_message(MAVLink_message):
     fieldnames = ["index", "time_usec", "counter", "count", "connection_type", "info", "failure_flags", "error_count", "temperature"]
     ordered_fieldnames = ["time_usec", "error_count", "counter", "failure_flags", "temperature", "index", "count", "connection_type", "info"]
     fieldtypes = ["uint8_t", "uint64_t", "uint16_t", "uint8_t", "uint8_t", "uint8_t", "uint16_t", "uint32_t", "int16_t"]
-    fielddisplays_by_name: Dict[str, str] = {"info": "bitmask", "failure_flags": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {"failure_flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"connection_type": "ESC_CONNECTION_TYPE", "failure_flags": "ESC_FAILURE_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {"time_usec": "us", "temperature": "cdegC"}
     native_format = bytearray(b"<QIHHhBBBB")
@@ -21635,9 +21853,9 @@ setattr(MAVLink_smart_battery_info_message, "name", mavlink_msg_deprecated_name_
 class MAVLink_fuel_status_message(MAVLink_message):
     """
     Fuel status.         This message provides "generic" fuel level
-    information for display in a GCS and for triggering failsafes in
-    an autopilot.         The fuel type and associated units for
-    fields in this message are defined in the enum MAV_FUEL_TYPE.
+    information for  in a GCS and for triggering failsafes in an
+    autopilot.         The fuel type and associated units for fields
+    in this message are defined in the enum MAV_FUEL_TYPE.
     The reported `consumed_fuel` and `remaining_fuel` must only be
     supplied if measured: they must not be inferred from the
     `maximum_fuel` and the other value.         A recipient can assume
@@ -21817,7 +22035,7 @@ class MAVLink_actuator_output_status_message(MAVLink_message):
     fieldnames = ["time_usec", "active", "actuator"]
     ordered_fieldnames = ["time_usec", "active", "actuator"]
     fieldtypes = ["uint64_t", "uint32_t", "float"]
-    fielddisplays_by_name: Dict[str, str] = {"active": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {}
     fieldunits_by_name: Dict[str, str] = {"time_usec": "us"}
     native_format = bytearray(b"<QIf")
@@ -22194,7 +22412,7 @@ class MAVLink_play_tune_v2_message(MAVLink_message):
     fieldnames = ["target_system", "target_component", "format", "tune"]
     ordered_fieldnames = ["format", "target_system", "target_component", "tune"]
     fieldtypes = ["uint8_t", "uint8_t", "uint32_t", "char"]
-    fielddisplays_by_name: Dict[str, str] = {"format": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {"format": "TUNE_FORMAT"}
     fieldunits_by_name: Dict[str, str] = {}
     native_format = bytearray(b"<IBBc")
@@ -22237,7 +22455,7 @@ class MAVLink_supported_tunes_message(MAVLink_message):
     fieldnames = ["target_system", "target_component", "format"]
     ordered_fieldnames = ["format", "target_system", "target_component"]
     fieldtypes = ["uint8_t", "uint8_t", "uint32_t"]
-    fielddisplays_by_name: Dict[str, str] = {"format": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {"format": "TUNE_FORMAT"}
     fieldunits_by_name: Dict[str, str] = {}
     native_format = bytearray(b"<IBB")
@@ -22327,7 +22545,7 @@ class MAVLink_current_event_sequence_message(MAVLink_message):
     fieldnames = ["sequence", "flags"]
     ordered_fieldnames = ["sequence", "flags"]
     fieldtypes = ["uint16_t", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {"flags": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {"flags": "MAV_EVENT_CURRENT_SEQUENCE_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {}
     native_format = bytearray(b"<HB")
@@ -22465,7 +22683,7 @@ class MAVLink_available_modes_message(MAVLink_message):
     fieldnames = ["number_modes", "mode_index", "standard_mode", "custom_mode", "properties", "mode_name"]
     ordered_fieldnames = ["custom_mode", "properties", "number_modes", "mode_index", "standard_mode", "mode_name"]
     fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint32_t", "uint32_t", "char"]
-    fielddisplays_by_name: Dict[str, str] = {}
+    fielddisplays_by_name: Dict[str, str] = {"properties": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"standard_mode": "MAV_STANDARD_MODE", "properties": "MAV_MODE_PROPERTY"}
     fieldunits_by_name: Dict[str, str] = {}
     native_format = bytearray(b"<IIBBBc")
@@ -22595,7 +22813,7 @@ class MAVLink_illuminator_status_message(MAVLink_message):
     fieldnames = ["uptime_ms", "enable", "mode_bitmask", "error_status", "mode", "brightness", "strobe_period", "strobe_duty_cycle", "temp_c", "min_strobe_period", "max_strobe_period"]
     ordered_fieldnames = ["uptime_ms", "error_status", "brightness", "strobe_period", "strobe_duty_cycle", "temp_c", "min_strobe_period", "max_strobe_period", "enable", "mode_bitmask", "mode"]
     fieldtypes = ["uint32_t", "uint8_t", "uint8_t", "uint32_t", "uint8_t", "float", "float", "float", "float", "float", "float"]
-    fielddisplays_by_name: Dict[str, str] = {"mode_bitmask": "bitmask", "error_status": "bitmask"}
+    fielddisplays_by_name: Dict[str, str] = {"error_status": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"mode_bitmask": "ILLUMINATOR_MODE", "error_status": "ILLUMINATOR_ERROR_FLAGS", "mode": "ILLUMINATOR_MODE"}
     fieldunits_by_name: Dict[str, str] = {"uptime_ms": "ms", "brightness": "%", "strobe_period": "s", "strobe_duty_cycle": "%", "min_strobe_period": "s", "max_strobe_period": "s"}
     native_format = bytearray(b"<IIffffffBBB")
@@ -23309,7 +23527,7 @@ class MAVLink_airspeed_message(MAVLink_message):
     fieldnames = ["id", "airspeed", "temperature", "raw_press", "flags"]
     ordered_fieldnames = ["airspeed", "raw_press", "temperature", "id", "flags"]
     fieldtypes = ["uint8_t", "float", "int16_t", "float", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
+    fielddisplays_by_name: Dict[str, str] = {"flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"flags": "AIRSPEED_SENSOR_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {"airspeed": "m/s", "temperature": "cdegC", "raw_press": "hPa"}
     native_format = bytearray(b"<ffhBB")
@@ -24724,6 +24942,211 @@ class MAVLink_uavionix_adsb_transceiver_health_report_message(MAVLink_message):
 setattr(MAVLink_uavionix_adsb_transceiver_health_report_message, "name", mavlink_msg_deprecated_name_property())
 
 
+class MAVLink_uavionix_adsb_out_cfg_registration_message(MAVLink_message):
+    """
+    Aircraft Registration.
+    """
+
+    id = MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_REGISTRATION
+    msgname = "UAVIONIX_ADSB_OUT_CFG_REGISTRATION"
+    fieldnames = ["registration"]
+    ordered_fieldnames = ["registration"]
+    fieldtypes = ["char"]
+    fielddisplays_by_name: Dict[str, str] = {}
+    fieldenums_by_name: Dict[str, str] = {}
+    fieldunits_by_name: Dict[str, str] = {}
+    native_format = bytearray(b"<c")
+    orders = [0]
+    lengths = [1]
+    array_lengths = [9]
+    crc_extra = 133
+    unpacker = struct.Struct("<9s")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, registration: bytes):
+        MAVLink_message.__init__(self, MAVLink_uavionix_adsb_out_cfg_registration_message.id, MAVLink_uavionix_adsb_out_cfg_registration_message.msgname)
+        self._fieldnames = MAVLink_uavionix_adsb_out_cfg_registration_message.fieldnames
+        self._instance_field = MAVLink_uavionix_adsb_out_cfg_registration_message.instance_field
+        self._instance_offset = MAVLink_uavionix_adsb_out_cfg_registration_message.instance_offset
+        self._registration_raw = registration
+        self.registration = registration.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self._registration_raw), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_uavionix_adsb_out_cfg_registration_message, "name", mavlink_msg_deprecated_name_property())
+
+
+class MAVLink_uavionix_adsb_out_cfg_flightid_message(MAVLink_message):
+    """
+    Flight Identification for ADSB-Out vehicles.
+    """
+
+    id = MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_FLIGHTID
+    msgname = "UAVIONIX_ADSB_OUT_CFG_FLIGHTID"
+    fieldnames = ["flight_id"]
+    ordered_fieldnames = ["flight_id"]
+    fieldtypes = ["char"]
+    fielddisplays_by_name: Dict[str, str] = {}
+    fieldenums_by_name: Dict[str, str] = {}
+    fieldunits_by_name: Dict[str, str] = {}
+    native_format = bytearray(b"<c")
+    orders = [0]
+    lengths = [1]
+    array_lengths = [9]
+    crc_extra = 103
+    unpacker = struct.Struct("<9s")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, flight_id: bytes):
+        MAVLink_message.__init__(self, MAVLink_uavionix_adsb_out_cfg_flightid_message.id, MAVLink_uavionix_adsb_out_cfg_flightid_message.msgname)
+        self._fieldnames = MAVLink_uavionix_adsb_out_cfg_flightid_message.fieldnames
+        self._instance_field = MAVLink_uavionix_adsb_out_cfg_flightid_message.instance_field
+        self._instance_offset = MAVLink_uavionix_adsb_out_cfg_flightid_message.instance_offset
+        self._flight_id_raw = flight_id
+        self.flight_id = flight_id.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self._flight_id_raw), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_uavionix_adsb_out_cfg_flightid_message, "name", mavlink_msg_deprecated_name_property())
+
+
+class MAVLink_uavionix_adsb_get_message(MAVLink_message):
+    """
+    Request messages.
+    """
+
+    id = MAVLINK_MSG_ID_UAVIONIX_ADSB_GET
+    msgname = "UAVIONIX_ADSB_GET"
+    fieldnames = ["ReqMessageId"]
+    ordered_fieldnames = ["ReqMessageId"]
+    fieldtypes = ["uint32_t"]
+    fielddisplays_by_name: Dict[str, str] = {}
+    fieldenums_by_name: Dict[str, str] = {}
+    fieldunits_by_name: Dict[str, str] = {}
+    native_format = bytearray(b"<I")
+    orders = [0]
+    lengths = [1]
+    array_lengths = [0]
+    crc_extra = 193
+    unpacker = struct.Struct("<I")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, ReqMessageId: int):
+        MAVLink_message.__init__(self, MAVLink_uavionix_adsb_get_message.id, MAVLink_uavionix_adsb_get_message.msgname)
+        self._fieldnames = MAVLink_uavionix_adsb_get_message.fieldnames
+        self._instance_field = MAVLink_uavionix_adsb_get_message.instance_field
+        self._instance_offset = MAVLink_uavionix_adsb_get_message.instance_offset
+        self.ReqMessageId = ReqMessageId
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.ReqMessageId), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_uavionix_adsb_get_message, "name", mavlink_msg_deprecated_name_property())
+
+
+class MAVLink_uavionix_adsb_out_control_message(MAVLink_message):
+    """
+    Control message with all data sent in UCP control message.
+    """
+
+    id = MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CONTROL
+    msgname = "UAVIONIX_ADSB_OUT_CONTROL"
+    fieldnames = ["state", "baroAltMSL", "squawk", "emergencyStatus", "flight_id", "x_bit"]
+    ordered_fieldnames = ["baroAltMSL", "squawk", "state", "emergencyStatus", "flight_id", "x_bit"]
+    fieldtypes = ["uint8_t", "int32_t", "uint16_t", "uint8_t", "char", "uint8_t"]
+    fielddisplays_by_name: Dict[str, str] = {"state": "bitmask", "x_bit": "bitmask"}
+    fieldenums_by_name: Dict[str, str] = {"state": "UAVIONIX_ADSB_OUT_CONTROL_STATE", "emergencyStatus": "UAVIONIX_ADSB_EMERGENCY_STATUS", "x_bit": "UAVIONIX_ADSB_XBIT"}
+    fieldunits_by_name: Dict[str, str] = {"baroAltMSL": "mbar"}
+    native_format = bytearray(b"<iHBBcB")
+    orders = [2, 0, 1, 3, 4, 5]
+    lengths = [1, 1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 8, 0]
+    crc_extra = 71
+    unpacker = struct.Struct("<iHBB8sB")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, state: int, baroAltMSL: int, squawk: int, emergencyStatus: int, flight_id: bytes, x_bit: int):
+        MAVLink_message.__init__(self, MAVLink_uavionix_adsb_out_control_message.id, MAVLink_uavionix_adsb_out_control_message.msgname)
+        self._fieldnames = MAVLink_uavionix_adsb_out_control_message.fieldnames
+        self._instance_field = MAVLink_uavionix_adsb_out_control_message.instance_field
+        self._instance_offset = MAVLink_uavionix_adsb_out_control_message.instance_offset
+        self.state = state
+        self.baroAltMSL = baroAltMSL
+        self.squawk = squawk
+        self.emergencyStatus = emergencyStatus
+        self._flight_id_raw = flight_id
+        self.flight_id = flight_id.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+        self.x_bit = x_bit
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.baroAltMSL, self.squawk, self.state, self.emergencyStatus, self._flight_id_raw, self.x_bit), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_uavionix_adsb_out_control_message, "name", mavlink_msg_deprecated_name_property())
+
+
+class MAVLink_uavionix_adsb_out_status_message(MAVLink_message):
+    """
+    Status message with information from UCP Heartbeat and Status
+    messages.
+    """
+
+    id = MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_STATUS
+    msgname = "UAVIONIX_ADSB_OUT_STATUS"
+    fieldnames = ["state", "squawk", "NIC_NACp", "boardTemp", "fault", "flight_id"]
+    ordered_fieldnames = ["squawk", "state", "NIC_NACp", "boardTemp", "fault", "flight_id"]
+    fieldtypes = ["uint8_t", "uint16_t", "uint8_t", "uint8_t", "uint8_t", "char"]
+    fielddisplays_by_name: Dict[str, str] = {"state": "bitmask", "fault": "bitmask"}
+    fieldenums_by_name: Dict[str, str] = {"state": "UAVIONIX_ADSB_OUT_STATUS_STATE", "NIC_NACp": "UAVIONIX_ADSB_OUT_STATUS_NIC_NACP", "fault": "UAVIONIX_ADSB_OUT_STATUS_FAULT"}
+    fieldunits_by_name: Dict[str, str] = {}
+    native_format = bytearray(b"<HBBBBc")
+    orders = [1, 0, 2, 3, 4, 5]
+    lengths = [1, 1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0, 8]
+    crc_extra = 240
+    unpacker = struct.Struct("<HBBBB8s")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, state: int, squawk: int, NIC_NACp: int, boardTemp: int, fault: int, flight_id: bytes):
+        MAVLink_message.__init__(self, MAVLink_uavionix_adsb_out_status_message.id, MAVLink_uavionix_adsb_out_status_message.msgname)
+        self._fieldnames = MAVLink_uavionix_adsb_out_status_message.fieldnames
+        self._instance_field = MAVLink_uavionix_adsb_out_status_message.instance_field
+        self._instance_offset = MAVLink_uavionix_adsb_out_status_message.instance_offset
+        self.state = state
+        self.squawk = squawk
+        self.NIC_NACp = NIC_NACp
+        self.boardTemp = boardTemp
+        self.fault = fault
+        self._flight_id_raw = flight_id
+        self.flight_id = flight_id.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.squawk, self.state, self.NIC_NACp, self.boardTemp, self.fault, self._flight_id_raw), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_uavionix_adsb_out_status_message, "name", mavlink_msg_deprecated_name_property())
+
+
 class MAVLink_storm32_gimbal_manager_information_message(MAVLink_message):
     """
     Information about a gimbal manager. This message should be
@@ -24787,7 +25210,7 @@ class MAVLink_storm32_gimbal_manager_status_message(MAVLink_message):
     fieldnames = ["gimbal_id", "supervisor", "device_flags", "manager_flags", "profile"]
     ordered_fieldnames = ["device_flags", "manager_flags", "gimbal_id", "supervisor", "profile"]
     fieldtypes = ["uint8_t", "uint8_t", "uint16_t", "uint16_t", "uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
+    fielddisplays_by_name: Dict[str, str] = {"device_flags": "bitmask", "manager_flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"supervisor": "MAV_STORM32_GIMBAL_MANAGER_CLIENT", "device_flags": "GIMBAL_DEVICE_FLAGS", "manager_flags": "MAV_STORM32_GIMBAL_MANAGER_FLAGS", "profile": "MAV_STORM32_GIMBAL_MANAGER_PROFILE"}
     fieldunits_by_name: Dict[str, str] = {}
     native_format = bytearray(b"<HHBBB")
@@ -24831,7 +25254,7 @@ class MAVLink_storm32_gimbal_manager_control_message(MAVLink_message):
     fieldnames = ["target_system", "target_component", "gimbal_id", "client", "device_flags", "manager_flags", "q", "angular_velocity_x", "angular_velocity_y", "angular_velocity_z"]
     ordered_fieldnames = ["q", "angular_velocity_x", "angular_velocity_y", "angular_velocity_z", "device_flags", "manager_flags", "target_system", "target_component", "gimbal_id", "client"]
     fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint16_t", "uint16_t", "float", "float", "float", "float"]
-    fielddisplays_by_name: Dict[str, str] = {}
+    fielddisplays_by_name: Dict[str, str] = {"device_flags": "bitmask", "manager_flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"client": "MAV_STORM32_GIMBAL_MANAGER_CLIENT", "device_flags": "GIMBAL_DEVICE_FLAGS", "manager_flags": "MAV_STORM32_GIMBAL_MANAGER_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {"angular_velocity_x": "rad/s", "angular_velocity_y": "rad/s", "angular_velocity_z": "rad/s"}
     native_format = bytearray(b"<ffffHHBBBB")
@@ -24880,7 +25303,7 @@ class MAVLink_storm32_gimbal_manager_control_pitchyaw_message(MAVLink_message):
     fieldnames = ["target_system", "target_component", "gimbal_id", "client", "device_flags", "manager_flags", "pitch", "yaw", "pitch_rate", "yaw_rate"]
     ordered_fieldnames = ["pitch", "yaw", "pitch_rate", "yaw_rate", "device_flags", "manager_flags", "target_system", "target_component", "gimbal_id", "client"]
     fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint16_t", "uint16_t", "float", "float", "float", "float"]
-    fielddisplays_by_name: Dict[str, str] = {}
+    fielddisplays_by_name: Dict[str, str] = {"device_flags": "bitmask", "manager_flags": "bitmask"}
     fieldenums_by_name: Dict[str, str] = {"client": "MAV_STORM32_GIMBAL_MANAGER_CLIENT", "device_flags": "GIMBAL_DEVICE_FLAGS", "manager_flags": "MAV_STORM32_GIMBAL_MANAGER_FLAGS"}
     fieldunits_by_name: Dict[str, str] = {"pitch": "rad", "yaw": "rad", "pitch_rate": "rad/s", "yaw_rate": "rad/s"}
     native_format = bytearray(b"<ffffHHBBBB")
@@ -25000,6 +25423,49 @@ class MAVLink_qshot_status_message(MAVLink_message):
 setattr(MAVLink_qshot_status_message, "name", mavlink_msg_deprecated_name_property())
 
 
+class MAVLink_autopilot_state_for_gimbal_device_ext_message(MAVLink_message):
+    """
+    Addition to message AUTOPILOT_STATE_FOR_GIMBAL_DEVICE.
+    """
+
+    id = MAVLINK_MSG_ID_AUTOPILOT_STATE_FOR_GIMBAL_DEVICE_EXT
+    msgname = "AUTOPILOT_STATE_FOR_GIMBAL_DEVICE_EXT"
+    fieldnames = ["target_system", "target_component", "time_boot_us", "wind_x", "wind_y", "wind_correction_angle"]
+    ordered_fieldnames = ["time_boot_us", "wind_x", "wind_y", "wind_correction_angle", "target_system", "target_component"]
+    fieldtypes = ["uint8_t", "uint8_t", "uint64_t", "float", "float", "float"]
+    fielddisplays_by_name: Dict[str, str] = {}
+    fieldenums_by_name: Dict[str, str] = {}
+    fieldunits_by_name: Dict[str, str] = {"time_boot_us": "us", "wind_x": "m/s", "wind_y": "m/s", "wind_correction_angle": "rad"}
+    native_format = bytearray(b"<QfffBB")
+    orders = [4, 5, 0, 1, 2, 3]
+    lengths = [1, 1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0, 0]
+    crc_extra = 4
+    unpacker = struct.Struct("<QfffBB")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, target_system: int, target_component: int, time_boot_us: int, wind_x: float, wind_y: float, wind_correction_angle: float):
+        MAVLink_message.__init__(self, MAVLink_autopilot_state_for_gimbal_device_ext_message.id, MAVLink_autopilot_state_for_gimbal_device_ext_message.msgname)
+        self._fieldnames = MAVLink_autopilot_state_for_gimbal_device_ext_message.fieldnames
+        self._instance_field = MAVLink_autopilot_state_for_gimbal_device_ext_message.instance_field
+        self._instance_offset = MAVLink_autopilot_state_for_gimbal_device_ext_message.instance_offset
+        self.target_system = target_system
+        self.target_component = target_component
+        self.time_boot_us = time_boot_us
+        self.wind_x = wind_x
+        self.wind_y = wind_y
+        self.wind_correction_angle = wind_correction_angle
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_boot_us, self.wind_x, self.wind_y, self.wind_correction_angle, self.target_system, self.target_component), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_autopilot_state_for_gimbal_device_ext_message, "name", mavlink_msg_deprecated_name_property())
+
+
 class MAVLink_frsky_passthrough_array_message(MAVLink_message):
     """
     Frsky SPort passthrough multi packet container.
@@ -25080,6 +25546,183 @@ class MAVLink_param_value_array_message(MAVLink_message):
 # Define name on the class for backwards compatibility (it is now msgname).
 # Done with setattr to hide the class variable from mypy.
 setattr(MAVLink_param_value_array_message, "name", mavlink_msg_deprecated_name_property())
+
+
+class MAVLink_mlrs_radio_link_stats_message(MAVLink_message):
+    """
+    Radio link statistics for a MAVLink RC receiver or transmitter and
+    other links. Tx: ground-side device, Rx: vehicle-side device.
+    The message is normally emitted in regular time intervals upon
+    each actual or expected reception of an over-the-air data packet
+    on the link.         A MAVLink RC receiver should emit it shortly
+    after it emits a RADIO_RC_CHANNELS message (if it is emitting that
+    message).         Per default, rssi values are in MAVLink units: 0
+    represents weakest signal, 254 represents maximum signal,
+    UINT8_MAX represents unknown.         The
+    RADIO_LINK_STATS_FLAGS_RSSI_DBM flag is set if the rssi units are
+    negative dBm: 1..254 correspond to -1..-254 dBm, 0 represents no
+    reception, UINT8_MAX represents unknown.         The target_system
+    field should normally be set to the system id of the system the
+    link is connected to, typically the flight controller.         The
+    target_component field can normally be set to 0, so that all
+    components of the system can receive the message.         Note:
+    The frequency fields are extensions to ensure that they are
+    located at the end of the serialized payload and subject to
+    MAVLink's trailing-zero trimming.
+    """
+
+    id = MAVLINK_MSG_ID_MLRS_RADIO_LINK_STATS
+    msgname = "MLRS_RADIO_LINK_STATS"
+    fieldnames = ["target_system", "target_component", "flags", "rx_LQ_rc", "rx_LQ_ser", "rx_rssi1", "rx_snr1", "tx_LQ_ser", "tx_rssi1", "tx_snr1", "rx_rssi2", "rx_snr2", "tx_rssi2", "tx_snr2", "frequency1", "frequency2"]
+    ordered_fieldnames = ["flags", "target_system", "target_component", "rx_LQ_rc", "rx_LQ_ser", "rx_rssi1", "rx_snr1", "tx_LQ_ser", "tx_rssi1", "tx_snr1", "rx_rssi2", "rx_snr2", "tx_rssi2", "tx_snr2", "frequency1", "frequency2"]
+    fieldtypes = ["uint8_t", "uint8_t", "uint16_t", "uint8_t", "uint8_t", "uint8_t", "int8_t", "uint8_t", "uint8_t", "int8_t", "uint8_t", "int8_t", "uint8_t", "int8_t", "float", "float"]
+    fielddisplays_by_name: Dict[str, str] = {"flags": "bitmask"}
+    fieldenums_by_name: Dict[str, str] = {"flags": "MLRS_RADIO_LINK_STATS_FLAGS"}
+    fieldunits_by_name: Dict[str, str] = {"rx_LQ_rc": "c%", "rx_LQ_ser": "c%", "tx_LQ_ser": "c%", "frequency1": "Hz", "frequency2": "Hz"}
+    native_format = bytearray(b"<HBBBBBbBBbBbBbff")
+    orders = [1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    crc_extra = 14
+    unpacker = struct.Struct("<HBBBBBbBBbBbBbff")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, target_system: int, target_component: int, flags: int, rx_LQ_rc: int, rx_LQ_ser: int, rx_rssi1: int, rx_snr1: int, tx_LQ_ser: int, tx_rssi1: int, tx_snr1: int, rx_rssi2: int, rx_snr2: int, tx_rssi2: int, tx_snr2: int, frequency1: float = 0, frequency2: float = 0):
+        MAVLink_message.__init__(self, MAVLink_mlrs_radio_link_stats_message.id, MAVLink_mlrs_radio_link_stats_message.msgname)
+        self._fieldnames = MAVLink_mlrs_radio_link_stats_message.fieldnames
+        self._instance_field = MAVLink_mlrs_radio_link_stats_message.instance_field
+        self._instance_offset = MAVLink_mlrs_radio_link_stats_message.instance_offset
+        self.target_system = target_system
+        self.target_component = target_component
+        self.flags = flags
+        self.rx_LQ_rc = rx_LQ_rc
+        self.rx_LQ_ser = rx_LQ_ser
+        self.rx_rssi1 = rx_rssi1
+        self.rx_snr1 = rx_snr1
+        self.tx_LQ_ser = tx_LQ_ser
+        self.tx_rssi1 = tx_rssi1
+        self.tx_snr1 = tx_snr1
+        self.rx_rssi2 = rx_rssi2
+        self.rx_snr2 = rx_snr2
+        self.tx_rssi2 = tx_rssi2
+        self.tx_snr2 = tx_snr2
+        self.frequency1 = frequency1
+        self.frequency2 = frequency2
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.flags, self.target_system, self.target_component, self.rx_LQ_rc, self.rx_LQ_ser, self.rx_rssi1, self.rx_snr1, self.tx_LQ_ser, self.tx_rssi1, self.tx_snr1, self.rx_rssi2, self.rx_snr2, self.tx_rssi2, self.tx_snr2, self.frequency1, self.frequency2), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_mlrs_radio_link_stats_message, "name", mavlink_msg_deprecated_name_property())
+
+
+class MAVLink_mlrs_radio_link_information_message(MAVLink_message):
+    """
+    Radio link information. Tx: ground-side device, Rx: vehicle-side
+    device.         The values of the fields in this message do
+    normally not or only slowly change with time, and for most times
+    the message can be send at a low rate, like 0.2 Hz.         If
+    values change then the message should temporarily be send more
+    often to inform the system about the changes.         The
+    target_system field should normally be set to the system id of the
+    system the link is connected to, typically the flight controller.
+    The target_component field can normally be set to 0, so that all
+    components of the system can receive the message.
+    """
+
+    id = MAVLINK_MSG_ID_MLRS_RADIO_LINK_INFORMATION
+    msgname = "MLRS_RADIO_LINK_INFORMATION"
+    fieldnames = ["target_system", "target_component", "type", "mode", "tx_power", "rx_power", "tx_frame_rate", "rx_frame_rate", "mode_str", "band_str", "tx_ser_data_rate", "rx_ser_data_rate", "tx_receive_sensitivity", "rx_receive_sensitivity"]
+    ordered_fieldnames = ["tx_frame_rate", "rx_frame_rate", "tx_ser_data_rate", "rx_ser_data_rate", "target_system", "target_component", "type", "mode", "tx_power", "rx_power", "mode_str", "band_str", "tx_receive_sensitivity", "rx_receive_sensitivity"]
+    fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint8_t", "int8_t", "int8_t", "uint16_t", "uint16_t", "char", "char", "uint16_t", "uint16_t", "uint8_t", "uint8_t"]
+    fielddisplays_by_name: Dict[str, str] = {}
+    fieldenums_by_name: Dict[str, str] = {"type": "MLRS_RADIO_LINK_TYPE"}
+    fieldunits_by_name: Dict[str, str] = {"tx_power": "dBm", "rx_power": "dBm", "tx_frame_rate": "Hz", "rx_frame_rate": "Hz"}
+    native_format = bytearray(b"<HHHHBBBBbbccBB")
+    orders = [4, 5, 6, 7, 8, 9, 0, 1, 10, 11, 2, 3, 12, 13]
+    lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 0, 0]
+    crc_extra = 171
+    unpacker = struct.Struct("<HHHHBBBBbb6s6sBB")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, target_system: int, target_component: int, type: int, mode: int, tx_power: int, rx_power: int, tx_frame_rate: int, rx_frame_rate: int, mode_str: bytes, band_str: bytes, tx_ser_data_rate: int, rx_ser_data_rate: int, tx_receive_sensitivity: int, rx_receive_sensitivity: int):
+        MAVLink_message.__init__(self, MAVLink_mlrs_radio_link_information_message.id, MAVLink_mlrs_radio_link_information_message.msgname)
+        self._fieldnames = MAVLink_mlrs_radio_link_information_message.fieldnames
+        self._instance_field = MAVLink_mlrs_radio_link_information_message.instance_field
+        self._instance_offset = MAVLink_mlrs_radio_link_information_message.instance_offset
+        self.target_system = target_system
+        self.target_component = target_component
+        self.type = type
+        self.mode = mode
+        self.tx_power = tx_power
+        self.rx_power = rx_power
+        self.tx_frame_rate = tx_frame_rate
+        self.rx_frame_rate = rx_frame_rate
+        self._mode_str_raw = mode_str
+        self.mode_str = mode_str.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+        self._band_str_raw = band_str
+        self.band_str = band_str.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+        self.tx_ser_data_rate = tx_ser_data_rate
+        self.rx_ser_data_rate = rx_ser_data_rate
+        self.tx_receive_sensitivity = tx_receive_sensitivity
+        self.rx_receive_sensitivity = rx_receive_sensitivity
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.tx_frame_rate, self.rx_frame_rate, self.tx_ser_data_rate, self.rx_ser_data_rate, self.target_system, self.target_component, self.type, self.mode, self.tx_power, self.rx_power, self._mode_str_raw, self._band_str_raw, self.tx_receive_sensitivity, self.rx_receive_sensitivity), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_mlrs_radio_link_information_message, "name", mavlink_msg_deprecated_name_property())
+
+
+class MAVLink_mlrs_radio_link_flow_control_message(MAVLink_message):
+    """
+    Injected by a radio link endpoint into the MAVLink stream for
+    purposes of flow control. Should be emitted only by components
+    with component id MAV_COMP_ID_TELEMETRY_RADIO.
+    """
+
+    id = MAVLINK_MSG_ID_MLRS_RADIO_LINK_FLOW_CONTROL
+    msgname = "MLRS_RADIO_LINK_FLOW_CONTROL"
+    fieldnames = ["tx_ser_rate", "rx_ser_rate", "tx_used_ser_bandwidth", "rx_used_ser_bandwidth", "txbuf"]
+    ordered_fieldnames = ["tx_ser_rate", "rx_ser_rate", "tx_used_ser_bandwidth", "rx_used_ser_bandwidth", "txbuf"]
+    fieldtypes = ["uint16_t", "uint16_t", "uint8_t", "uint8_t", "uint8_t"]
+    fielddisplays_by_name: Dict[str, str] = {}
+    fieldenums_by_name: Dict[str, str] = {}
+    fieldunits_by_name: Dict[str, str] = {"tx_ser_rate": "bytes/s", "rx_ser_rate": "bytes/s", "tx_used_ser_bandwidth": "c%", "rx_used_ser_bandwidth": "c%", "txbuf": "c%"}
+    native_format = bytearray(b"<HHBBB")
+    orders = [0, 1, 2, 3, 4]
+    lengths = [1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0]
+    crc_extra = 55
+    unpacker = struct.Struct("<HHBBB")
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, tx_ser_rate: int, rx_ser_rate: int, tx_used_ser_bandwidth: int, rx_used_ser_bandwidth: int, txbuf: int):
+        MAVLink_message.__init__(self, MAVLink_mlrs_radio_link_flow_control_message.id, MAVLink_mlrs_radio_link_flow_control_message.msgname)
+        self._fieldnames = MAVLink_mlrs_radio_link_flow_control_message.fieldnames
+        self._instance_field = MAVLink_mlrs_radio_link_flow_control_message.instance_field
+        self._instance_offset = MAVLink_mlrs_radio_link_flow_control_message.instance_offset
+        self.tx_ser_rate = tx_ser_rate
+        self.rx_ser_rate = rx_ser_rate
+        self.tx_used_ser_bandwidth = tx_used_ser_bandwidth
+        self.rx_used_ser_bandwidth = rx_used_ser_bandwidth
+        self.txbuf = txbuf
+
+    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.tx_ser_rate, self.rx_ser_rate, self.tx_used_ser_bandwidth, self.rx_used_ser_bandwidth, self.txbuf), force_mavlink1=force_mavlink1)
+
+
+# Define name on the class for backwards compatibility (it is now msgname).
+# Done with setattr to hide the class variable from mypy.
+setattr(MAVLink_mlrs_radio_link_flow_control_message, "name", mavlink_msg_deprecated_name_property())
 
 
 class MAVLink_avss_prs_sys_status_message(MAVLink_message):
@@ -25544,163 +26187,6 @@ class MAVLink_airlink_auth_response_message(MAVLink_message):
 setattr(MAVLink_airlink_auth_response_message, "name", mavlink_msg_deprecated_name_property())
 
 
-class MAVLink_airlink_eye_gs_hole_push_request_message(MAVLink_message):
-    """
-    Request to hole punching
-    """
-
-    id = MAVLINK_MSG_ID_AIRLINK_EYE_GS_HOLE_PUSH_REQUEST
-    msgname = "AIRLINK_EYE_GS_HOLE_PUSH_REQUEST"
-    fieldnames = ["resp_type"]
-    ordered_fieldnames = ["resp_type"]
-    fieldtypes = ["uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
-    fieldenums_by_name: Dict[str, str] = {"resp_type": "AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE"}
-    fieldunits_by_name: Dict[str, str] = {}
-    native_format = bytearray(b"<B")
-    orders = [0]
-    lengths = [1]
-    array_lengths = [0]
-    crc_extra = 24
-    unpacker = struct.Struct("<B")
-    instance_field = None
-    instance_offset = -1
-
-    def __init__(self, resp_type: int):
-        MAVLink_message.__init__(self, MAVLink_airlink_eye_gs_hole_push_request_message.id, MAVLink_airlink_eye_gs_hole_push_request_message.msgname)
-        self._fieldnames = MAVLink_airlink_eye_gs_hole_push_request_message.fieldnames
-        self._instance_field = MAVLink_airlink_eye_gs_hole_push_request_message.instance_field
-        self._instance_offset = MAVLink_airlink_eye_gs_hole_push_request_message.instance_offset
-        self.resp_type = resp_type
-
-    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.resp_type), force_mavlink1=force_mavlink1)
-
-
-# Define name on the class for backwards compatibility (it is now msgname).
-# Done with setattr to hide the class variable from mypy.
-setattr(MAVLink_airlink_eye_gs_hole_push_request_message, "name", mavlink_msg_deprecated_name_property())
-
-
-class MAVLink_airlink_eye_gs_hole_push_response_message(MAVLink_message):
-    """
-    Response information about the connected device
-    """
-
-    id = MAVLINK_MSG_ID_AIRLINK_EYE_GS_HOLE_PUSH_RESPONSE
-    msgname = "AIRLINK_EYE_GS_HOLE_PUSH_RESPONSE"
-    fieldnames = ["resp_type", "ip_version", "ip_address_4", "ip_address_6", "ip_port"]
-    ordered_fieldnames = ["ip_port", "resp_type", "ip_version", "ip_address_4", "ip_address_6"]
-    fieldtypes = ["uint8_t", "uint8_t", "uint8_t", "uint8_t", "uint32_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
-    fieldenums_by_name: Dict[str, str] = {"resp_type": "AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE", "ip_version": "AIRLINK_EYE_IP_VERSION"}
-    fieldunits_by_name: Dict[str, str] = {}
-    native_format = bytearray(b"<IBBBB")
-    orders = [1, 2, 3, 4, 0]
-    lengths = [1, 1, 1, 4, 16]
-    array_lengths = [0, 0, 0, 4, 16]
-    crc_extra = 166
-    unpacker = struct.Struct("<IBB4B16B")
-    instance_field = None
-    instance_offset = -1
-
-    def __init__(self, resp_type: int, ip_version: int, ip_address_4: Sequence[int], ip_address_6: Sequence[int], ip_port: int):
-        MAVLink_message.__init__(self, MAVLink_airlink_eye_gs_hole_push_response_message.id, MAVLink_airlink_eye_gs_hole_push_response_message.msgname)
-        self._fieldnames = MAVLink_airlink_eye_gs_hole_push_response_message.fieldnames
-        self._instance_field = MAVLink_airlink_eye_gs_hole_push_response_message.instance_field
-        self._instance_offset = MAVLink_airlink_eye_gs_hole_push_response_message.instance_offset
-        self.resp_type = resp_type
-        self.ip_version = ip_version
-        self.ip_address_4 = ip_address_4
-        self.ip_address_6 = ip_address_6
-        self.ip_port = ip_port
-
-    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.ip_port, self.resp_type, self.ip_version, self.ip_address_4[0], self.ip_address_4[1], self.ip_address_4[2], self.ip_address_4[3], self.ip_address_6[0], self.ip_address_6[1], self.ip_address_6[2], self.ip_address_6[3], self.ip_address_6[4], self.ip_address_6[5], self.ip_address_6[6], self.ip_address_6[7], self.ip_address_6[8], self.ip_address_6[9], self.ip_address_6[10], self.ip_address_6[11], self.ip_address_6[12], self.ip_address_6[13], self.ip_address_6[14], self.ip_address_6[15]), force_mavlink1=force_mavlink1)
-
-
-# Define name on the class for backwards compatibility (it is now msgname).
-# Done with setattr to hide the class variable from mypy.
-setattr(MAVLink_airlink_eye_gs_hole_push_response_message, "name", mavlink_msg_deprecated_name_property())
-
-
-class MAVLink_airlink_eye_hp_message(MAVLink_message):
-    """
-    A package with information about the hole punching status. It is
-    used for constant sending to avoid NAT closing timeout.
-    """
-
-    id = MAVLINK_MSG_ID_AIRLINK_EYE_HP
-    msgname = "AIRLINK_EYE_HP"
-    fieldnames = ["resp_type"]
-    ordered_fieldnames = ["resp_type"]
-    fieldtypes = ["uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
-    fieldenums_by_name: Dict[str, str] = {"resp_type": "AIRLINK_EYE_HOLE_PUSH_TYPE"}
-    fieldunits_by_name: Dict[str, str] = {}
-    native_format = bytearray(b"<B")
-    orders = [0]
-    lengths = [1]
-    array_lengths = [0]
-    crc_extra = 39
-    unpacker = struct.Struct("<B")
-    instance_field = None
-    instance_offset = -1
-
-    def __init__(self, resp_type: int):
-        MAVLink_message.__init__(self, MAVLink_airlink_eye_hp_message.id, MAVLink_airlink_eye_hp_message.msgname)
-        self._fieldnames = MAVLink_airlink_eye_hp_message.fieldnames
-        self._instance_field = MAVLink_airlink_eye_hp_message.instance_field
-        self._instance_offset = MAVLink_airlink_eye_hp_message.instance_offset
-        self.resp_type = resp_type
-
-    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.resp_type), force_mavlink1=force_mavlink1)
-
-
-# Define name on the class for backwards compatibility (it is now msgname).
-# Done with setattr to hide the class variable from mypy.
-setattr(MAVLink_airlink_eye_hp_message, "name", mavlink_msg_deprecated_name_property())
-
-
-class MAVLink_airlink_eye_turn_init_message(MAVLink_message):
-    """
-    Initializing the TURN protocol
-    """
-
-    id = MAVLINK_MSG_ID_AIRLINK_EYE_TURN_INIT
-    msgname = "AIRLINK_EYE_TURN_INIT"
-    fieldnames = ["resp_type"]
-    ordered_fieldnames = ["resp_type"]
-    fieldtypes = ["uint8_t"]
-    fielddisplays_by_name: Dict[str, str] = {}
-    fieldenums_by_name: Dict[str, str] = {"resp_type": "AIRLINK_EYE_TURN_INIT_TYPE"}
-    fieldunits_by_name: Dict[str, str] = {}
-    native_format = bytearray(b"<B")
-    orders = [0]
-    lengths = [1]
-    array_lengths = [0]
-    crc_extra = 145
-    unpacker = struct.Struct("<B")
-    instance_field = None
-    instance_offset = -1
-
-    def __init__(self, resp_type: int):
-        MAVLink_message.__init__(self, MAVLink_airlink_eye_turn_init_message.id, MAVLink_airlink_eye_turn_init_message.msgname)
-        self._fieldnames = MAVLink_airlink_eye_turn_init_message.fieldnames
-        self._instance_field = MAVLink_airlink_eye_turn_init_message.instance_field
-        self._instance_offset = MAVLink_airlink_eye_turn_init_message.instance_offset
-        self.resp_type = resp_type
-
-    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.resp_type), force_mavlink1=force_mavlink1)
-
-
-# Define name on the class for backwards compatibility (it is now msgname).
-# Done with setattr to hide the class variable from mypy.
-setattr(MAVLink_airlink_eye_turn_init_message, "name", mavlink_msg_deprecated_name_property())
-
-
 class MAVLink_control_loading_axis_message(MAVLink_message):
     """
     Send data about a control axis from a control loading system. This
@@ -25821,7 +26307,7 @@ class MAVLink_rexroth_motion_platform_message(MAVLink_message):
     ordered_fieldnames = ["time_boot_ms", "frame_count", "motion_status", "actuator1", "actuator2", "actuator3", "actuator4", "actuator5", "actuator6", "platform_setpoint_x", "platform_setpoint_y", "platform_setpoint_z", "platform_setpoint_roll", "platform_setpoint_pitch", "platform_setpoint_yaw", "effect_setpoint_x", "effect_setpoint_y", "effect_setpoint_z", "effect_setpoint_roll", "effect_setpoint_pitch", "effect_setpoint_yaw", "error_code"]
     fieldtypes = ["uint32_t", "uint32_t", "uint32_t", "uint8_t", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float", "float"]
     fielddisplays_by_name: Dict[str, str] = {}
-    fieldenums_by_name: Dict[str, str] = {"error_code": "REXROTH_MOTION_PLATFORM_ERROR"}
+    fieldenums_by_name: Dict[str, str] = {}
     fieldunits_by_name: Dict[str, str] = {"time_boot_ms": "ms", "actuator1": "m", "actuator2": "m", "actuator3": "m", "actuator4": "m", "actuator5": "m", "actuator6": "m", "platform_setpoint_x": "m", "platform_setpoint_y": "m", "platform_setpoint_z": "m", "platform_setpoint_roll": "rad", "platform_setpoint_pitch": "rad", "platform_setpoint_yaw": "rad", "effect_setpoint_x": "m", "effect_setpoint_y": "m", "effect_setpoint_z": "m", "effect_setpoint_roll": "rad", "effect_setpoint_pitch": "rad", "effect_setpoint_yaw": "rad"}
     native_format = bytearray(b"<IIIffffffffffffffffffB")
     orders = [0, 1, 2, 21, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
@@ -25918,33 +26404,33 @@ setattr(MAVLink_motion_cue_extra_message, "name", mavlink_msg_deprecated_name_pr
 
 class MAVLink_eye_tracking_data_message(MAVLink_message):
     """
-    Data for tracking of pilot eye gaze. In multi-crew situations,
-    additional trackers should connect with different system id.
+    Data for tracking of pilot eye gaze.
     """
 
     id = MAVLINK_MSG_ID_EYE_TRACKING_DATA
     msgname = "EYE_TRACKING_DATA"
-    fieldnames = ["time_usec", "gaze_origin_x", "gaze_origin_y", "gaze_origin_z", "gaze_direction_x", "gaze_direction_y", "gaze_direction_z", "video_gaze_x", "video_gaze_y", "surface_id", "surface_gaze_x", "surface_gaze_y"]
-    ordered_fieldnames = ["time_usec", "gaze_origin_x", "gaze_origin_y", "gaze_origin_z", "gaze_direction_x", "gaze_direction_y", "gaze_direction_z", "video_gaze_x", "video_gaze_y", "surface_gaze_x", "surface_gaze_y", "surface_id"]
-    fieldtypes = ["uint64_t", "float", "float", "float", "float", "float", "float", "float", "float", "uint8_t", "float", "float"]
+    fieldnames = ["time_usec", "sensor_id", "gaze_origin_x", "gaze_origin_y", "gaze_origin_z", "gaze_direction_x", "gaze_direction_y", "gaze_direction_z", "video_gaze_x", "video_gaze_y", "surface_id", "surface_gaze_x", "surface_gaze_y"]
+    ordered_fieldnames = ["time_usec", "gaze_origin_x", "gaze_origin_y", "gaze_origin_z", "gaze_direction_x", "gaze_direction_y", "gaze_direction_z", "video_gaze_x", "video_gaze_y", "surface_gaze_x", "surface_gaze_y", "sensor_id", "surface_id"]
+    fieldtypes = ["uint64_t", "uint8_t", "float", "float", "float", "float", "float", "float", "float", "float", "uint8_t", "float", "float"]
     fielddisplays_by_name: Dict[str, str] = {}
     fieldenums_by_name: Dict[str, str] = {}
     fieldunits_by_name: Dict[str, str] = {"time_usec": "us", "gaze_origin_x": "m", "gaze_origin_y": "m", "gaze_origin_z": "m"}
-    native_format = bytearray(b"<QffffffffffB")
-    orders = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 9, 10]
-    lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    array_lengths = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    crc_extra = 121
-    unpacker = struct.Struct("<QffffffffffB")
-    instance_field = None
-    instance_offset = -1
+    native_format = bytearray(b"<QffffffffffBB")
+    orders = [0, 11, 1, 2, 3, 4, 5, 6, 7, 8, 12, 9, 10]
+    lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    crc_extra = 215
+    unpacker = struct.Struct("<QffffffffffBB")
+    instance_field = "sensor_id"
+    instance_offset = 48
 
-    def __init__(self, time_usec: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float):
+    def __init__(self, time_usec: int, sensor_id: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float):
         MAVLink_message.__init__(self, MAVLink_eye_tracking_data_message.id, MAVLink_eye_tracking_data_message.msgname)
         self._fieldnames = MAVLink_eye_tracking_data_message.fieldnames
         self._instance_field = MAVLink_eye_tracking_data_message.instance_field
         self._instance_offset = MAVLink_eye_tracking_data_message.instance_offset
         self.time_usec = time_usec
+        self.sensor_id = sensor_id
         self.gaze_origin_x = gaze_origin_x
         self.gaze_origin_y = gaze_origin_y
         self.gaze_origin_z = gaze_origin_z
@@ -25958,7 +26444,7 @@ class MAVLink_eye_tracking_data_message(MAVLink_message):
         self.surface_gaze_y = surface_gaze_y
 
     def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_usec, self.gaze_origin_x, self.gaze_origin_y, self.gaze_origin_z, self.gaze_direction_x, self.gaze_direction_y, self.gaze_direction_z, self.video_gaze_x, self.video_gaze_y, self.surface_gaze_x, self.surface_gaze_y, self.surface_id), force_mavlink1=force_mavlink1)
+        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_usec, self.gaze_origin_x, self.gaze_origin_y, self.gaze_origin_z, self.gaze_direction_x, self.gaze_direction_y, self.gaze_direction_z, self.video_gaze_x, self.video_gaze_y, self.surface_gaze_x, self.surface_gaze_y, self.sensor_id, self.surface_id), force_mavlink1=force_mavlink1)
 
 
 # Define name on the class for backwards compatibility (it is now msgname).
@@ -26376,14 +26862,23 @@ mavlink_map: Dict[int, Type[MAVLink_message]] = {
     MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG: MAVLink_uavionix_adsb_out_cfg_message,
     MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_DYNAMIC: MAVLink_uavionix_adsb_out_dynamic_message,
     MAVLINK_MSG_ID_UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT: MAVLink_uavionix_adsb_transceiver_health_report_message,
+    MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_REGISTRATION: MAVLink_uavionix_adsb_out_cfg_registration_message,
+    MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_FLIGHTID: MAVLink_uavionix_adsb_out_cfg_flightid_message,
+    MAVLINK_MSG_ID_UAVIONIX_ADSB_GET: MAVLink_uavionix_adsb_get_message,
+    MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CONTROL: MAVLink_uavionix_adsb_out_control_message,
+    MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_STATUS: MAVLink_uavionix_adsb_out_status_message,
     MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_INFORMATION: MAVLink_storm32_gimbal_manager_information_message,
     MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_STATUS: MAVLink_storm32_gimbal_manager_status_message,
     MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_CONTROL: MAVLink_storm32_gimbal_manager_control_message,
     MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_CONTROL_PITCHYAW: MAVLink_storm32_gimbal_manager_control_pitchyaw_message,
     MAVLINK_MSG_ID_STORM32_GIMBAL_MANAGER_CORRECT_ROLL: MAVLink_storm32_gimbal_manager_correct_roll_message,
     MAVLINK_MSG_ID_QSHOT_STATUS: MAVLink_qshot_status_message,
+    MAVLINK_MSG_ID_AUTOPILOT_STATE_FOR_GIMBAL_DEVICE_EXT: MAVLink_autopilot_state_for_gimbal_device_ext_message,
     MAVLINK_MSG_ID_FRSKY_PASSTHROUGH_ARRAY: MAVLink_frsky_passthrough_array_message,
     MAVLINK_MSG_ID_PARAM_VALUE_ARRAY: MAVLink_param_value_array_message,
+    MAVLINK_MSG_ID_MLRS_RADIO_LINK_STATS: MAVLink_mlrs_radio_link_stats_message,
+    MAVLINK_MSG_ID_MLRS_RADIO_LINK_INFORMATION: MAVLink_mlrs_radio_link_information_message,
+    MAVLINK_MSG_ID_MLRS_RADIO_LINK_FLOW_CONTROL: MAVLink_mlrs_radio_link_flow_control_message,
     MAVLINK_MSG_ID_AVSS_PRS_SYS_STATUS: MAVLink_avss_prs_sys_status_message,
     MAVLINK_MSG_ID_AVSS_DRONE_POSITION: MAVLink_avss_drone_position_message,
     MAVLINK_MSG_ID_AVSS_DRONE_IMU: MAVLink_avss_drone_imu_message,
@@ -26395,10 +26890,6 @@ mavlink_map: Dict[int, Type[MAVLink_message]] = {
     MAVLINK_MSG_ID_CUBEPILOT_FIRMWARE_UPDATE_RESP: MAVLink_cubepilot_firmware_update_resp_message,
     MAVLINK_MSG_ID_AIRLINK_AUTH: MAVLink_airlink_auth_message,
     MAVLINK_MSG_ID_AIRLINK_AUTH_RESPONSE: MAVLink_airlink_auth_response_message,
-    MAVLINK_MSG_ID_AIRLINK_EYE_GS_HOLE_PUSH_REQUEST: MAVLink_airlink_eye_gs_hole_push_request_message,
-    MAVLINK_MSG_ID_AIRLINK_EYE_GS_HOLE_PUSH_RESPONSE: MAVLink_airlink_eye_gs_hole_push_response_message,
-    MAVLINK_MSG_ID_AIRLINK_EYE_HP: MAVLink_airlink_eye_hp_message,
-    MAVLINK_MSG_ID_AIRLINK_EYE_TURN_INIT: MAVLink_airlink_eye_turn_init_message,
     MAVLINK_MSG_ID_CONTROL_LOADING_AXIS: MAVLink_control_loading_axis_message,
     MAVLINK_MSG_ID_MOTION_PLATFORM_STATE: MAVLink_motion_platform_state_message,
     MAVLINK_MSG_ID_REXROTH_MOTION_PLATFORM: MAVLink_rexroth_motion_platform_message,
@@ -30695,7 +31186,7 @@ class MAVLink(object):
         the mission is running).         This message should be
         streamed all the time (nominally at 1Hz).         This message
         should be emitted following a call to
-        MAV_CMD_DO_SET_MISSION_CURRENT or SET_MISSION_CURRENT.
+        MAV_CMD_DO_SET_MISSION_CURRENT or MISSION_SET_CURRENT.
 
         seq                       : Sequence (type:uint16_t)
         total                     : Total number of mission items on vehicle (on last item, sequence == total). If the autopilot stores its home location as part of the mission this will be excluded from the total. 0: Not supported, UINT16_MAX if no mission is present on the vehicle. (type:uint16_t)
@@ -30715,7 +31206,7 @@ class MAVLink(object):
         the mission is running).         This message should be
         streamed all the time (nominally at 1Hz).         This message
         should be emitted following a call to
-        MAV_CMD_DO_SET_MISSION_CURRENT or SET_MISSION_CURRENT.
+        MAV_CMD_DO_SET_MISSION_CURRENT or MISSION_SET_CURRENT.
 
         seq                       : Sequence (type:uint16_t)
         total                     : Total number of mission items on vehicle (on last item, sequence == total). If the autopilot stores its home location as part of the mission this will be excluded from the total. 0: Not supported, UINT16_MAX if no mission is present on the vehicle. (type:uint16_t)
@@ -32151,7 +32642,7 @@ class MAVLink(object):
     def hil_controls_encode(self, time_usec: int, roll_ailerons: float, pitch_elevator: float, yaw_rudder: float, throttle: float, aux1: float, aux2: float, aux3: float, aux4: float, mode: int, nav_mode: int) -> MAVLink_hil_controls_message:
         """
         Sent from autopilot to simulation. Hardware in the loop control
-        outputs
+        outputs. Alternative to HIL_ACTUATOR_CONTROLS.
 
         time_usec                 : Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number. [us] (type:uint64_t)
         roll_ailerons             : Control output -1 .. 1 (type:float)
@@ -32171,7 +32662,7 @@ class MAVLink(object):
     def hil_controls_send(self, time_usec: int, roll_ailerons: float, pitch_elevator: float, yaw_rudder: float, throttle: float, aux1: float, aux2: float, aux3: float, aux4: float, mode: int, nav_mode: int, force_mavlink1: bool = False) -> None:
         """
         Sent from autopilot to simulation. Hardware in the loop control
-        outputs
+        outputs. Alternative to HIL_ACTUATOR_CONTROLS.
 
         time_usec                 : Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number. [us] (type:uint64_t)
         roll_ailerons             : Control output -1 .. 1 (type:float)
@@ -32241,12 +32732,12 @@ class MAVLink(object):
     def hil_actuator_controls_encode(self, time_usec: int, controls: Sequence[float], mode: int, flags: int) -> MAVLink_hil_actuator_controls_message:
         """
         Sent from autopilot to simulation. Hardware in the loop control
-        outputs (replacement for HIL_CONTROLS)
+        outputs. Alternative to HIL_CONTROLS.
 
         time_usec                 : Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number. [us] (type:uint64_t)
         controls                  : Control outputs -1 .. 1. Channel assignment depends on the simulated hardware. (type:float)
         mode                      : System mode. Includes arming state. (type:uint8_t, values:MAV_MODE_FLAG)
-        flags                     : Flags as bitfield, 1: indicate simulation using lockstep. (type:uint64_t)
+        flags                     : Flags bitmask. (type:uint64_t, values:HIL_ACTUATOR_CONTROLS_FLAGS)
 
         """
         return MAVLink_hil_actuator_controls_message(time_usec, controls, mode, flags)
@@ -32254,12 +32745,12 @@ class MAVLink(object):
     def hil_actuator_controls_send(self, time_usec: int, controls: Sequence[float], mode: int, flags: int, force_mavlink1: bool = False) -> None:
         """
         Sent from autopilot to simulation. Hardware in the loop control
-        outputs (replacement for HIL_CONTROLS)
+        outputs. Alternative to HIL_CONTROLS.
 
         time_usec                 : Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number. [us] (type:uint64_t)
         controls                  : Control outputs -1 .. 1. Channel assignment depends on the simulated hardware. (type:float)
         mode                      : System mode. Includes arming state. (type:uint8_t, values:MAV_MODE_FLAG)
-        flags                     : Flags as bitfield, 1: indicate simulation using lockstep. (type:uint64_t)
+        flags                     : Flags bitmask. (type:uint64_t, values:HIL_ACTUATOR_CONTROLS_FLAGS)
 
         """
         self.send(self.hil_actuator_controls_encode(time_usec, controls, mode, flags), force_mavlink1=force_mavlink1)
@@ -33908,7 +34399,8 @@ class MAVLink(object):
         in response to a request with MAV_CMD_REQUEST_MESSAGE.
 
         capabilities              : Bitmap of capabilities (type:uint64_t, values:MAV_PROTOCOL_CAPABILITY)
-        flight_sw_version         : Firmware version number (type:uint32_t)
+        flight_sw_version         : Firmware version number.
+        The field must be encoded as 4 bytes, where each byte (shown from MSB to LSB) is part of a semantic version: (major) (minor) (patch) (FIRMWARE_VERSION_TYPE). (type:uint32_t)
         middleware_sw_version        : Middleware version number (type:uint32_t)
         os_sw_version             : Operating system version number (type:uint32_t)
         board_version             : HW / board version (last 8 bits should be silicon ID, if any). The first 16 bits of this field specify https://github.com/PX4/PX4-Bootloader/blob/master/board_types.txt (type:uint32_t)
@@ -33929,7 +34421,8 @@ class MAVLink(object):
         in response to a request with MAV_CMD_REQUEST_MESSAGE.
 
         capabilities              : Bitmap of capabilities (type:uint64_t, values:MAV_PROTOCOL_CAPABILITY)
-        flight_sw_version         : Firmware version number (type:uint32_t)
+        flight_sw_version         : Firmware version number.
+        The field must be encoded as 4 bytes, where each byte (shown from MSB to LSB) is part of a semantic version: (major) (minor) (patch) (FIRMWARE_VERSION_TYPE). (type:uint32_t)
         middleware_sw_version        : Middleware version number (type:uint32_t)
         os_sw_version             : Operating system version number (type:uint32_t)
         board_version             : HW / board version (last 8 bits should be silicon ID, if any). The first 16 bits of this field specify https://github.com/PX4/PX4-Bootloader/blob/master/board_types.txt (type:uint32_t)
@@ -34394,7 +34887,7 @@ class MAVLink(object):
         wind_heading              : Wind heading [deg/2] (type:uint8_t)
         eph                       : Maximum error horizontal position since last message [dm] (type:uint8_t)
         epv                       : Maximum error vertical position since last message [dm] (type:uint8_t)
-        temperature_air           : Air temperature from airspeed sensor [degC] (type:int8_t)
+        temperature_air           : Air temperature [degC] (type:int8_t)
         climb_rate                : Maximum climb rate magnitude since last message [dm/s] (type:int8_t)
         battery                   : Battery level (-1 if field not provided). [%] (type:int8_t)
         wp_num                    : Current waypoint number (type:uint16_t)
@@ -34430,7 +34923,7 @@ class MAVLink(object):
         wind_heading              : Wind heading [deg/2] (type:uint8_t)
         eph                       : Maximum error horizontal position since last message [dm] (type:uint8_t)
         epv                       : Maximum error vertical position since last message [dm] (type:uint8_t)
-        temperature_air           : Air temperature from airspeed sensor [degC] (type:int8_t)
+        temperature_air           : Air temperature [degC] (type:int8_t)
         climb_rate                : Maximum climb rate magnitude since last message [dm/s] (type:int8_t)
         battery                   : Battery level (-1 if field not provided). [%] (type:int8_t)
         wp_num                    : Current waypoint number (type:uint16_t)
@@ -36911,24 +37404,24 @@ class MAVLink(object):
     def fuel_status_encode(self, id: int, maximum_fuel: float, consumed_fuel: float, remaining_fuel: float, percent_remaining: int, flow_rate: float, temperature: float, fuel_type: int) -> MAVLink_fuel_status_message:
         """
         Fuel status.         This message provides "generic" fuel level
-        information for display in a GCS and for triggering failsafes
-        in an autopilot.         The fuel type and associated units
-        for fields in this message are defined in the enum
-        MAV_FUEL_TYPE.          The reported `consumed_fuel` and
-        `remaining_fuel` must only be supplied if measured: they must
-        not be inferred from the `maximum_fuel` and the other value.
-        A recipient can assume that if these fields are supplied they
-        are accurate.         If not provided, the recipient can infer
-        `remaining_fuel` from `maximum_fuel` and `consumed_fuel` on
-        the assumption that the fuel was initially at its maximum
-        (this is what battery monitors assume).         Note however
-        that this is an assumption, and the UI should prompt the user
-        appropriately (i.e. notify user that they should fill the tank
-        before boot).          This kind of information may also be
-        sent in fuel-specific messages such as BATTERY_STATUS_V2.
-        If both messages are sent for the same fuel system, the ids
-        and corresponding information must match.          This should
-        be streamed (nominally at 0.1 Hz).
+        information for  in a GCS and for triggering failsafes in an
+        autopilot.         The fuel type and associated units for
+        fields in this message are defined in the enum MAV_FUEL_TYPE.
+        The reported `consumed_fuel` and `remaining_fuel` must only be
+        supplied if measured: they must not be inferred from the
+        `maximum_fuel` and the other value.         A recipient can
+        assume that if these fields are supplied they are accurate.
+        If not provided, the recipient can infer `remaining_fuel` from
+        `maximum_fuel` and `consumed_fuel` on the assumption that the
+        fuel was initially at its maximum (this is what battery
+        monitors assume).         Note however that this is an
+        assumption, and the UI should prompt the user appropriately
+        (i.e. notify user that they should fill the tank before boot).
+        This kind of information may also be sent in fuel-specific
+        messages such as BATTERY_STATUS_V2.         If both messages
+        are sent for the same fuel system, the ids and corresponding
+        information must match.          This should be streamed
+        (nominally at 0.1 Hz).
 
         id                        : Fuel ID. Must match ID of other messages for same fuel system, such as BATTERY_STATUS_V2. (type:uint8_t)
         maximum_fuel              : Capacity when full. Must be provided. (type:float)
@@ -36945,24 +37438,24 @@ class MAVLink(object):
     def fuel_status_send(self, id: int, maximum_fuel: float, consumed_fuel: float, remaining_fuel: float, percent_remaining: int, flow_rate: float, temperature: float, fuel_type: int, force_mavlink1: bool = False) -> None:
         """
         Fuel status.         This message provides "generic" fuel level
-        information for display in a GCS and for triggering failsafes
-        in an autopilot.         The fuel type and associated units
-        for fields in this message are defined in the enum
-        MAV_FUEL_TYPE.          The reported `consumed_fuel` and
-        `remaining_fuel` must only be supplied if measured: they must
-        not be inferred from the `maximum_fuel` and the other value.
-        A recipient can assume that if these fields are supplied they
-        are accurate.         If not provided, the recipient can infer
-        `remaining_fuel` from `maximum_fuel` and `consumed_fuel` on
-        the assumption that the fuel was initially at its maximum
-        (this is what battery monitors assume).         Note however
-        that this is an assumption, and the UI should prompt the user
-        appropriately (i.e. notify user that they should fill the tank
-        before boot).          This kind of information may also be
-        sent in fuel-specific messages such as BATTERY_STATUS_V2.
-        If both messages are sent for the same fuel system, the ids
-        and corresponding information must match.          This should
-        be streamed (nominally at 0.1 Hz).
+        information for  in a GCS and for triggering failsafes in an
+        autopilot.         The fuel type and associated units for
+        fields in this message are defined in the enum MAV_FUEL_TYPE.
+        The reported `consumed_fuel` and `remaining_fuel` must only be
+        supplied if measured: they must not be inferred from the
+        `maximum_fuel` and the other value.         A recipient can
+        assume that if these fields are supplied they are accurate.
+        If not provided, the recipient can infer `remaining_fuel` from
+        `maximum_fuel` and `consumed_fuel` on the assumption that the
+        fuel was initially at its maximum (this is what battery
+        monitors assume).         Note however that this is an
+        assumption, and the UI should prompt the user appropriately
+        (i.e. notify user that they should fill the tank before boot).
+        This kind of information may also be sent in fuel-specific
+        messages such as BATTERY_STATUS_V2.         If both messages
+        are sent for the same fuel system, the ids and corresponding
+        information must match.          This should be streamed
+        (nominally at 0.1 Hz).
 
         id                        : Fuel ID. Must match ID of other messages for same fuel system, such as BATTERY_STATUS_V2. (type:uint8_t)
         maximum_fuel              : Capacity when full. Must be provided. (type:float)
@@ -39162,7 +39655,7 @@ class MAVLink(object):
         gpsOffsetLat              : GPS antenna lateral offset (table 2-36 of DO-282B) (type:uint8_t, values:UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT)
         gpsOffsetLon              : GPS antenna longitudinal offset from nose [if non-zero, take position (in meters) divide by 2 and add one] (table 2-37 DO-282B) (type:uint8_t, values:UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON)
         stallSpeed                : Aircraft stall speed in cm/s [cm/s] (type:uint16_t)
-        rfSelect                  : ADS-B transponder receiver and transmit enable flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_RF_SELECT)
+        rfSelect                  : ADS-B transponder reciever and transmit enable flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_RF_SELECT)
 
         """
         return MAVLink_uavionix_adsb_out_cfg_message(ICAO, callsign, emitterType, aircraftSize, gpsOffsetLat, gpsOffsetLon, stallSpeed, rfSelect)
@@ -39179,7 +39672,7 @@ class MAVLink(object):
         gpsOffsetLat              : GPS antenna lateral offset (table 2-36 of DO-282B) (type:uint8_t, values:UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LAT)
         gpsOffsetLon              : GPS antenna longitudinal offset from nose [if non-zero, take position (in meters) divide by 2 and add one] (table 2-37 DO-282B) (type:uint8_t, values:UAVIONIX_ADSB_OUT_CFG_GPS_OFFSET_LON)
         stallSpeed                : Aircraft stall speed in cm/s [cm/s] (type:uint16_t)
-        rfSelect                  : ADS-B transponder receiver and transmit enable flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_RF_SELECT)
+        rfSelect                  : ADS-B transponder reciever and transmit enable flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_RF_SELECT)
 
         """
         self.send(self.uavionix_adsb_out_cfg_encode(ICAO, callsign, emitterType, aircraftSize, gpsOffsetLat, gpsOffsetLon, stallSpeed, rfSelect), force_mavlink1=force_mavlink1)
@@ -39249,6 +39742,118 @@ class MAVLink(object):
 
         """
         self.send(self.uavionix_adsb_transceiver_health_report_encode(rfHealth), force_mavlink1=force_mavlink1)
+
+    def uavionix_adsb_out_cfg_registration_encode(self, registration: bytes) -> MAVLink_uavionix_adsb_out_cfg_registration_message:
+        """
+        Aircraft Registration.
+
+        registration              : Aircraft Registration (ASCII string A-Z, 0-9 only), e.g. "N8644B ". Trailing spaces (0x20) only. This is null-terminated. (type:char)
+
+        """
+        return MAVLink_uavionix_adsb_out_cfg_registration_message(registration)
+
+    def uavionix_adsb_out_cfg_registration_send(self, registration: bytes, force_mavlink1: bool = False) -> None:
+        """
+        Aircraft Registration.
+
+        registration              : Aircraft Registration (ASCII string A-Z, 0-9 only), e.g. "N8644B ". Trailing spaces (0x20) only. This is null-terminated. (type:char)
+
+        """
+        self.send(self.uavionix_adsb_out_cfg_registration_encode(registration), force_mavlink1=force_mavlink1)
+
+    def uavionix_adsb_out_cfg_flightid_encode(self, flight_id: bytes) -> MAVLink_uavionix_adsb_out_cfg_flightid_message:
+        """
+        Flight Identification for ADSB-Out vehicles.
+
+        flight_id                 : Flight Identification: 8 ASCII characters, '0' through '9', 'A' through 'Z' or space. Spaces (0x20) used as a trailing pad character, or when call sign is unavailable. Reflects Control message setting. This is null-terminated. (type:char)
+
+        """
+        return MAVLink_uavionix_adsb_out_cfg_flightid_message(flight_id)
+
+    def uavionix_adsb_out_cfg_flightid_send(self, flight_id: bytes, force_mavlink1: bool = False) -> None:
+        """
+        Flight Identification for ADSB-Out vehicles.
+
+        flight_id                 : Flight Identification: 8 ASCII characters, '0' through '9', 'A' through 'Z' or space. Spaces (0x20) used as a trailing pad character, or when call sign is unavailable. Reflects Control message setting. This is null-terminated. (type:char)
+
+        """
+        self.send(self.uavionix_adsb_out_cfg_flightid_encode(flight_id), force_mavlink1=force_mavlink1)
+
+    def uavionix_adsb_get_encode(self, ReqMessageId: int) -> MAVLink_uavionix_adsb_get_message:
+        """
+        Request messages.
+
+        ReqMessageId              : Message ID to request. Supports any message in this 10000-10099 range (type:uint32_t)
+
+        """
+        return MAVLink_uavionix_adsb_get_message(ReqMessageId)
+
+    def uavionix_adsb_get_send(self, ReqMessageId: int, force_mavlink1: bool = False) -> None:
+        """
+        Request messages.
+
+        ReqMessageId              : Message ID to request. Supports any message in this 10000-10099 range (type:uint32_t)
+
+        """
+        self.send(self.uavionix_adsb_get_encode(ReqMessageId), force_mavlink1=force_mavlink1)
+
+    def uavionix_adsb_out_control_encode(self, state: int, baroAltMSL: int, squawk: int, emergencyStatus: int, flight_id: bytes, x_bit: int) -> MAVLink_uavionix_adsb_out_control_message:
+        """
+        Control message with all data sent in UCP control message.
+
+        state                     : ADS-B transponder control state flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_CONTROL_STATE)
+        baroAltMSL                : Barometric pressure altitude (MSL) relative to a standard atmosphere of 1013.2 mBar and NOT bar corrected altitude (m * 1E-3). (up +ve). If unknown set to INT32_MAX [mbar] (type:int32_t)
+        squawk                    : Mode A code (typically 1200 [0x04B0] for VFR) (type:uint16_t)
+        emergencyStatus           : Emergency status (type:uint8_t, values:UAVIONIX_ADSB_EMERGENCY_STATUS)
+        flight_id                 : Flight Identification: 8 ASCII characters, '0' through '9', 'A' through 'Z' or space. Spaces (0x20) used as a trailing pad character, or when call sign is unavailable. (type:char)
+        x_bit                     : X-Bit enable (military transponders only) (type:uint8_t, values:UAVIONIX_ADSB_XBIT)
+
+        """
+        return MAVLink_uavionix_adsb_out_control_message(state, baroAltMSL, squawk, emergencyStatus, flight_id, x_bit)
+
+    def uavionix_adsb_out_control_send(self, state: int, baroAltMSL: int, squawk: int, emergencyStatus: int, flight_id: bytes, x_bit: int, force_mavlink1: bool = False) -> None:
+        """
+        Control message with all data sent in UCP control message.
+
+        state                     : ADS-B transponder control state flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_CONTROL_STATE)
+        baroAltMSL                : Barometric pressure altitude (MSL) relative to a standard atmosphere of 1013.2 mBar and NOT bar corrected altitude (m * 1E-3). (up +ve). If unknown set to INT32_MAX [mbar] (type:int32_t)
+        squawk                    : Mode A code (typically 1200 [0x04B0] for VFR) (type:uint16_t)
+        emergencyStatus           : Emergency status (type:uint8_t, values:UAVIONIX_ADSB_EMERGENCY_STATUS)
+        flight_id                 : Flight Identification: 8 ASCII characters, '0' through '9', 'A' through 'Z' or space. Spaces (0x20) used as a trailing pad character, or when call sign is unavailable. (type:char)
+        x_bit                     : X-Bit enable (military transponders only) (type:uint8_t, values:UAVIONIX_ADSB_XBIT)
+
+        """
+        self.send(self.uavionix_adsb_out_control_encode(state, baroAltMSL, squawk, emergencyStatus, flight_id, x_bit), force_mavlink1=force_mavlink1)
+
+    def uavionix_adsb_out_status_encode(self, state: int, squawk: int, NIC_NACp: int, boardTemp: int, fault: int, flight_id: bytes) -> MAVLink_uavionix_adsb_out_status_message:
+        """
+        Status message with information from UCP Heartbeat and Status
+        messages.
+
+        state                     : ADS-B transponder status state flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_STATUS_STATE)
+        squawk                    : Mode A code (typically 1200 [0x04B0] for VFR) (type:uint16_t)
+        NIC_NACp                  : Integrity and Accuracy of traffic reported as a 4-bit value for each field (NACp 7:4, NIC 3:0) and encoded by Containment Radius (HPL) and Estimated Position Uncertainty (HFOM), respectively (type:uint8_t, values:UAVIONIX_ADSB_OUT_STATUS_NIC_NACP)
+        boardTemp                 : Board temperature in C (type:uint8_t)
+        fault                     : ADS-B transponder fault flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_STATUS_FAULT)
+        flight_id                 : Flight Identification: 8 ASCII characters, '0' through '9', 'A' through 'Z' or space. Spaces (0x20) used as a trailing pad character, or when call sign is unavailable. (type:char)
+
+        """
+        return MAVLink_uavionix_adsb_out_status_message(state, squawk, NIC_NACp, boardTemp, fault, flight_id)
+
+    def uavionix_adsb_out_status_send(self, state: int, squawk: int, NIC_NACp: int, boardTemp: int, fault: int, flight_id: bytes, force_mavlink1: bool = False) -> None:
+        """
+        Status message with information from UCP Heartbeat and Status
+        messages.
+
+        state                     : ADS-B transponder status state flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_STATUS_STATE)
+        squawk                    : Mode A code (typically 1200 [0x04B0] for VFR) (type:uint16_t)
+        NIC_NACp                  : Integrity and Accuracy of traffic reported as a 4-bit value for each field (NACp 7:4, NIC 3:0) and encoded by Containment Radius (HPL) and Estimated Position Uncertainty (HFOM), respectively (type:uint8_t, values:UAVIONIX_ADSB_OUT_STATUS_NIC_NACP)
+        boardTemp                 : Board temperature in C (type:uint8_t)
+        fault                     : ADS-B transponder fault flags (type:uint8_t, values:UAVIONIX_ADSB_OUT_STATUS_FAULT)
+        flight_id                 : Flight Identification: 8 ASCII characters, '0' through '9', 'A' through 'Z' or space. Spaces (0x20) used as a trailing pad character, or when call sign is unavailable. (type:char)
+
+        """
+        self.send(self.uavionix_adsb_out_status_encode(state, squawk, NIC_NACp, boardTemp, fault, flight_id), force_mavlink1=force_mavlink1)
 
     def storm32_gimbal_manager_information_encode(self, gimbal_id: int, device_cap_flags: int, manager_cap_flags: int, roll_min: float, roll_max: float, pitch_min: float, pitch_max: float, yaw_min: float, yaw_max: float) -> MAVLink_storm32_gimbal_manager_information_message:
         """
@@ -39456,6 +40061,34 @@ class MAVLink(object):
         """
         self.send(self.qshot_status_encode(mode, shot_state), force_mavlink1=force_mavlink1)
 
+    def autopilot_state_for_gimbal_device_ext_encode(self, target_system: int, target_component: int, time_boot_us: int, wind_x: float, wind_y: float, wind_correction_angle: float) -> MAVLink_autopilot_state_for_gimbal_device_ext_message:
+        """
+        Addition to message AUTOPILOT_STATE_FOR_GIMBAL_DEVICE.
+
+        target_system             : System ID. (type:uint8_t)
+        target_component          : Component ID. (type:uint8_t)
+        time_boot_us              : Timestamp (time since system boot). [us] (type:uint64_t)
+        wind_x                    : Wind X speed in NED (North,Est, Down). NAN if unknown. [m/s] (type:float)
+        wind_y                    : Wind Y speed in NED (North, East, Down). NAN if unknown. [m/s] (type:float)
+        wind_correction_angle        : Correction angle due to wind. NaN if unknown. [rad] (type:float)
+
+        """
+        return MAVLink_autopilot_state_for_gimbal_device_ext_message(target_system, target_component, time_boot_us, wind_x, wind_y, wind_correction_angle)
+
+    def autopilot_state_for_gimbal_device_ext_send(self, target_system: int, target_component: int, time_boot_us: int, wind_x: float, wind_y: float, wind_correction_angle: float, force_mavlink1: bool = False) -> None:
+        """
+        Addition to message AUTOPILOT_STATE_FOR_GIMBAL_DEVICE.
+
+        target_system             : System ID. (type:uint8_t)
+        target_component          : Component ID. (type:uint8_t)
+        time_boot_us              : Timestamp (time since system boot). [us] (type:uint64_t)
+        wind_x                    : Wind X speed in NED (North,Est, Down). NAN if unknown. [m/s] (type:float)
+        wind_y                    : Wind Y speed in NED (North, East, Down). NAN if unknown. [m/s] (type:float)
+        wind_correction_angle        : Correction angle due to wind. NaN if unknown. [rad] (type:float)
+
+        """
+        self.send(self.autopilot_state_for_gimbal_device_ext_encode(target_system, target_component, time_boot_us, wind_x, wind_y, wind_correction_angle), force_mavlink1=force_mavlink1)
+
     def frsky_passthrough_array_encode(self, time_boot_ms: int, count: int, packet_buf: Sequence[int]) -> MAVLink_frsky_passthrough_array_message:
         """
         Frsky SPort passthrough multi packet container.
@@ -39486,7 +40119,7 @@ class MAVLink(object):
         param_index_first         : Index of the first onboard parameter in this array. (type:uint16_t)
         param_array_len           : Number of onboard parameters in this array. (type:uint8_t)
         flags                     : Flags. (type:uint16_t)
-        packet_buf                : Parameters buffer. Contains a series of variable length parameter blocks, one per parameter, with format as specifed elsewhere. (type:uint8_t)
+        packet_buf                : Parameters buffer. Contains a series of variable length parameter blocks, one per parameter, with format as specified elsewhere. (type:uint8_t)
 
         """
         return MAVLink_param_value_array_message(param_count, param_index_first, param_array_len, flags, packet_buf)
@@ -39499,10 +40132,190 @@ class MAVLink(object):
         param_index_first         : Index of the first onboard parameter in this array. (type:uint16_t)
         param_array_len           : Number of onboard parameters in this array. (type:uint8_t)
         flags                     : Flags. (type:uint16_t)
-        packet_buf                : Parameters buffer. Contains a series of variable length parameter blocks, one per parameter, with format as specifed elsewhere. (type:uint8_t)
+        packet_buf                : Parameters buffer. Contains a series of variable length parameter blocks, one per parameter, with format as specified elsewhere. (type:uint8_t)
 
         """
         self.send(self.param_value_array_encode(param_count, param_index_first, param_array_len, flags, packet_buf), force_mavlink1=force_mavlink1)
+
+    def mlrs_radio_link_stats_encode(self, target_system: int, target_component: int, flags: int, rx_LQ_rc: int, rx_LQ_ser: int, rx_rssi1: int, rx_snr1: int, tx_LQ_ser: int, tx_rssi1: int, tx_snr1: int, rx_rssi2: int, rx_snr2: int, tx_rssi2: int, tx_snr2: int, frequency1: float = 0, frequency2: float = 0) -> MAVLink_mlrs_radio_link_stats_message:
+        """
+        Radio link statistics for a MAVLink RC receiver or transmitter and
+        other links. Tx: ground-side device, Rx: vehicle-side device.
+        The message is normally emitted in regular time intervals upon
+        each actual or expected reception of an over-the-air data
+        packet on the link.         A MAVLink RC receiver should emit
+        it shortly after it emits a RADIO_RC_CHANNELS message (if it
+        is emitting that message).         Per default, rssi values
+        are in MAVLink units: 0 represents weakest signal, 254
+        represents maximum signal, UINT8_MAX represents unknown.
+        The RADIO_LINK_STATS_FLAGS_RSSI_DBM flag is set if the rssi
+        units are negative dBm: 1..254 correspond to -1..-254 dBm, 0
+        represents no reception, UINT8_MAX represents unknown.
+        The target_system field should normally be set to the system
+        id of the system the link is connected to, typically the
+        flight controller.         The target_component field can
+        normally be set to 0, so that all components of the system can
+        receive the message.         Note: The frequency fields are
+        extensions to ensure that they are located at the end of the
+        serialized payload and subject to MAVLink's trailing-zero
+        trimming.
+
+        target_system             : System ID (ID of target system, normally flight controller). (type:uint8_t)
+        target_component          : Component ID (normally 0 for broadcast). (type:uint8_t)
+        flags                     : Radio link statistics flags. (type:uint16_t, values:MLRS_RADIO_LINK_STATS_FLAGS)
+        rx_LQ_rc                  : Link quality of RC data stream from Tx to Rx. Values: 1..100, 0: no link connection, UINT8_MAX: unknown. [c%] (type:uint8_t)
+        rx_LQ_ser                 : Link quality of serial MAVLink data stream from Tx to Rx. Values: 1..100, 0: no link connection, UINT8_MAX: unknown. [c%] (type:uint8_t)
+        rx_rssi1                  : Rssi of antenna 1. 0: no reception, UINT8_MAX: unknown. (type:uint8_t)
+        rx_snr1                   : Noise on antenna 1. Radio link dependent. INT8_MAX: unknown. (type:int8_t)
+        tx_LQ_ser                 : Link quality of serial MAVLink data stream from Rx to Tx. Values: 1..100, 0: no link connection, UINT8_MAX: unknown. [c%] (type:uint8_t)
+        tx_rssi1                  : Rssi of antenna 1. 0: no reception. UINT8_MAX: unknown. (type:uint8_t)
+        tx_snr1                   : Noise on antenna 1. Radio link dependent. INT8_MAX: unknown. (type:int8_t)
+        rx_rssi2                  : Rssi of antenna 2. 0: no reception, UINT8_MAX: use rx_rssi1 if it is known else unknown. (type:uint8_t)
+        rx_snr2                   : Noise on antenna 2. Radio link dependent. INT8_MAX: use rx_snr1 if it is known else unknown. (type:int8_t)
+        tx_rssi2                  : Rssi of antenna 2. 0: no reception. UINT8_MAX: use tx_rssi1 if it is known else unknown. (type:uint8_t)
+        tx_snr2                   : Noise on antenna 2. Radio link dependent. INT8_MAX: use tx_snr1 if it is known else unknown. (type:int8_t)
+        frequency1                : Frequency on antenna1 in Hz. 0: unknown. [Hz] (type:float)
+        frequency2                : Frequency on antenna2 in Hz. 0: unknown. [Hz] (type:float)
+
+        """
+        return MAVLink_mlrs_radio_link_stats_message(target_system, target_component, flags, rx_LQ_rc, rx_LQ_ser, rx_rssi1, rx_snr1, tx_LQ_ser, tx_rssi1, tx_snr1, rx_rssi2, rx_snr2, tx_rssi2, tx_snr2, frequency1, frequency2)
+
+    def mlrs_radio_link_stats_send(self, target_system: int, target_component: int, flags: int, rx_LQ_rc: int, rx_LQ_ser: int, rx_rssi1: int, rx_snr1: int, tx_LQ_ser: int, tx_rssi1: int, tx_snr1: int, rx_rssi2: int, rx_snr2: int, tx_rssi2: int, tx_snr2: int, frequency1: float = 0, frequency2: float = 0, force_mavlink1: bool = False) -> None:
+        """
+        Radio link statistics for a MAVLink RC receiver or transmitter and
+        other links. Tx: ground-side device, Rx: vehicle-side device.
+        The message is normally emitted in regular time intervals upon
+        each actual or expected reception of an over-the-air data
+        packet on the link.         A MAVLink RC receiver should emit
+        it shortly after it emits a RADIO_RC_CHANNELS message (if it
+        is emitting that message).         Per default, rssi values
+        are in MAVLink units: 0 represents weakest signal, 254
+        represents maximum signal, UINT8_MAX represents unknown.
+        The RADIO_LINK_STATS_FLAGS_RSSI_DBM flag is set if the rssi
+        units are negative dBm: 1..254 correspond to -1..-254 dBm, 0
+        represents no reception, UINT8_MAX represents unknown.
+        The target_system field should normally be set to the system
+        id of the system the link is connected to, typically the
+        flight controller.         The target_component field can
+        normally be set to 0, so that all components of the system can
+        receive the message.         Note: The frequency fields are
+        extensions to ensure that they are located at the end of the
+        serialized payload and subject to MAVLink's trailing-zero
+        trimming.
+
+        target_system             : System ID (ID of target system, normally flight controller). (type:uint8_t)
+        target_component          : Component ID (normally 0 for broadcast). (type:uint8_t)
+        flags                     : Radio link statistics flags. (type:uint16_t, values:MLRS_RADIO_LINK_STATS_FLAGS)
+        rx_LQ_rc                  : Link quality of RC data stream from Tx to Rx. Values: 1..100, 0: no link connection, UINT8_MAX: unknown. [c%] (type:uint8_t)
+        rx_LQ_ser                 : Link quality of serial MAVLink data stream from Tx to Rx. Values: 1..100, 0: no link connection, UINT8_MAX: unknown. [c%] (type:uint8_t)
+        rx_rssi1                  : Rssi of antenna 1. 0: no reception, UINT8_MAX: unknown. (type:uint8_t)
+        rx_snr1                   : Noise on antenna 1. Radio link dependent. INT8_MAX: unknown. (type:int8_t)
+        tx_LQ_ser                 : Link quality of serial MAVLink data stream from Rx to Tx. Values: 1..100, 0: no link connection, UINT8_MAX: unknown. [c%] (type:uint8_t)
+        tx_rssi1                  : Rssi of antenna 1. 0: no reception. UINT8_MAX: unknown. (type:uint8_t)
+        tx_snr1                   : Noise on antenna 1. Radio link dependent. INT8_MAX: unknown. (type:int8_t)
+        rx_rssi2                  : Rssi of antenna 2. 0: no reception, UINT8_MAX: use rx_rssi1 if it is known else unknown. (type:uint8_t)
+        rx_snr2                   : Noise on antenna 2. Radio link dependent. INT8_MAX: use rx_snr1 if it is known else unknown. (type:int8_t)
+        tx_rssi2                  : Rssi of antenna 2. 0: no reception. UINT8_MAX: use tx_rssi1 if it is known else unknown. (type:uint8_t)
+        tx_snr2                   : Noise on antenna 2. Radio link dependent. INT8_MAX: use tx_snr1 if it is known else unknown. (type:int8_t)
+        frequency1                : Frequency on antenna1 in Hz. 0: unknown. [Hz] (type:float)
+        frequency2                : Frequency on antenna2 in Hz. 0: unknown. [Hz] (type:float)
+
+        """
+        self.send(self.mlrs_radio_link_stats_encode(target_system, target_component, flags, rx_LQ_rc, rx_LQ_ser, rx_rssi1, rx_snr1, tx_LQ_ser, tx_rssi1, tx_snr1, rx_rssi2, rx_snr2, tx_rssi2, tx_snr2, frequency1, frequency2), force_mavlink1=force_mavlink1)
+
+    def mlrs_radio_link_information_encode(self, target_system: int, target_component: int, type: int, mode: int, tx_power: int, rx_power: int, tx_frame_rate: int, rx_frame_rate: int, mode_str: bytes, band_str: bytes, tx_ser_data_rate: int, rx_ser_data_rate: int, tx_receive_sensitivity: int, rx_receive_sensitivity: int) -> MAVLink_mlrs_radio_link_information_message:
+        """
+        Radio link information. Tx: ground-side device, Rx: vehicle-side
+        device.         The values of the fields in this message do
+        normally not or only slowly change with time, and for most
+        times the message can be send at a low rate, like 0.2 Hz.
+        If values change then the message should temporarily be send
+        more often to inform the system about the changes.         The
+        target_system field should normally be set to the system id of
+        the system the link is connected to, typically the flight
+        controller.         The target_component field can normally be
+        set to 0, so that all components of the system can receive the
+        message.
+
+        target_system             : System ID (ID of target system, normally flight controller). (type:uint8_t)
+        target_component          : Component ID (normally 0 for broadcast). (type:uint8_t)
+        type                      : Radio link type. 0: unknown/generic type. (type:uint8_t, values:MLRS_RADIO_LINK_TYPE)
+        mode                      : Operation mode. Radio link dependent. UINT8_MAX: ignore/unknown. (type:uint8_t)
+        tx_power                  : Tx transmit power in dBm. INT8_MAX: unknown. [dBm] (type:int8_t)
+        rx_power                  : Rx transmit power in dBm. INT8_MAX: unknown. [dBm] (type:int8_t)
+        tx_frame_rate             : Frame rate in Hz (frames per second) for Tx to Rx transmission. 0: unknown. [Hz] (type:uint16_t)
+        rx_frame_rate             : Frame rate in Hz (frames per second) for Rx to Tx transmission. Normally equal to tx_packet_rate. 0: unknown. [Hz] (type:uint16_t)
+        mode_str                  : Operation mode as human readable string. Radio link dependent. Terminated by NULL if the string length is less than 6 chars and WITHOUT NULL termination if the length is exactly 6 chars - applications have to provide 6+1 bytes storage if the mode is stored as string. Use a zero-length string if not known. (type:char)
+        band_str                  : Frequency band as human readable string. Radio link dependent. Terminated by NULL if the string length is less than 6 chars and WITHOUT NULL termination if the length is exactly 6 chars - applications have to provide 6+1 bytes storage if the mode is stored as string. Use a zero-length string if not known. (type:char)
+        tx_ser_data_rate          : Maximum data rate of serial stream in bytes/s for Tx to Rx transmission. 0: unknown. UINT16_MAX: data rate is 64 KBytes/s or larger. (type:uint16_t)
+        rx_ser_data_rate          : Maximum data rate of serial stream in bytes/s for Rx to Tx transmission. 0: unknown. UINT16_MAX: data rate is 64 KBytes/s or larger. (type:uint16_t)
+        tx_receive_sensitivity        : Receive sensitivity of Tx in inverted dBm. 1..255 represents -1..-255 dBm, 0: unknown. (type:uint8_t)
+        rx_receive_sensitivity        : Receive sensitivity of Rx in inverted dBm. 1..255 represents -1..-255 dBm, 0: unknown. (type:uint8_t)
+
+        """
+        return MAVLink_mlrs_radio_link_information_message(target_system, target_component, type, mode, tx_power, rx_power, tx_frame_rate, rx_frame_rate, mode_str, band_str, tx_ser_data_rate, rx_ser_data_rate, tx_receive_sensitivity, rx_receive_sensitivity)
+
+    def mlrs_radio_link_information_send(self, target_system: int, target_component: int, type: int, mode: int, tx_power: int, rx_power: int, tx_frame_rate: int, rx_frame_rate: int, mode_str: bytes, band_str: bytes, tx_ser_data_rate: int, rx_ser_data_rate: int, tx_receive_sensitivity: int, rx_receive_sensitivity: int, force_mavlink1: bool = False) -> None:
+        """
+        Radio link information. Tx: ground-side device, Rx: vehicle-side
+        device.         The values of the fields in this message do
+        normally not or only slowly change with time, and for most
+        times the message can be send at a low rate, like 0.2 Hz.
+        If values change then the message should temporarily be send
+        more often to inform the system about the changes.         The
+        target_system field should normally be set to the system id of
+        the system the link is connected to, typically the flight
+        controller.         The target_component field can normally be
+        set to 0, so that all components of the system can receive the
+        message.
+
+        target_system             : System ID (ID of target system, normally flight controller). (type:uint8_t)
+        target_component          : Component ID (normally 0 for broadcast). (type:uint8_t)
+        type                      : Radio link type. 0: unknown/generic type. (type:uint8_t, values:MLRS_RADIO_LINK_TYPE)
+        mode                      : Operation mode. Radio link dependent. UINT8_MAX: ignore/unknown. (type:uint8_t)
+        tx_power                  : Tx transmit power in dBm. INT8_MAX: unknown. [dBm] (type:int8_t)
+        rx_power                  : Rx transmit power in dBm. INT8_MAX: unknown. [dBm] (type:int8_t)
+        tx_frame_rate             : Frame rate in Hz (frames per second) for Tx to Rx transmission. 0: unknown. [Hz] (type:uint16_t)
+        rx_frame_rate             : Frame rate in Hz (frames per second) for Rx to Tx transmission. Normally equal to tx_packet_rate. 0: unknown. [Hz] (type:uint16_t)
+        mode_str                  : Operation mode as human readable string. Radio link dependent. Terminated by NULL if the string length is less than 6 chars and WITHOUT NULL termination if the length is exactly 6 chars - applications have to provide 6+1 bytes storage if the mode is stored as string. Use a zero-length string if not known. (type:char)
+        band_str                  : Frequency band as human readable string. Radio link dependent. Terminated by NULL if the string length is less than 6 chars and WITHOUT NULL termination if the length is exactly 6 chars - applications have to provide 6+1 bytes storage if the mode is stored as string. Use a zero-length string if not known. (type:char)
+        tx_ser_data_rate          : Maximum data rate of serial stream in bytes/s for Tx to Rx transmission. 0: unknown. UINT16_MAX: data rate is 64 KBytes/s or larger. (type:uint16_t)
+        rx_ser_data_rate          : Maximum data rate of serial stream in bytes/s for Rx to Tx transmission. 0: unknown. UINT16_MAX: data rate is 64 KBytes/s or larger. (type:uint16_t)
+        tx_receive_sensitivity        : Receive sensitivity of Tx in inverted dBm. 1..255 represents -1..-255 dBm, 0: unknown. (type:uint8_t)
+        rx_receive_sensitivity        : Receive sensitivity of Rx in inverted dBm. 1..255 represents -1..-255 dBm, 0: unknown. (type:uint8_t)
+
+        """
+        self.send(self.mlrs_radio_link_information_encode(target_system, target_component, type, mode, tx_power, rx_power, tx_frame_rate, rx_frame_rate, mode_str, band_str, tx_ser_data_rate, rx_ser_data_rate, tx_receive_sensitivity, rx_receive_sensitivity), force_mavlink1=force_mavlink1)
+
+    def mlrs_radio_link_flow_control_encode(self, tx_ser_rate: int, rx_ser_rate: int, tx_used_ser_bandwidth: int, rx_used_ser_bandwidth: int, txbuf: int) -> MAVLink_mlrs_radio_link_flow_control_message:
+        """
+        Injected by a radio link endpoint into the MAVLink stream for purposes
+        of flow control. Should be emitted only by components with
+        component id MAV_COMP_ID_TELEMETRY_RADIO.
+
+        tx_ser_rate               : Transmitted bytes per second, UINT16_MAX: invalid/unknown. [bytes/s] (type:uint16_t)
+        rx_ser_rate               : Recieved bytes per second, UINT16_MAX: invalid/unknown. [bytes/s] (type:uint16_t)
+        tx_used_ser_bandwidth        : Transmit bandwidth consumption. Values: 0..100, UINT8_MAX: invalid/unknown. [c%] (type:uint8_t)
+        rx_used_ser_bandwidth        : Receive bandwidth consumption. Values: 0..100, UINT8_MAX: invalid/unknown. [c%] (type:uint8_t)
+        txbuf                     : For compatibility with legacy method. UINT8_MAX: unknown. [c%] (type:uint8_t)
+
+        """
+        return MAVLink_mlrs_radio_link_flow_control_message(tx_ser_rate, rx_ser_rate, tx_used_ser_bandwidth, rx_used_ser_bandwidth, txbuf)
+
+    def mlrs_radio_link_flow_control_send(self, tx_ser_rate: int, rx_ser_rate: int, tx_used_ser_bandwidth: int, rx_used_ser_bandwidth: int, txbuf: int, force_mavlink1: bool = False) -> None:
+        """
+        Injected by a radio link endpoint into the MAVLink stream for purposes
+        of flow control. Should be emitted only by components with
+        component id MAV_COMP_ID_TELEMETRY_RADIO.
+
+        tx_ser_rate               : Transmitted bytes per second, UINT16_MAX: invalid/unknown. [bytes/s] (type:uint16_t)
+        rx_ser_rate               : Recieved bytes per second, UINT16_MAX: invalid/unknown. [bytes/s] (type:uint16_t)
+        tx_used_ser_bandwidth        : Transmit bandwidth consumption. Values: 0..100, UINT8_MAX: invalid/unknown. [c%] (type:uint8_t)
+        rx_used_ser_bandwidth        : Receive bandwidth consumption. Values: 0..100, UINT8_MAX: invalid/unknown. [c%] (type:uint8_t)
+        txbuf                     : For compatibility with legacy method. UINT8_MAX: unknown. [c%] (type:uint8_t)
+
+        """
+        self.send(self.mlrs_radio_link_flow_control_encode(tx_ser_rate, rx_ser_rate, tx_used_ser_bandwidth, rx_used_ser_bandwidth, txbuf), force_mavlink1=force_mavlink1)
 
     def avss_prs_sys_status_encode(self, time_boot_ms: int, error_status: int, battery_status: int, arm_status: int, charge_status: int) -> MAVLink_avss_prs_sys_status_message:
         """
@@ -39784,88 +40597,6 @@ class MAVLink(object):
         """
         self.send(self.airlink_auth_response_encode(resp_type), force_mavlink1=force_mavlink1)
 
-    def airlink_eye_gs_hole_push_request_encode(self, resp_type: int) -> MAVLink_airlink_eye_gs_hole_push_request_message:
-        """
-        Request to hole punching
-
-        resp_type                 : Hole push response type (type:uint8_t, values:AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE)
-
-        """
-        return MAVLink_airlink_eye_gs_hole_push_request_message(resp_type)
-
-    def airlink_eye_gs_hole_push_request_send(self, resp_type: int, force_mavlink1: bool = False) -> None:
-        """
-        Request to hole punching
-
-        resp_type                 : Hole push response type (type:uint8_t, values:AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE)
-
-        """
-        self.send(self.airlink_eye_gs_hole_push_request_encode(resp_type), force_mavlink1=force_mavlink1)
-
-    def airlink_eye_gs_hole_push_response_encode(self, resp_type: int, ip_version: int, ip_address_4: Sequence[int], ip_address_6: Sequence[int], ip_port: int) -> MAVLink_airlink_eye_gs_hole_push_response_message:
-        """
-        Response information about the connected device
-
-        resp_type                 : Hole push response type (type:uint8_t, values:AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE)
-        ip_version                : ip version (type:uint8_t, values:AIRLINK_EYE_IP_VERSION)
-        ip_address_4              : ip 4 address (type:uint8_t)
-        ip_address_6              : ip 6 address (type:uint8_t)
-        ip_port                   : port (type:uint32_t)
-
-        """
-        return MAVLink_airlink_eye_gs_hole_push_response_message(resp_type, ip_version, ip_address_4, ip_address_6, ip_port)
-
-    def airlink_eye_gs_hole_push_response_send(self, resp_type: int, ip_version: int, ip_address_4: Sequence[int], ip_address_6: Sequence[int], ip_port: int, force_mavlink1: bool = False) -> None:
-        """
-        Response information about the connected device
-
-        resp_type                 : Hole push response type (type:uint8_t, values:AIRLINK_EYE_GS_HOLE_PUSH_RESP_TYPE)
-        ip_version                : ip version (type:uint8_t, values:AIRLINK_EYE_IP_VERSION)
-        ip_address_4              : ip 4 address (type:uint8_t)
-        ip_address_6              : ip 6 address (type:uint8_t)
-        ip_port                   : port (type:uint32_t)
-
-        """
-        self.send(self.airlink_eye_gs_hole_push_response_encode(resp_type, ip_version, ip_address_4, ip_address_6, ip_port), force_mavlink1=force_mavlink1)
-
-    def airlink_eye_hp_encode(self, resp_type: int) -> MAVLink_airlink_eye_hp_message:
-        """
-        A package with information about the hole punching status. It is used
-        for constant sending to avoid NAT closing timeout.
-
-        resp_type                 : Hole push response type (type:uint8_t, values:AIRLINK_EYE_HOLE_PUSH_TYPE)
-
-        """
-        return MAVLink_airlink_eye_hp_message(resp_type)
-
-    def airlink_eye_hp_send(self, resp_type: int, force_mavlink1: bool = False) -> None:
-        """
-        A package with information about the hole punching status. It is used
-        for constant sending to avoid NAT closing timeout.
-
-        resp_type                 : Hole push response type (type:uint8_t, values:AIRLINK_EYE_HOLE_PUSH_TYPE)
-
-        """
-        self.send(self.airlink_eye_hp_encode(resp_type), force_mavlink1=force_mavlink1)
-
-    def airlink_eye_turn_init_encode(self, resp_type: int) -> MAVLink_airlink_eye_turn_init_message:
-        """
-        Initializing the TURN protocol
-
-        resp_type                 : Turn init type (type:uint8_t, values:AIRLINK_EYE_TURN_INIT_TYPE)
-
-        """
-        return MAVLink_airlink_eye_turn_init_message(resp_type)
-
-    def airlink_eye_turn_init_send(self, resp_type: int, force_mavlink1: bool = False) -> None:
-        """
-        Initializing the TURN protocol
-
-        resp_type                 : Turn init type (type:uint8_t, values:AIRLINK_EYE_TURN_INIT_TYPE)
-
-        """
-        self.send(self.airlink_eye_turn_init_encode(resp_type), force_mavlink1=force_mavlink1)
-
     def control_loading_axis_encode(self, time_boot_ms: int, axis: int, position: float, velocity: float, force: float) -> MAVLink_control_loading_axis_message:
         """
         Send data about a control axis from a control loading system. This is
@@ -39970,7 +40701,7 @@ class MAVLink(object):
         time_boot_ms              : Timestamp (time since system boot). [ms] (type:uint32_t)
         frame_count               : Number of message as sent by the Motion System. (type:uint32_t)
         motion_status             : Motion Status variable as sent by the system. (type:uint32_t)
-        error_code                : Error code extracted from motion status. (type:uint8_t, values:REXROTH_MOTION_PLATFORM_ERROR)
+        error_code                : Error code extracted from motion status. (type:uint8_t)
         actuator1                 : Current actuator 1 position. [m] (type:float)
         actuator2                 : Current actuator 2 position. [m] (type:float)
         actuator3                 : Current actuator 3 position. [m] (type:float)
@@ -40005,7 +40736,7 @@ class MAVLink(object):
         time_boot_ms              : Timestamp (time since system boot). [ms] (type:uint32_t)
         frame_count               : Number of message as sent by the Motion System. (type:uint32_t)
         motion_status             : Motion Status variable as sent by the system. (type:uint32_t)
-        error_code                : Error code extracted from motion status. (type:uint8_t, values:REXROTH_MOTION_PLATFORM_ERROR)
+        error_code                : Error code extracted from motion status. (type:uint8_t)
         actuator1                 : Current actuator 1 position. [m] (type:float)
         actuator2                 : Current actuator 2 position. [m] (type:float)
         actuator3                 : Current actuator 3 position. [m] (type:float)
@@ -40064,12 +40795,12 @@ class MAVLink(object):
         """
         self.send(self.motion_cue_extra_encode(time_boot_ms, vel_roll, vel_pitch, vel_yaw, acc_x, acc_y, acc_z), force_mavlink1=force_mavlink1)
 
-    def eye_tracking_data_encode(self, time_usec: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float) -> MAVLink_eye_tracking_data_message:
+    def eye_tracking_data_encode(self, time_usec: int, sensor_id: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float) -> MAVLink_eye_tracking_data_message:
         """
-        Data for tracking of pilot eye gaze. In multi-crew situations,
-        additional trackers should connect with different system id.
+        Data for tracking of pilot eye gaze.
 
         time_usec                 : Timestamp (time since system boot). [us] (type:uint64_t)
+        sensor_id                 : Sensor ID, used for identifying the device and/or person tracked. Set to zero if unknown/unused. (type:uint8_t)
         gaze_origin_x             : X axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
         gaze_origin_y             : Y axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
         gaze_origin_z             : Z axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
@@ -40083,14 +40814,14 @@ class MAVLink(object):
         surface_gaze_y            : Gaze focal point on surface y value (normalized 0..1, 0 is top, 1 is bottom), NaN if unknown (type:float)
 
         """
-        return MAVLink_eye_tracking_data_message(time_usec, gaze_origin_x, gaze_origin_y, gaze_origin_z, gaze_direction_x, gaze_direction_y, gaze_direction_z, video_gaze_x, video_gaze_y, surface_id, surface_gaze_x, surface_gaze_y)
+        return MAVLink_eye_tracking_data_message(time_usec, sensor_id, gaze_origin_x, gaze_origin_y, gaze_origin_z, gaze_direction_x, gaze_direction_y, gaze_direction_z, video_gaze_x, video_gaze_y, surface_id, surface_gaze_x, surface_gaze_y)
 
-    def eye_tracking_data_send(self, time_usec: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float, force_mavlink1: bool = False) -> None:
+    def eye_tracking_data_send(self, time_usec: int, sensor_id: int, gaze_origin_x: float, gaze_origin_y: float, gaze_origin_z: float, gaze_direction_x: float, gaze_direction_y: float, gaze_direction_z: float, video_gaze_x: float, video_gaze_y: float, surface_id: int, surface_gaze_x: float, surface_gaze_y: float, force_mavlink1: bool = False) -> None:
         """
-        Data for tracking of pilot eye gaze. In multi-crew situations,
-        additional trackers should connect with different system id.
+        Data for tracking of pilot eye gaze.
 
         time_usec                 : Timestamp (time since system boot). [us] (type:uint64_t)
+        sensor_id                 : Sensor ID, used for identifying the device and/or person tracked. Set to zero if unknown/unused. (type:uint8_t)
         gaze_origin_x             : X axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
         gaze_origin_y             : Y axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
         gaze_origin_z             : Z axis of gaze origin point, NaN if unknown. The reference system depends on specific application. [m] (type:float)
@@ -40104,7 +40835,7 @@ class MAVLink(object):
         surface_gaze_y            : Gaze focal point on surface y value (normalized 0..1, 0 is top, 1 is bottom), NaN if unknown (type:float)
 
         """
-        self.send(self.eye_tracking_data_encode(time_usec, gaze_origin_x, gaze_origin_y, gaze_origin_z, gaze_direction_x, gaze_direction_y, gaze_direction_z, video_gaze_x, video_gaze_y, surface_id, surface_gaze_x, surface_gaze_y), force_mavlink1=force_mavlink1)
+        self.send(self.eye_tracking_data_encode(time_usec, sensor_id, gaze_origin_x, gaze_origin_y, gaze_origin_z, gaze_direction_x, gaze_direction_y, gaze_direction_z, video_gaze_x, video_gaze_y, surface_id, surface_gaze_x, surface_gaze_y), force_mavlink1=force_mavlink1)
 
     def loweheiser_gov_efi_encode(self, volt_batt: float, curr_batt: float, curr_gen: float, curr_rot: float, fuel_level: float, throttle: float, runtime: int, until_maintenance: int, rectifier_temp: float, generator_temp: float, efi_batt: float, efi_rpm: float, efi_pw: float, efi_fuel_flow: float, efi_fuel_consumed: float, efi_baro: float, efi_mat: float, efi_clt: float, efi_tps: float, efi_exhaust_gas_temperature: float, efi_index: int, generator_status: int, efi_status: int) -> MAVLink_loweheiser_gov_efi_message:
         """
