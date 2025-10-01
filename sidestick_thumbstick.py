@@ -261,7 +261,7 @@ class ControlsNode(threading.Thread):
                 axes[0] = ptch
                 axes[1] = roll
                 axes[2] = scale(thr, params['THR_V_MIN'], params['THR_V_MAX'])     # THR
-                axes[3] = 0  # TODO: Restore pedal functionality
+                axes[3] = 0  # TODO: Restore pedal functionality remember to do it
 
                 # no buttons are used
                 buttons = 0
