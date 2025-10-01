@@ -2,19 +2,24 @@
 # -*- coding:utf-8 -*-
 
 """
-Node providing MANUAL_CONTROL messages based on LabJack T4 device
+Node providing MANUAL_CONTROL messages based on a LabJack T4 device,
 measuring analog voltages. The linear mapping between voltages and axis values
-can be configured in runtime with Parameter microservice.
+can be configured at runtime via the Parameter microservice.
 
-Based on https://github.com/labjack/labjack-ljm-python/blob/master/Examples/More/Stream/stream_basic.py
-Adapted for RPC platform by Andrea Zanoni
+Based on:
+https://github.com/labjack/labjack-ljm-python/blob/master/Examples/More/Stream/stream_basic.py
 
-Modifica 30/09/25: ora legge solo AIN0 (collettivo). 
-Pitch e Roll arrivano dal Brunner. Yaw non è usato.
+Adapted for the RPC simulator platform by Andrea Zanoni.
+
+Update 01/10/2025:
+- Reads AIN0 (collective), AIN1 (thumbstick), AIN2 (pedals).
+- Pitch and Roll from Brunner sidestick 
+- Yaw now mapped to pedals.
+- Thumbstick scaled with THUMB_GAIN and added to collective input.
+
+Adapted and extended by Paolo De Franceschi.
 """
 
-from argparse import ArgumentParser
-from typing import Optional, Tuple
 from labjack import ljm
 from pymavlink import mavutil
 import socket
@@ -25,20 +30,20 @@ import time
 from queue import Empty, Queue
 
 import mavlink_all as mavlink
-from utils import NodeFormatter
 from utils.param_dict import ParamDict
 
 PARAM_FILENAME = 'labjack.param'
 LABJACK_SCAN_RATE = 128.0
 
-# valori aggiornati dal Brunner
+# Updated by Brunner (pitch/roll values)
 brunner_axes = {"PTCH": 0.0, "ROLL": 0.0}
 
 
 def main():
     queue = Queue()
-    ljmr = LJMReader(queue, 1/LABJACK_SCAN_RATE,
-                     aScanListNames=['AIN0'])  # TODO: Choose a channel for thumbstick
+    # Read three channels: AIN0 (collective), AIN1 (thumbstick), AIN2 (pedals)
+    ljmr = LJMReader(queue, 1 / LABJACK_SCAN_RATE,
+                     aScanListNames=['AIN0', 'AIN1', 'AIN2'])
     node = ControlsNode(queue, "127.0.0.1", send_voltage=False)
 
     print("Starting threads...")
@@ -58,176 +63,147 @@ def main():
 
 
 class LJMReader(threading.Thread):
-    def __init__(self, queue: Queue, period: float, extra_signal: tuple[Queue, str] | None = None, **kwargs):
+    """
+    Thread that reads analog signals from LabJack using stream mode
+    and pushes them into a shared queue.
+    """
+    def __init__(self, queue: Queue, period: float, **kwargs):
         super().__init__()
-
         self.queue = queue
-        self.extra_queue = None
-        if extra_signal is not None:
-            self.extra_queue = extra_signal[0]
 
-        # initialize the config with default values
+        # Default configuration for LabJack device
         config = {
             'LJType': 'T4',
             'LJConnection': 'ETHERNET',
-            'aScanListNames': ['AIN0'],  # TODO: Choose a channel for thumbstick
+            'aScanListNames': ['AIN0', 'AIN1', 'AIN2'],  # collective, thumbstick, pedals
             'ScanRate': LABJACK_SCAN_RATE
         }
-        config.update(kwargs)  # override with any kwargs passed
-
-        if extra_signal is not None:
-            config['aScanListNames'].append(extra_signal[1])
-
-        self.LJType = config['LJType']
-        """LabJack Type, defaults to T4"""
-        if self.LJType not in ('T4', 'T7', 'T8'):
-            print('LJMReader: unrecognised LabJack type. Aborting...', file=sys.stderr)
-            sys.exit(100)
-
-        self.LJConnection = config['LJConnection']
-        """LabJack Connection, defaults to ETHERNET"""
-        if self.LJConnection not in ('USB', 'ETHERNET', 'ANY'):
-            print('LJMReader: unrecognised LabJack connection type. Aborting...', file=sys.stderr)
-            sys.exit(101)
+        config.update(kwargs)
 
         self.aScanListNames = config['aScanListNames']
-        """LabJack signals to be output. For now, no check on channel name
-        is performed, so it is up to the user to get it right"""
-
         self.ScanRate = config['ScanRate']
-
         self.should_stop = threading.Event()
 
-        self.LJhandle = ljm.openS(self.LJType, self.LJConnection, 'ANY')
+        # Open connection to LabJack
+        self.LJhandle = ljm.openS(config['LJType'], config['LJConnection'], 'ANY')
         if self.LJhandle:
             info = ljm.getHandleInfo(self.LJhandle)
-            print('LJMReader: Found LabJack with Device type: {}, Connection type: {},'.format(
-                info[0], info[1]))
-            print('LJMReader: Serial number: {}, IP address: {}, Port: {}, Max bytes per MB: {}'.format(
-                info[2], ljm.numberToIP(info[3]), info[4], info[5]))
+            print(f'LJMReader: Found LabJack with Device type: {info[0]}, Connection type: {info[1]}')
+            print(f'LJMReader: Serial: {info[2]}, IP: {ljm.numberToIP(info[3])}, Port: {info[4]}, MaxBytesPerMB: {info[5]}')
         else:
-            print(
-                'LJMReader: Could not find any LabJack device. Aborting...', file=sys.stderr)
+            print('LJMReader: Could not find any LabJack device. Aborting...', file=sys.stderr)
             sys.exit(1)
 
         try:
+            # Configure stream parameters
             aNames = ['STREAM_SETTLING_US', 'STREAM_RESOLUTION_INDEX']
             aValues = [0, 0]
 
-            s_out_bufsize = struct.calcsize('d'*len(self.aScanListNames))
-            self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
             ljm.eWriteNames(self.LJhandle, len(aNames), aNames, aValues)
+            aScanList = ljm.namesToAddresses(len(self.aScanListNames), self.aScanListNames)[0]
 
-            aScanList = ljm.namesToAddresses(
-                len(self.aScanListNames), self.aScanListNames)[0]
-
-            # Configure and start the LabJack stream, with scansPerRead = 1
-            scanRate = ljm.eStreamStart(
-                self.LJhandle,
-                # scansPerRead = 1
-                1,
-                len(self.aScanListNames),
-                aScanList,
-                self.ScanRate)
+            # Start streaming from LabJack
+            scanRate = ljm.eStreamStart(self.LJhandle, 1, len(self.aScanListNames), aScanList, self.ScanRate)
             if scanRate == self.ScanRate:
-                print(
-                    'LJMReader: Stream started with a scan rate of {} Hz.'.format(scanRate))
+                print(f'LJMReader: Stream started with {scanRate} Hz')
             else:
-                print('LJMReader: WARNING stream started with a scan rate of {} Hz.'.format(
-                    scanRate), file=sys.stderr)
+                print(f'LJMReader: WARNING stream started with {scanRate} Hz', file=sys.stderr)
 
             self.period = period
             self.i = 0
             self.t0 = time.time()
 
         except Exception as e:
-            if isinstance(e, ljm.LJMError):
-                print("LJMReader: LJM ERROR", e, file=sys.stderr)
-            else:
-                print("labjack_stream.py: ERROR {}".format(e))
-
+            print(f"LJMReader: ERROR {e}", file=sys.stderr)
             ljm.eStreamStop(self.LJhandle)
             ljm.close(self.LJhandle)
 
     def sleep(self):
+        """Synchronize the loop to achieve the configured period."""
         self.i += 1
-        delta = self.t0 + self.period*self.i - time.time()
+        delta = self.t0 + self.period * self.i - time.time()
         if delta > 0:
             time.sleep(delta)
 
     def run(self):
+        """Main loop: read from LabJack and push data into the queue."""
         while not self.should_stop.is_set():
             self.read_and_send()
             self.sleep()
 
+        # Cleanup on exit
         ljm.eStreamStop(self.LJhandle)
         print("LJMReader: closing the handle")
         ljm.close(self.LJhandle)
 
     def read_and_send(self):
+        """Read a sample from LabJack and push collective, thumbstick, and pedals to queue."""
         aData, _, _ = ljm.eStreamRead(self.LJhandle)
 
-        # Skipped samples are indicated with -9999.0 values
         curSkip = aData.count(-9999.0)
         if curSkip:
-            print("LJMReader: WARNING {} skipped samples at read #{}".format(
-                curSkip, self.i), file=sys.stderr)
+            print(f"LJMReader: WARNING {curSkip} skipped samples at read #{self.i}", file=sys.stderr)
 
-        # TODO: Also measure and queue thumbstick voltage
+        # Collective (AIN0), Thumbstick (AIN1), Pedals (AIN2)
         thr = aData[0] if aData[0] != -9999.9 else None
-        self.queue.put(thr)
+        thumb = aData[1] if aData[1] != -9999.9 else None
+        yaw = aData[2] if aData[2] != -9999.9 else None
+
+        self.queue.put((thr, thumb, yaw))
 
 
 class ControlsNode(threading.Thread):
+    """
+    Thread that processes input values, scales them,
+    and sends MANUAL_CONTROL messages to MARSH manager via MAVLink.
+    """
     def __init__(self, queue: Queue, manager_addr: str, send_voltage: bool, **kwargs):
         super().__init__()
-
         self.queue = queue
         self.manager_addr = manager_addr
         self.send_voltage = send_voltage
         self.should_stop = threading.Event()
 
     def run(self):
-        # create MAVLink connection
+        # Create MAVLink connection
         connection_string = f'udpout:{self.manager_addr}:24400'
         mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
-        mav.srcSystem = 1  # default system
+        mav.srcSystem = 1
         mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_CONTROLS - mavlink.MARSH_TYPE_MANAGER)
         print(f'Sending to {connection_string}')
 
-        # create parameters database, all parameters are float to simplify code
-        # default values for inceptors on RPC platform
+        # Parameter dictionary (all stored as float)
         params = ParamDict()
         params['THR_V_MIN'] = 0.0
         params['THR_V_MAX'] = 5.0
         params['THUMB_V_MIN'] = 0.0
         params['THUMB_V_MAX'] = 5.0
         params['THUMB_GAIN'] = 0.05
+        params['YAW_V_MIN'] = 0.0
+        params['YAW_V_MAX'] = 5.0
 
+        # Load custom parameters if available
         try:
             with open(PARAM_FILENAME, 'r') as param_file:
                 params.load(param_file)
         except FileNotFoundError:
             pass
 
-        start_time = time.time()
-
-        # controlling when messages should be sent
-        heartbeat_next = 0.0
+        # Timing
         heartbeat_interval = 1.0
-        control_next = 0.0
         control_interval = 0.02
-
-        # monitoring connection to manager with heartbeat
         timeout_interval = 5.0
+
+        heartbeat_next = 0.0
+        control_next = 0.0
         manager_timeout = 0.0
         manager_connected = False
 
-        # the loop goes as fast as it can, relying on the variables above for timing
         while not self.should_stop.is_set():
-            if time.time() >= heartbeat_next:
+            now = time.time()
+
+            # Send heartbeat
+            if now >= heartbeat_next:
                 mav.heartbeat_send(
                     mavlink.MARSH_TYPE_CONTROLS,
                     mavlink.MAV_AUTOPILOT_INVALID,
@@ -235,35 +211,41 @@ class ControlsNode(threading.Thread):
                     0,
                     mavlink.MAV_STATE_ACTIVE
                 )
-                heartbeat_next = time.time() + heartbeat_interval
+                heartbeat_next = now + heartbeat_interval
 
-            if time.time() >= control_next:
-                thr = 0
+            # Send control input
+            if now >= control_next:
+                thr, thumb, yaw = 0, 0, 0
                 try:
-                    while True:  # get everything from queue
-                        thr = self.queue.get(block=False)
+                    while True:
+                        thr, thumb, yaw = self.queue.get(block=False)
                 except Empty:
                     pass
 
-                # pitch/roll dal Brunner
                 ptch = brunner_axes["PTCH"]
                 roll = brunner_axes["ROLL"]
 
-                # assign axis values based on voltages scaled with parameters
-                axes = [0x7FFF] * 4  # set each axis to invalid (INT16_MAX)
+                axes = [0x7FFF] * 4  # default invalid values
 
                 def scale(v, vmin, vmax):
-                    if vmax == vmin:
+                    if vmax == vmin or v is None:
                         return 0
                     return round(1000 * max(-1, min(1, (v - vmin) / (vmax - vmin) * 2 - 1)))
 
-                # TODO: Scale thumb by params, add thumb * THUMB_GAIN to thr
+                # Pitch and Roll from Brunner
                 axes[0] = ptch
                 axes[1] = roll
-                axes[2] = scale(thr, params['THR_V_MIN'], params['THR_V_MAX'])     # THR
-                axes[3] = 0  # TODO: Restore pedal functionality remember to do it
 
-                # no buttons are used
+                # Collective + thumbstick scaled and combined
+                thr_scaled = scale(thr, params['THR_V_MIN'], params['THR_V_MAX'])
+                thumb_scaled = scale(thumb, params['THUMB_V_MIN'], params['THUMB_V_MAX'])
+                axes[2] = thr_scaled + int(thumb_scaled * params['THUMB_GAIN'])
+
+                # Pedals (Yaw)
+                yaw_scaled = scale(yaw, params['YAW_V_MIN'], params['YAW_V_MAX'])
+                axes[3] = yaw_scaled
+
+                # No buttons used
                 buttons = 0
 
                 mav.manual_control_send(
@@ -272,14 +254,13 @@ class ControlsNode(threading.Thread):
                     buttons,
                 )
 
-                control_next = time.time() + control_interval
+                control_next = now + control_interval
 
-            # handle incoming messages (come originale)
+            # Handle incoming messages
             try:
                 while (message := mav.file.recv_msg()) is not None:
                     if message.get_type() == 'HEARTBEAT':
-                        heartbeat = message
-                        if heartbeat.type == mavlink.MARSH_TYPE_MANAGER:
+                        if message.type == mavlink.MARSH_TYPE_MANAGER:
                             if not manager_connected:
                                 print('Connected to simulation manager')
                             manager_connected = True
@@ -287,13 +268,12 @@ class ControlsNode(threading.Thread):
                     elif params.should_handle_message(message):
                         params.handle_message(mav, message)
             except ConnectionResetError:
-                # thrown on Windows when there is no peer listening
                 pass
 
-            if manager_connected and time.time() > manager_timeout:
+            if manager_connected and now > manager_timeout:
                 manager_connected = False
                 print('Lost connection to simulation manager')
 
+
 if __name__ == '__main__':
     main()
-
