@@ -12,7 +12,7 @@ https://github.com/labjack/labjack-ljm-python/blob/master/Examples/More/Stream/s
 Adapted for the RPC simulator platform by Andrea Zanoni.
 
 Update 01/10/2025:
-- Reads AIN0 (collective), AIN1 (thumbstick), AIN2 (pedals).
+- Reads AIN0 (collective), AIN1 (thumbstick), AIN6 (pedals).
 - Pitch and Roll from Brunner sidestick 
 - Yaw now mapped to pedals.
 - Thumbstick scaled with THUMB_GAIN and added to collective input.
@@ -41,9 +41,9 @@ brunner_axes = {"PTCH": 0.0, "ROLL": 0.0}
 
 def main():
     queue = Queue()
-    # Read three channels: AIN0 (collective), AIN1 (thumbstick), AIN2 (pedals)
+    # Read three channels: AIN0 (collective), AIN1 (thumbstick), AIN6 (pedals)
     ljmr = LJMReader(queue, 1 / LABJACK_SCAN_RATE,
-                     aScanListNames=['AIN0', 'AIN1', 'AIN2'])
+                     aScanListNames=['AIN0', 'AIN1', 'AIN6'])
     node = ControlsNode(queue, "127.0.0.1", send_voltage=False)
 
     print("Starting threads...")
@@ -75,7 +75,7 @@ class LJMReader(threading.Thread):
         config = {
             'LJType': 'T4',
             'LJConnection': 'ETHERNET',
-            'aScanListNames': ['AIN0', 'AIN1', 'AIN2'],  # collective, thumbstick, pedals
+            'aScanListNames': ['AIN0', 'AIN1', 'AIN6'],  # collective, thumbstick, pedals
             'ScanRate': LABJACK_SCAN_RATE
         }
         config.update(kwargs)
@@ -144,7 +144,7 @@ class LJMReader(threading.Thread):
         if curSkip:
             print(f"LJMReader: WARNING {curSkip} skipped samples at read #{self.i}", file=sys.stderr)
 
-        # Collective (AIN0), Thumbstick (AIN1), Pedals (AIN2)
+        # Collective (AIN0), Thumbstick (AIN1), Pedals (AIN6)
         thr = aData[0] if aData[0] != -9999.9 else None
         thumb = aData[1] if aData[1] != -9999.9 else None
         yaw = aData[2] if aData[2] != -9999.9 else None
