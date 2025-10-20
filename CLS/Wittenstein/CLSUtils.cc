@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <unistd.h>
+#include <mutex>
 
 bool isValidMessageCode(const int code)
 {
@@ -282,28 +283,161 @@ int CLSInterface::initUDPSocket(void)
 }
 
 /* keep the system tidy and close the network connection */
-void clsUDPClose(void)
+void CLSInterface::closeSocket(void)
 {
-	closesocket(cls_socket);
+	  // Thread-safe version with mutex (if needed)
+    // // std::lock_guard<std::mutex> lock(socketMutex);
+    
+    if (cls_socket < 0)
+    {
+        return;
+    }
+    
+    shutdown(cls_socket, SHUT_RDWR);
+    
+    if (close(cls_socket) < 0)
+    {
+        std::cerr << "Warning: Failed to close socket: " 
+                  << strerror(errno) << std::endl;
+    }
+    
+    cls_socket = -1;
 }
 
-/* Generate the Status Query String + send */
-void clsRequestStatus( )
+unsigned pdSHORT generateCRC(const pdCHAR * cBuf, pdINT iSize)
 {
-	//send status request message
-	msgSize = prvGenerateQuery( txmsg, CLS_START_AXIS, CLS_NO_AXES, msgSTATUS, 0, SCM_NODE );
-	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
+	unsigned pdSHORT usCRC;
+
+	// for each Byte
+	for (int i = 0; i < iSize; i++)
+	{
+		usCRC ^= static_cast<unsigned char>(cBuf[i]);
+
+		// for each bit
+		for (int j = 0; j < 8; j++)
+		{
+			if (usCRC & 0x0001)
+			{
+				usCRC = (usCRC >> 1) ^ 0xa001;
+			}
+			else
+			{
+				usCRC >>= 1;
+			}
+		}
+	}
+	return usCRC;
 }
+
+pdINT CLSInterface::generateQuery(pdCHAR *cBuf, 
+                                   pdINT iBufSize,  // ADD buffer size parameter!
+                                   pdINT iStartAxis, 
+                                   pdINT iNumberOfAxis, 
+                                   pdINT iFuncCode, 
+                                   pdINT iTag, 
+                                   pdINT iNode)
+{
+    // Validate input parameters
+    if (cBuf == nullptr || iBufSize < 20)  // Minimum message size
+    {
+        return -1;  // Error: invalid buffer
+    }
+    
+    // Build the message (without CRC)
+    int bytesWritten = snprintf(cBuf, iBufSize, 
+                                "%c%01x%02x%01x%01x%01x%c", 
+                                STX, iNode, iFuncCode, iTag, 
+                                iStartAxis, iNumberOfAxis, ENQ);
+    
+    // Check for truncation
+    if (bytesWritten < 0 || bytesWritten >= iBufSize)
+    {
+        return -1;  // Error: buffer too small
+    }
+    
+    // Calculate CRC on the message so far
+    unsigned pdSHORT usCRC = generateCRC(cBuf, bytesWritten);
+    
+    // Append CRC bytes (handle as binary, not string!)
+    if (bytesWritten + 2 >= iBufSize)
+    {
+        return -1;  // Error: not enough space for CRC
+    }
+    
+    // Add CRC bytes in little-endian order
+    cBuf[bytesWritten] = static_cast<pdCHAR>(usCRC & 0xFF);         // LSB
+    cBuf[bytesWritten + 1] = static_cast<pdCHAR>((usCRC >> 8) & 0xFF);  // MSB
+    
+    // Return total message length (including CRC)
+    return bytesWritten + 2;
+}
+
+void CLSInterface::request(CLSMessageCode msgcode)
+{
+	msgSize = generateQuery(txmsg, sizeof(txmsg), CLS_START_AXIS, CLS_NO_AXES, static_cast<int>(msgcode), 0, scm_node);
+
+	if (msgSize < 0)
+	{
+		std::cerr << "generateQuery() Error: Failed to generate query message" << std::endl;
+		return;
+	}
+
+	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*)&txpeer, sizeof(txpeer));
+}
+
+pdINT iCreateDataTransferString(pdINT iNode, pdINT iStartAxis, pdINT iNumOfAxis, pdINT iFuncCode, pdINT iTag, pdFLOAT *fBuf, pdCHAR *cBuf, pdINT iBufferSize )
+{
+	pdINT iLoop; /* Loop counter only. */
+//	char cCRC[5]; /* Space in which the checksum string is created before being added to the main buffer. */
+	pdINT iBufPos; /* Index into buffer of position into which the next character will be written. */
+	unsigned pdSHORT usCRC;
+	pdINT iMsgSize = -1;
+
+	/* Take the floats from fBuf and format them into a message for transmission. */
+	/* Create the 'header' of the buffer - up to the point where the data starts. */
+	sprintf( cBuf, "%c%x%02x%x%x%x", STX, iNode, iFuncCode, iTag, iStartAxis, iNumOfAxis );
+
+	/* Note the position of the end of the buffer so far. */
+	iBufPos = strlen( cBuf );
+
+	/* The header has now been created. Extend the string with each data value in turn. */
+	for( iLoop = 0; iLoop < iNumOfAxis; iLoop++ )
+	{
+		/* Write the value to the buffer in the correct format. The number of decmimal places will depend on the
+		magnatude of the number. */
+		sprintf( cBuf + iBufPos, "%+01.04f", fBuf[ iLoop ] );
+
+		/* We have just increased the length of the string, note the new position of the
+		end of the buffer. */
+		iBufPos += prtclLEN_TAKEN_BY_ONE_DATA_VALUE;
+	}
+	/* All the parameters have been added to the string, add the end of transmission character. */
+	sprintf( cBuf + iBufPos, "%c", EOT );
+
+	/* Increase the counter to the next free position past the EOT just added. */
+	iBufPos++;
+
+	/* Generate the checksum string from the Tx string. */
+	usCRC = generateCRC(cBuf, iBufPos);
+	sprintf( cBuf + iBufPos, "%c%c", (unsigned pdCHAR)( ( usCRC & 0xff00 ) >> 8 ) /* most sig byte */,
+		(unsigned pdCHAR)( usCRC & 0x00ff ) /* Least sig byte */ );
+
+	/* Include the checksum characters in the message length (+2). */
+	iMsgSize = iBufPos + 2;
+
+	return iMsgSize;
+}
+
 
 /* Generate the Traverse command String + send */
-void clsAllTraverse( )
+void CLSInterface::traverseAll(void)
 {
 	//send traversal message
-	msgSize = iCreateDataTransferString( SCM_NODE, CLS_START_AXIS, CLS_NO_AXES, msgSTART_TRAVERSAL, 0, txdata, txmsg, sizeof( txdata ) ); 
-	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
+	msgSize = iCreateDataTransferString(scm_node, CLS_START_AXIS, CLS_NO_AXES, static_cast<int>(CLSMessageCode::START_TRAVERSAL), 0, txdata, txmsg, sizeof( txdata ) ); 
+	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr *)&txpeer, sizeof(txpeer));
 
 	//wait a moment
-	Sleep( 5 );
+	sleep(5000);
 }
 
 /* Generate the Activate command String + send */
@@ -340,30 +474,6 @@ void clsRestore( pdINT iLocation )
 	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
 
 	return;
-}
-
-/* Generate the Position Query String + send */
-void clsRequestPositions( )
-{
-	//send get positions message
-	msgSize = prvGenerateQuery( txmsg, CLS_START_AXIS, CLS_NO_AXES, msgPOSITIONS, 0, SCM_NODE );
-	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
-}
-
-/* Generate the Force Query String + send */
-void clsRequestForces( )
-{
-	//send get positions message
-	msgSize = prvGenerateQuery( txmsg, CLS_START_AXIS, CLS_NO_AXES, msgFORCES, 0, SCM_NODE );
-	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
-}
-
-/* Generate the Low Switch Gradient Query String + send */
-void clsRequestLowSwitchGradient( )
-{
-	//send get Low Switch Gradient message
-	msgSize = prvGenerateQuery( txmsg, CLS_START_AXIS, CLS_NO_AXES, msgLOW_SWITCH_GRADIENT, 0, SCM_NODE );
-	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
 }
 
 /* Do something with a status response */
@@ -418,14 +528,14 @@ void clsUseIO( pdFLOAT *fData, pdINT iBus )
 
 
 /* Write Low Switch Gradient to SCM */
-void clsSetLowSwitchGradient( pdFLOAT* fData, pdINT iStartAxis, pdINT iNoOfAxes )
+void clsSetLowSwitchGradient(pdFLOAT* fData, pdINT iStartAxis, pdINT iNoOfAxes)
 {
 	msgSize = iCreateDataTransferString( SCM_NODE, iStartAxis, iNoOfAxes, msgLOW_SWITCH_GRADIENT, 0, fData, txmsg, 512 );
 	sendto( cls_socket, txmsg, msgSize, 0, (struct sockaddr*) &txpeer, sizeof( txpeer ) );
 
 }
 
-void clsSleep(std::chrono::milliseconds sleep_time)
+void CLSInterface::sleep(std::chrono::milliseconds sleep_time)
 {
   using namespace std::chrono;
 

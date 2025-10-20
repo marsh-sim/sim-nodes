@@ -130,22 +130,27 @@ class CLSInterface
 		unsigned int scm_port = DEFAULT_SCM_PORT;
 		unsigned int rx_port = DEFAULT_SCM_PORT;
 		std::string cls_address = DEFAULT_SCM_ADDRESS;
+		unsigned int scm_node = DEFAULT_SCM_NODE;
 		struct sockaddr_in txpeer;
 		struct sockaddr_in rxpeer;
 		socklen_t rxpeerlen;
 		char txmsg[MAX_SIZE_TX];
 		char rxmsg[MAX_SIZE_RX];
 		int BufLen;
-		int msxSize;
+		int msgSize;
 		float txdata[MAX_AXES];
 		float rxdata[MAX_AXES];
 
 		bool socketInitialized;
 		std::string lastError;
 
+		unsigned pdSHORT generateCRC(const pdCHAR* cBuf, pdINT iSize);
+		pdINT generateQuery(pdCHAR* cBuf, pdINT iBufSize, pdINT iStartAxis,  pdINT iNumberOfAxis, pdINT iFuncCode, pdINT iTag, pdINT iNode)
+
     bool extractDataValues(pdINT &numValues, std::array<pdFLOAT, MAX_AXES> &outBuffer, const char *cBuf);
 		bool decodeDataParameters(const pdCHAR *cBuf, pdINT iEnquiry, CLSmsg &msg);
 
+		
 	protected:
     int initUDPSocket(void);
 		void CommsThread(void);
@@ -178,14 +183,14 @@ class CLSInterface
 
 		void requestCLSStatus(void);
 
-		void clsTraverseAll(void);
-		void clsActivateAll(void);
-		void clsDeactivateAll(void);
-		void clsRestore(pdINT iLocation);
+		void traverseAll(void);
+		void activateAll(void);
+		void deactivateAll(void);
+		void restore(pdINT iLocation);
 
-		void clsRequest(CLSMessageCode msgcode);
+		void request(CLSMessageCode msgcode);
 
-		void clsSleep(std::chrono::milliseconds sleep_time);
+		void sleep(std::chrono::milliseconds sleep_time);
 };
 
 
