@@ -7,6 +7,8 @@
 #include <thread>
 #include <array>
 #include <string>
+#include <cstring>
+#include <sstream>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
@@ -103,10 +105,10 @@ enum class CLSMessageCode
 struct CLSmsg
 {
 	CLSMessageCode messageType;
-	pdINT      tag = 0;
-	pdINT      startAxis = 0;
-	pdINT      numberOfAxes = 0;
-	pdINT      numberOfDataValues = 0;
+	pdINT          tag = 0;
+	pdINT          startAxis = 0;
+	pdINT          numberOfAxes = 0;
+	pdINT          numberOfDataValues = 0;
 	std::array<pdFLOAT, MAX_AXES> data{};    // fixed-size, zero-initialized
 };
 
@@ -138,10 +140,14 @@ class CLSInterface
 		float txdata[MAX_AXES];
 		float rxdata[MAX_AXES];
 
+		bool socketInitialized;
+		std::string lastError;
+
     bool extractDataValues(pdINT &numValues, std::array<pdFLOAT, MAX_AXES> &outBuffer, const char *cBuf);
 		bool decodeDataParameters(const pdCHAR *cBuf, pdINT iEnquiry, CLSmsg &msg);
 
 	protected:
+    int initUDPSocket(void);
 		void CommsThread(void);
 
 		void useStatus(pdFLOAT* fData);
@@ -154,12 +160,20 @@ class CLSInterface
 
   public:
 
-		CLSInterface(void);
+		CLSInterface()
+		:socketInitialized(false)
+		{
+			// minimal constructor
+		};
+
+		bool initialize(void);
+		bool isInitialized() const { return socketInitialized; }
+    std::string getLastError() const { return lastError; }
+
 		CLSInterface(const std::string&, const unsigned int, const unsigned int);
   	
   	void setSCMport(pdUINT);
   	void setSCMaddress();
-    void initUDPSocket(void);
 		void closeSocket(void);
 
 		void requestCLSStatus(void);

@@ -1,15 +1,7 @@
 #include "CLSUtils.h"
-#include <chrono>
-#include <cstdio>
-#include <thread>
 #include <iostream>
-#include <array>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 
 bool isValidMessageCode(const int code)
 {
@@ -92,10 +84,39 @@ bool isValidMessageCode(const int code)
 	}
 }
 
+bool CLSInterface::initialize(void) {
+  int bindResult = initUDPSocket();
 
-CLSInterface::CLSInterface(void)
-{
-	initUDPSocket();
+  if (bindResult != 0) {
+    std::ostringstream oss;
+    oss << "Failed to bind UDP socket: " << strerror(errno)
+        << " (errno: " << errno << ")";
+
+    switch (errno) {
+    case EADDRINUSE:
+      oss << "\nAddress already in use. Another process may be using this "
+             "port.";
+      break;
+    case EACCES:
+      oss << "\nPermission denied. You may need elevated privileges (e.g., "
+             "sudo).";
+      break;
+    case EADDRNOTAVAIL:
+      oss << "\nCannot assign requested address. Check that the IP address is "
+             "valid.";
+      break;
+    case EINVAL:
+      oss << "\nSocket is already bound to an address.";
+      break;
+    }
+
+    lastError = oss.str();
+    socketInitialized = false;
+    return false;
+  }
+
+  socketInitialized = true;
+  return true;
 }
 
 CLSInterface::CLSInterface(const std::string &address, const unsigned int scm_port_in, const unsigned int rx_port_in)
@@ -239,51 +260,14 @@ void CLSInterface::CommsThread(void) {
 	}
 }
 
-/* This is the message receive function - intended to run as a separate thread / task in the background */
-void clsCommsThread( void *dummy )
-{
-	pdINT iMessageSize;
-	int axis;
-	int num_axes;
-	int data_code;
-	int tag;
-	int rxsize;
-
-	for( ;; )
-	{
-		/* See if there is a message to collect */
-		iMessageSize = recvfrom( cls_socket, rxmsg, sizeof( rxmsg ), 0, ( struct sockaddr * )&rxpeer, &rxpeerlen );
-
-		if( iMessageSize != -1 )
-		{
-			/* We have a message - process it */
-			prvDecodeDataParameters( rxmsg, &data_code, &tag, &axis, &num_axes, rxdata, DATA_MESSAGE, &rxsize);
-			switch( data_code )
-			{
-				case msgFORCES:				clsUseForces( rxdata );
-											break;
-				case msgPOSITIONS:			clsUsePositions( rxdata );
-											break;
-				case msgSTATUS:				clsUseStatus( rxdata );
-											break;
-				case msgLOW_SWITCH_GRADIENT:		clsUseLowSwitchGradient( rxdata );
-											break;
-				case msgCAN_IO_MESSAGE:		clsUseIO( rxdata, tag );
-											break;
-				default:					break;
-			}
-		}
-	}
-}
-
 /* Initialise the UDP socket */
-void CLSInterface::initUDPSocket(void)
+int CLSInterface::initUDPSocket(void)
 {
 
 	// tx settings
 	txpeer.sin_family = AF_INET;
-	txpeer.sin_port = htons(cls_port);
-	txpeer.sin_addr.s_addr = inet_addr(cls_address);
+	txpeer.sin_port = htons(scm_port);
+	txpeer.sin_addr.s_addr = inet_addr(cls_address.c_str());
 
 	// udp_tx_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	
