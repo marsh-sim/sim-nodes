@@ -145,23 +145,23 @@ class CLSInterface
 		std::string lastError;
 
 		unsigned pdSHORT generateCRC(const pdCHAR* cBuf, pdINT iSize);
-		pdINT generateQuery(pdCHAR* cBuf, pdINT iBufSize, pdINT iStartAxis,  pdINT iNumberOfAxis, pdINT iFuncCode, pdINT iTag, pdINT iNode)
+		pdINT generateQuery(pdCHAR* cBuf, pdINT iBufSize, pdINT iStartAxis,  pdINT iNumberOfAxis, pdINT iFuncCode, pdINT iTag, pdINT iNode);
 
     bool extractDataValues(pdINT &numValues, std::array<pdFLOAT, MAX_AXES> &outBuffer, const char *cBuf);
 		bool decodeDataParameters(const pdCHAR *cBuf, pdINT iEnquiry, CLSmsg &msg);
+		pdINT createDataTransferString(pdINT iNode, pdINT iStartAxis, pdINT iNumOfAxis, pdINT iFuncCode, pdINT iTag, const pdFLOAT *fBuf, pdCHAR *cBuf, pdINT iBufferSize);
 
 		
 	protected:
     int initUDPSocket(void);
 		void CommsThread(void);
 
-		void useStatus(pdFLOAT* fData);
-		void useForces(pdFLOAT* fData);
-		void usePositions(pdFLOAT* fData);
-		void useLowSwitchGradient(pdFLOAT* fData);
-    void setLowSwitchGradient(pdFLOAT *fData, pdINT iStartAxis, pdINT iNoOfAxes);
+		void useStatus(const pdFLOAT* fData);
+		void useForces(const pdFLOAT* fData);
+		void usePositions(const pdFLOAT* fData);
+		void useLowSwitchGradient(const pdFLOAT* fData);
 
-    void useIO(pdFLOAT *fData, pdINT iBUS);
+    void useIO(const pdFLOAT *fData, const pdINT iBUS);
 
   public:
 
@@ -189,6 +189,7 @@ class CLSInterface
 		void restore(pdINT iLocation);
 
 		void request(CLSMessageCode msgcode);
+    void setLowSwitchGradient(pdFLOAT *fData, pdINT iStartAxis, pdINT iNoOfAxes);
 
 		void sleep(std::chrono::milliseconds sleep_time);
 };

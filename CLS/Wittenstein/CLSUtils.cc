@@ -1,8 +1,10 @@
 #include "CLSUtils.h"
-#include <iostream>
 #include <stdlib.h>
 #include <unistd.h>
-#include <mutex>
+#include <iostream>
+// #include <mutex>
+
+using namespace std::chrono_literals;
 
 bool isValidMessageCode(const int code)
 {
@@ -129,7 +131,7 @@ CLSInterface::CLSInterface(const std::string &address, const unsigned int scm_po
 	initUDPSocket();
 }
 
-bool CLSInterface::extractDataValues(int &numValues,
+bool CLSInterface::extractDataValues(pdINT &numValues,
                                         std::array<float, MAX_AXES> &outBuffer,
                                         const char *cBuf)
 {
@@ -385,49 +387,75 @@ void CLSInterface::request(CLSMessageCode msgcode)
 	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*)&txpeer, sizeof(txpeer));
 }
 
-pdINT iCreateDataTransferString(pdINT iNode, pdINT iStartAxis, pdINT iNumOfAxis, pdINT iFuncCode, pdINT iTag, pdFLOAT *fBuf, pdCHAR *cBuf, pdINT iBufferSize )
+pdINT CLSInterface::createDataTransferString(pdINT iNode, 
+                                              pdINT iStartAxis, 
+                                              pdINT iNumOfAxis, 
+                                              pdINT iFuncCode, 
+                                              pdINT iTag, 
+                                              const pdFLOAT *fBuf,  // const since we don't modify
+                                              pdCHAR *cBuf, 
+                                              pdINT iBufferSize)
 {
-	pdINT iLoop; /* Loop counter only. */
-//	char cCRC[5]; /* Space in which the checksum string is created before being added to the main buffer. */
-	pdINT iBufPos; /* Index into buffer of position into which the next character will be written. */
-	unsigned pdSHORT usCRC;
-	pdINT iMsgSize = -1;
-
-	/* Take the floats from fBuf and format them into a message for transmission. */
-	/* Create the 'header' of the buffer - up to the point where the data starts. */
-	sprintf( cBuf, "%c%x%02x%x%x%x", STX, iNode, iFuncCode, iTag, iStartAxis, iNumOfAxis );
-
-	/* Note the position of the end of the buffer so far. */
-	iBufPos = strlen( cBuf );
-
-	/* The header has now been created. Extend the string with each data value in turn. */
-	for( iLoop = 0; iLoop < iNumOfAxis; iLoop++ )
-	{
-		/* Write the value to the buffer in the correct format. The number of decmimal places will depend on the
-		magnatude of the number. */
-		sprintf( cBuf + iBufPos, "%+01.04f", fBuf[ iLoop ] );
-
-		/* We have just increased the length of the string, note the new position of the
-		end of the buffer. */
-		iBufPos += prtclLEN_TAKEN_BY_ONE_DATA_VALUE;
-	}
-	/* All the parameters have been added to the string, add the end of transmission character. */
-	sprintf( cBuf + iBufPos, "%c", EOT );
-
-	/* Increase the counter to the next free position past the EOT just added. */
-	iBufPos++;
-
-	/* Generate the checksum string from the Tx string. */
-	usCRC = generateCRC(cBuf, iBufPos);
-	sprintf( cBuf + iBufPos, "%c%c", (unsigned pdCHAR)( ( usCRC & 0xff00 ) >> 8 ) /* most sig byte */,
-		(unsigned pdCHAR)( usCRC & 0x00ff ) /* Least sig byte */ );
-
-	/* Include the checksum characters in the message length (+2). */
-	iMsgSize = iBufPos + 2;
-
-	return iMsgSize;
+    // Validate inputs
+    if (cBuf == nullptr || fBuf == nullptr || iBufferSize <= 0 || iNumOfAxis < 0)
+    {
+        return -1;  // Error: invalid parameters
+    }
+    
+    pdINT iBufPos = 0;  // Current position in buffer
+    pdINT bytesWritten;
+    
+    // Create the header
+    bytesWritten = snprintf(cBuf + iBufPos, iBufferSize - iBufPos,
+                            "%c%01x%02x%01x%01x%01x", 
+                            STX, iNode, iFuncCode, iTag, iStartAxis, iNumOfAxis);
+    
+    if (bytesWritten < 0 || bytesWritten >= iBufferSize - iBufPos)
+    {
+        return -1;  // Error: buffer too small for header
+    }
+    
+    iBufPos += bytesWritten;
+    
+    // Add each data value
+    for (pdINT iLoop = 0; iLoop < iNumOfAxis; iLoop++)
+    {
+        bytesWritten = snprintf(cBuf + iBufPos, iBufferSize - iBufPos,
+                                "%+01.04f", fBuf[iLoop]);
+        
+        if (bytesWritten < 0 || bytesWritten >= iBufferSize - iBufPos)
+        {
+            return -1;  // Error: buffer too small for data values
+        }
+        
+        iBufPos += bytesWritten;
+    }
+    
+    // Add EOT character
+    if (iBufPos + 1 >= iBufferSize)
+    {
+        return -1;  // Error: no space for EOT
+    }
+    
+    cBuf[iBufPos] = EOT;
+    iBufPos++;
+    
+    // Calculate CRC on the message so far
+    unsigned pdSHORT usCRC = generateCRC(cBuf, iBufPos);
+    
+    // Check space for CRC bytes
+    if (iBufPos + 2 >= iBufferSize)
+    {
+        return -1;  // Error: no space for CRC
+    }
+    
+    // Append CRC bytes directly (not as string!)
+    cBuf[iBufPos] = static_cast<pdCHAR>(usCRC & 0xFF);         // LSB
+    cBuf[iBufPos + 1] = static_cast<pdCHAR>((usCRC >> 8) & 0xFF);  // MSB
+    
+    // Return total message size
+    return iBufPos + 2;
 }
-
 
 /* Generate the Traverse command String + send */
 void CLSInterface::traverseAll(void)
@@ -437,101 +465,101 @@ void CLSInterface::traverseAll(void)
 	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr *)&txpeer, sizeof(txpeer));
 
 	//wait a moment
-	sleep(5000);
+	sleep(5000ms);
 }
 
 /* Generate the Activate command String + send */
 /* Note the extra command to enable can IO messages */
-void clsAllActive( )
+void CLSInterface::activateAll(void)
 {
 	//send go active message
-	msgSize = iCreateDataTransferString( SCM_NODE, CLS_START_AXIS, CLS_NO_AXES, msgGO_ACTIVE, 0, txdata, txmsg, sizeof( txdata ) ); 
-	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
+	msgSize = iCreateDataTransferString(scm_node, CLS_START_AXIS, CLS_NO_AXES, static_cast<int>(CLSMessageCode::GO_ACTIVE), 0, txdata, txmsg, sizeof(txdata)); 
+	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*)&txpeer, sizeof(txpeer));
 
 	/* are we using CANIO */
-	if( pdTRUE == CLS_USE_CAN_IO )
+	if(pdTRUE == CLS_USE_CAN_IO)
 	{
-		txdata[ 0 ] = 1.0F;
-		msgSize = iCreateDataTransferString( SCM_NODE, CLS_START_AXIS, 1, msgESTABLISH_LINK_FOR_ASYCH_COMMS, 0, txdata, txmsg, sizeof( txdata ) ); 
-		sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
+		txdata[0] = 1.0F;
+		msgSize = iCreateDataTransferString(scm_node, CLS_START_AXIS, 1, static_cast<int>(CLSMessageCode::ESTABLISH_LINK_FOR_ASYCH_COMMS), 0, txdata, txmsg, sizeof(txdata)); 
+		sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*)&txpeer, sizeof(txpeer));
 	}
 }
 
 /* Generate the GoPassive command String + send */
-void clsAllPassive( )
+void CLSInterface::deactivateAll(void)
 {
 	//send go passive message
-	msgSize = iCreateDataTransferString( SCM_NODE, CLS_START_AXIS, CLS_NO_AXES, msgGO_PASSIVE, 0, txdata, txmsg, sizeof( txdata ) ); 
-	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
+	msgSize = iCreateDataTransferString(scm_node, CLS_START_AXIS, CLS_NO_AXES, static_cast<int>(CLSMessageCode::GO_PASSIVE), 0, txdata, txmsg, sizeof(txdata)); 
+	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*)&txpeer, sizeof(txpeer));
 	return;
 }
 
 /* Generate the Reload command String + send */
-void clsRestore( pdINT iLocation )
+void CLSInterface::restore(pdINT iLocation)
 {
 	//send restore message
-	msgSize = iCreateDataTransferString( SCM_NODE, CLS_START_AXIS, CLS_NO_AXES, msgRESTORE_CONFIG, iLocation, txdata, txmsg, sizeof( txdata ) ); 
-	sendto( cls_socket, txmsg, msgSize, 0, ( struct sockaddr * )&txpeer, sizeof( txpeer ) );
+	msgSize = iCreateDataTransferString(scm_node, CLS_START_AXIS, CLS_NO_AXES, static_cast<int>(CLSMessageCode::RESTORE_CONFIG), iLocation, txdata, txmsg, sizeof(txdata)); 
+	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*)&txpeer, sizeof(txpeer));
 
 	return;
 }
 
 /* Do something with a status response */
-void clsUseStatus( pdFLOAT *fData )
+void CLSInterface::useStatus(const pdFLOAT *fData)
 {
-	printf("Status :" );
-	for( int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++ )
+	printf("Status :");
+	for(int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++)
 	{
-		printf( "\tAxis %d: %f", iLoop, fData[ iLoop ] );
+		printf("\tAxis %d: %f", iLoop, fData[iLoop]);
 	}
-	printf( "\r\n" );
+	printf("\r\n");
 }
 
 /* Do something with a position response */
-void clsUsePositions( pdFLOAT *fData )
+void CLSInterface::usePositions(const pdFLOAT *fData)
 {
-	printf("Positions :" );
-	for( int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++ )
+	printf("Positions :");
+	for(int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++)
 	{
-		printf( "\tAxis %d: %f", iLoop, fData[ iLoop ] );
+		printf("\tAxis %d: %f", iLoop, fData[iLoop]);
 	}
-	printf( "\r\n" );
+	printf("\r\n");
 }
 
 /* Do something with a force response */
-void clsUseForces( pdFLOAT *fData )
+void CLSInterface::useForces(const pdFLOAT *fData)
 {
-	printf("Forces :" );
-	for( int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++ )
+	printf("Forces :");
+	for(int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++)
 	{
-		printf( "\tAxis %d: %f", iLoop, fData[ iLoop ] );
+		printf("\tAxis %d: %f", iLoop, fData[iLoop]);
 	}
-	printf( "\r\n" );
+	printf("\r\n");
 }
 
-/* Do something with a force response */
-void clsUseLowSwitchGradient( pdFLOAT *fData )
+/* Do something with a low switch gradient response */
+void CLSInterface::useLowSwitchGradient(const pdFLOAT *fData)
 {
-	printf("Low Switch Gradients :" );
-	for( int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++ )
+	printf("Low Switch Gradients :");
+	for(int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++)
 	{
-		printf( "\tAxis %d: %f", iLoop, fData[ iLoop ] );
+		printf("\tAxis %d: %f", iLoop, fData[iLoop]);
 	}
-	printf( "\r\n" );
+	printf("\r\n");
 }
 
 /* Do something with a CAN IO response */
-void clsUseIO( pdFLOAT *fData, pdINT iBus )
+void useIO(const pdFLOAT *fData,const pdINT iBus)
 {
-	printf("CAN_IO :\tCARD %x\t%x %x %x %x %x\r\n", (pdINT) fData[ 0 ], (pdINT) fData[ 1 ], (pdINT) fData[ 2 ], (pdINT) fData[ 3 ], (pdINT) fData[ 4 ], (pdINT) fData[ 5 ] );
+	printf("CAN_IO :\tCARD %x\t%x %x %x %x %x\r\n", (pdINT)fData[0], (pdINT)fData[1], (pdINT)fData[2], (pdINT)fData[3], (pdINT)fData[4], (pdINT)fData[5]);
 }
 
 
 /* Write Low Switch Gradient to SCM */
-void clsSetLowSwitchGradient(pdFLOAT* fData, pdINT iStartAxis, pdINT iNoOfAxes)
+void CLSInterface::setLowSwitchGradient(pdFLOAT* fData, pdINT iStartAxis, pdINT iNoOfAxes)
 {
-	msgSize = iCreateDataTransferString( SCM_NODE, iStartAxis, iNoOfAxes, msgLOW_SWITCH_GRADIENT, 0, fData, txmsg, 512 );
-	sendto( cls_socket, txmsg, msgSize, 0, (struct sockaddr*) &txpeer, sizeof( txpeer ) );
+	msgSize = createDataTransferString(scm_node, iStartAxis, iNoOfAxes, static_cast<int>(CLSMessageCode::LOW_SWITCH_GRADIENT), 0, fData, txmsg, 512);
+	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*) &txpeer, sizeof(txpeer));
 
 }
 
