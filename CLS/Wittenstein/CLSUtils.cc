@@ -11,6 +11,88 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+bool isValidMessageCode(const int code)
+{
+	switch(static_cast<CLSMessageCode>(code))
+	{
+		case CLSMessageCode::NO_MESSAGE:
+		case CLSMessageCode::GO_ACTIVE:
+		case CLSMessageCode::START_TRAVERSAL:
+		case CLSMessageCode::NEW_MASTER_CURVE:
+		case CLSMessageCode::SELECT_MASTER_CURVE:
+		case CLSMessageCode::TRIM_VALUE:
+		case CLSMessageCode::QFEEL:
+		case CLSMessageCode::NEW_ADDIN_CURVE:
+		case CLSMessageCode::TRIM_RATE:
+		case CLSMessageCode::SAVE_CONFIG:
+		case CLSMessageCode::GO_PASSIVE:
+		case CLSMessageCode::POS_END_STOP:
+		case CLSMessageCode::NEG_END_STOP:
+		case CLSMessageCode::SELECT_ADDIN:
+		case CLSMessageCode::ADDIN_AMPLITUDE:
+		case CLSMessageCode::DATUM_POSITION:
+		case CLSMessageCode::STICK_SHAKE_HZ:
+		case CLSMessageCode::STATIC_FRICTION:
+		case CLSMessageCode::DYNAMIC_FRICTION:
+		case CLSMessageCode::STICK_SHAKE_AMP:
+		case CLSMessageCode::NUMBER_OF_AXIS:
+		case CLSMessageCode::FORCES:
+		case CLSMessageCode::POSITIONS:
+		case CLSMessageCode::MODEL_DAMPING:	
+		case CLSMessageCode::MODEL_HZ:
+		case CLSMessageCode::MASTER_PHASE_IN_TIME:
+		case CLSMessageCode::ADDIN_PHASE_IN_TIME:
+		case CLSMessageCode::ADDIN_START:
+		case CLSMessageCode::ADDIN_END:
+		case CLSMessageCode::ADDIN_ABQF:
+		case CLSMessageCode::ADDIN_TTD:
+		case CLSMessageCode::FORCE_CALIBRATION_FACTOR:
+		case CLSMessageCode::AXIS_TO_LINK_TO:
+		case CLSMessageCode::MAX_QFEEL_CHANGE_RATE:
+		case CLSMessageCode::MAX_ADDIN_AMP_CHANGE_RATE:
+		case CLSMessageCode::NEGATIVE_QFEEL:
+		case CLSMessageCode::COMMS_HEART_BEAT:
+		case CLSMessageCode::RESTORE_CONFIG:
+		case CLSMessageCode::TRIM_RELEASE_STATE:
+		case CLSMessageCode::STATUS:
+		case CLSMessageCode::CAN_IO_MESSAGE:
+		case CLSMessageCode::ESTABLISH_LINK_FOR_ASYCH_COMMS:
+		case CLSMessageCode::AUTOPILOT_MODE:
+		case CLSMessageCode::AUTOPILOT_VALUE:
+		case CLSMessageCode::STATIC_FRICTION_IN_TRIM_RELEASE:
+		case CLSMessageCode::DYNAMIC_FRICTION_IN_TRIM_RELEASE:
+		case CLSMessageCode::STICK_SHAKE_ENABLE:
+		case CLSMessageCode::FORCE_BIAS:
+		case CLSMessageCode::LOW_SWITCH_GRADIENT:
+		case CLSMessageCode::SCM_HEARTBEAT:
+		case CLSMessageCode::GATE_1_ADDIN:
+		case CLSMessageCode::GATE_1_POSITION:
+		case CLSMessageCode::GATE_1_RESTORE_MARGIN:
+		case CLSMessageCode::GATE_1_FORCE_THRESHOLD:
+		case CLSMessageCode::GATE_2_ADDIN:
+		case CLSMessageCode::GATE_2_POSITION:
+		case CLSMessageCode::GATE_2_RESTORE_MARGIN:
+		case CLSMessageCode::GATE_2_FORCE_THRESHOLD:
+		case CLSMessageCode::GATE_1_ACTIVE:
+		case CLSMessageCode::GATE_1_RELEASE_BUTTON:
+		case CLSMessageCode::GATE_1_BUTTON_ACTIVE:
+		case CLSMessageCode::GATE_2_ACTIVE:
+		case CLSMessageCode::GATE_2_RELEASE_BUTTON:
+		case CLSMessageCode::GATE_2_BUTTON_ACTIVE:
+		case CLSMessageCode::MOTOR_ERROR_STATUS:
+		case CLSMessageCode::DAMPING_FACTOR:
+		case CLSMessageCode::END_STOP_TORQUE_GAIN:
+		case CLSMessageCode::IMPULSE_AMPLITUDE:
+		case CLSMessageCode::IMPULSE_FREQUENCY:
+		case CLSMessageCode::MARK_SPACE_RATIO:
+		case CLSMessageCode::ZERO_LEVEL_OFFSET:
+			return true;
+		default:
+			return false;
+	}
+}
+
+
 CLSInterface::CLSInterface(void)
 {
 	initUDPSocket();
@@ -69,9 +151,20 @@ bool CLSInterface::decodeDataParameters(const pdCHAR *cBuf,
   cMsgType[1] = cBuf[prtclFIRST_DATA_TYPE_BYTE_OFFSET + 1];
 
   // Parse message type as hexadecimal
-  if (sscanf(cMsgType, "%02x", &msg.messageType) != 1 || msg.messageType <= 0)
+  int tempMessageType;
+  if (sscanf(cMsgType, "%02x", &tempMessageType) != 1 || tempMessageType <= 0) {
+    return false; // invalid message
+  }
+
+  // Convert to enum type, if we recognise the value. Otherwise, we'll just assign
+  // CLSMessageCode::UNKNOWN
+  if (!isValidMessageCode(tempMessageType))
   {
-  	return false;    // invalid message	
+  	msg.messageType = CLSMessageCode::UNKNOWN;	
+  }
+  else
+  {
+    msg.messageType = static_cast<CLSMessageCode>(tempMessageType);
   }
 
   // Decode other parameters
@@ -122,19 +215,19 @@ void CLSInterface::CommsThread(void) {
 			decodeDataParameters(rxmsg, DATA_MESSAGE, msg);
 			switch(msg.messageType)
 			{
-				case CLSMessageCode::msgFORCES:
+				case CLSMessageCode::FORCES:
 					useForces(rxdata);
 					break;
-				case CLSMessageCode::msgPOSITIONS:
+				case CLSMessageCode::POSITIONS:
 					usePositions(rxdata);
 					break;
-				case CLSMessageCode::msgSTATUS:
+				case CLSMessageCode::STATUS:
 					useStatus(rxdata);
 					break;
-				case CLSMessageCode::msgLOW_SWITCH_GRADIENT:
+				case CLSMessageCode::LOW_SWITCH_GRADIENT:
 					useLowSwitchGradient(rxdata);
 					break;
-				case CLSMessageCode::msgCAN_IO_MESSAGE:
+				case CLSMessageCode::CAN_IO_MESSAGE:
 					useIO(rxdata, tag);
 					break;
 				default:

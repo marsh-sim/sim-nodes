@@ -23,9 +23,86 @@ enum class CLSStatus
 	TERMINATED    = 5
 };
 
+enum class CLSMessageCode
+{
+		// Invalid value
+		NO_MESSAGE                       = 0,   
+    GO_ACTIVE                        = 1,   // Move from passive to active mode. Held pending if not yet initialised.
+    START_TRAVERSAL                  = 2,   // Move from uninitialised to initialising mode.
+    NEW_MASTER_CURVE                 = 3,   // Accept a new master curve file definition.
+    SELECT_MASTER_CURVE              = 4,   // Select a previously defined master curve.
+    TRIM_VALUE                       = 6,
+    QFEEL                            = 7,
+    NEW_ADDIN_CURVE                  = 8,   // Accept a new addin curve file definition.
+    TRIM_RATE                        = 9,   // Maximum trim rate in units per second.
+    SAVE_CONFIG                      = 11,  // Save the configuration currently in use to the SCM flash disk.
+    GO_PASSIVE                       = 12,  // Move from an active state to a passive state.
+    POS_END_STOP                     = 13,  // Positive end stop position.
+    NEG_END_STOP                     = 14,  // Negative end stop position.
+    SELECT_ADDIN                     = 15,  // Select a previously defined addin.
+    ADDIN_AMPLITUDE                  = 17,  // The amplitude of the addin.
+    DATUM_POSITION                   = 18,  // The position of the datum (0 reference).
+    STICK_SHAKE_HZ                   = 20,  // Stick Shake frequency in Hz.
+    STATIC_FRICTION                  = 21,  // Must be >= dynamic friction.
+    DYNAMIC_FRICTION                 = 22,  // Must be <= static friction.
+    STICK_SHAKE_AMP                  = 23,  // Stick Shake amplitude in position units.
+    NUMBER_OF_AXIS                   = 24,  // The number of axes being controlled.
+    FORCES                           = 25,  // Force input request.
+    POSITIONS                        = 26,  // Position input request.
+    MODEL_DAMPING                    = 27,
+    MODEL_HZ                         = 28,
+    MASTER_PHASE_IN_TIME             = 29,  // Time (s) to phase from one master curve to another.
+    ADDIN_PHASE_IN_TIME              = 30,  // Time (s) to phase from one addin curve to another.
+    ADDIN_START                      = 31,  // Start of the addin (numerically lower extreme).
+    ADDIN_END                        = 32,  // End of the addin (numerically higher extreme).
+    ADDIN_ABQF                       = 33,  // Addin affected by qfeel.
+    ADDIN_TTD                        = 34,  // Addin tied to datum.
+    FORCE_CALIBRATION_FACTOR         = 35,  // Volts to Newtons scaler.
+    AXIS_TO_LINK_TO                  = 36,  // Set to -1 if not linked.
+    MAX_QFEEL_CHANGE_RATE            = 37,  // Max QFeel rate change.
+    MAX_ADDIN_AMP_CHANGE_RATE        = 38,  // Max addin amplitude change rate.
+    NEGATIVE_QFEEL                   = 42,  // QFeel on the negative side of the datum.
+    COMMS_HEART_BEAT                 = 45,  // Healthy communications link signal.
+    RESTORE_CONFIG                   = 47,  // Restore configuration from SCM flash disk.
+    TRIM_RELEASE_STATE               = 50,  // Enables trim release from Toolkit.
+    STATUS                           = 51,  // Request current status.
+    CAN_IO_MESSAGE                   = 52,  // Pass externally generated CANBus messages.
+    ESTABLISH_LINK_FOR_ASYCH_COMMS   = 53,  // For linking async CANBUS_MESSAGE_COPY.
+    AUTOPILOT_MODE                   = 57,  // Either position (2) or off (0).
+    AUTOPILOT_VALUE                  = 58,  // Autopilot position value.
+    STATIC_FRICTION_IN_TRIM_RELEASE  = 70,
+    DYNAMIC_FRICTION_IN_TRIM_RELEASE = 71,
+    STICK_SHAKE_ENABLE               = 81,  // Boolean flag to enable/disable stick shake.
+    FORCE_BIAS                       = 89,  // Added to pilot input force (not cross linked).
+    LOW_SWITCH_GRADIENT              = 113,
+    SCM_HEARTBEAT                    = 150,
+    GATE_1_ADDIN                     = 151,
+    GATE_1_POSITION                  = 152,
+    GATE_1_RESTORE_MARGIN            = 153,
+    GATE_1_FORCE_THRESHOLD           = 154,
+    GATE_2_ADDIN                     = 157,
+    GATE_2_POSITION                  = 158,
+    GATE_2_RESTORE_MARGIN            = 159,
+    GATE_2_FORCE_THRESHOLD           = 160,
+    GATE_1_ACTIVE                    = 163,
+    GATE_1_RELEASE_BUTTON            = 164,
+    GATE_1_BUTTON_ACTIVE             = 165,
+    GATE_2_ACTIVE                    = 166,
+    GATE_2_RELEASE_BUTTON            = 167,
+    GATE_2_BUTTON_ACTIVE             = 168,
+    MOTOR_ERROR_STATUS               = 177,
+    DAMPING_FACTOR                   = 181,
+    END_STOP_TORQUE_GAIN             = 184,
+    IMPULSE_AMPLITUDE                = 186, // Mark-space ratio impulse input.
+    IMPULSE_FREQUENCY                = 187, // Mark-space ratio impulse input.
+    MARK_SPACE_RATIO                 = 188,
+    ZERO_LEVEL_OFFSET                = 189,  // Mark-space ratio impulse input offset.
+    UNKNOWN                          = 999
+};
+
 struct CLSmsg
 {
-	pdINT      messageType = -1;
+	CLSMessageCode messageType;
 	pdINT      tag = 0;
 	pdINT      startAxis = 0;
 	pdINT      numberOfAxes = 0;
@@ -33,81 +110,6 @@ struct CLSmsg
 	std::array<pdFLOAT, MAX_AXES> data{};    // fixed-size, zero-initialized
 };
 
-enum class CLSMessageCode
-{
-		// Invalid value
-		msgNO_MESSAGE                     = 0,   
-    msgGO_ACTIVE                      = 1,   // Move from passive to active mode. Held pending if not yet initialised.
-    msgSTART_TRAVERSAL                = 2,   // Move from uninitialised to initialising mode.
-    msgNEW_MASTER_CURVE               = 3,   // Accept a new master curve file definition.
-    msgSELECT_MASTER_CURVE            = 4,   // Select a previously defined master curve.
-    msgTRIM_VALUE                     = 6,
-    msgQFEEL                          = 7,
-    msgNEW_ADDIN_CURVE                = 8,   // Accept a new addin curve file definition.
-    msgTRIM_RATE                      = 9,   // Maximum trim rate in units per second.
-    msgSAVE_CONFIG                    = 11,  // Save the configuration currently in use to the SCM flash disk.
-    msgGO_PASSIVE                     = 12,  // Move from an active state to a passive state.
-    msgPOS_END_STOP                   = 13,  // Positive end stop position.
-    msgNEG_END_STOP                   = 14,  // Negative end stop position.
-    msgSELECT_ADDIN                   = 15,  // Select a previously defined addin.
-    msgADDIN_AMPLITUDE                = 17,  // The amplitude of the addin.
-    msgDATUM_POSITION                 = 18,  // The position of the datum (0 reference).
-    msgSTICK_SHAKE_HZ                 = 20,  // Stick Shake frequency in Hz.
-    msgSTATIC_FRICTION                = 21,  // Must be >= dynamic friction.
-    msgDYNAMIC_FRICTION               = 22,  // Must be <= static friction.
-    msgSTICK_SHAKE_AMP                = 23,  // Stick Shake amplitude in position units.
-    msgNUMBER_OF_AXIS                 = 24,  // The number of axes being controlled.
-    msgFORCES                         = 25,  // Force input request.
-    msgPOSITIONS                      = 26,  // Position input request.
-    msgMODEL_DAMPING                  = 27,
-    msgMODEL_HZ                       = 28,
-    msgMASTER_PHASE_IN_TIME           = 29,  // Time (s) to phase from one master curve to another.
-    msgADDIN_PHASE_IN_TIME            = 30,  // Time (s) to phase from one addin curve to another.
-    msgADDIN_START                    = 31,  // Start of the addin (numerically lower extreme).
-    msgADDIN_END                      = 32,  // End of the addin (numerically higher extreme).
-    msgADDIN_ABQF                     = 33,  // Addin affected by qfeel.
-    msgADDIN_TTD                      = 34,  // Addin tied to datum.
-    msgFORCE_CALICBRATION_FACTOR      = 35,  // Volts to Newtons scaler.
-    msgAXIS_TO_LINK_TO                = 36,  // Set to -1 if not linked.
-    msgMAX_QFEEL_CHANGE_RATE          = 37,  // Max QFeel rate change.
-    msgMAX_ADDIN_AMP_CHANGE_RATE      = 38,  // Max addin amplitude change rate.
-    msgNEGATIVE_QFEEL                 = 42,  // QFeel on the negative side of the datum.
-    msgCOMMS_HEART_BEAT               = 45,  // Healthy communications link signal.
-    msgRESTORE_CONFIG                 = 47,  // Restore configuration from SCM flash disk.
-    msgTRIM_RELEASE_STATE             = 50,  // Enables trim release from Toolkit.
-    msgSTATUS                         = 51,  // Request current status.
-    msgCAN_IO_MESSAGE                 = 52,  // Pass externally generated CANBus messages.
-    msgESTABLISH_LINK_FOR_ASYCH_COMMS = 53,  // For linking async CANBUS_MESSAGE_COPY.
-    msgAUTOPILOT_MODE                 = 57,  // Either position (2) or off (0).
-    msgAUTOPILOT_VALUE                = 58,  // Autopilot position value.
-    msgSTATIC_FRICTION_IN_TRIM_RELEASE = 70,
-    msgDYNAMIC_FRICTION_IN_TRIM_RELEASE = 71,
-    msgSTICK_SHAKE_ENABLE             = 81,  // Boolean flag to enable/disable stick shake.
-    msgFORCE_BIAS                     = 89,  // Added to pilot input force (not cross linked).
-    msgLOW_SWITCH_GRADIENT            = 113,
-    msgSCM_HEARTBEAT                  = 150,
-    msgGATE_1_ADDIN                   = 151,
-    msgGATE_1_POSITION                = 152,
-    msgGATE_1_RESTORE_MARGIN          = 153,
-    msgGATE_1_FORCE_THRESHOLD         = 154,
-    msgGATE_2_ADDIN                   = 157,
-    msgGATE_2_POSITION                = 158,
-    msgGATE_2_RESTORE_MARGIN          = 159,
-    msgGATE_2_FORCE_THRESHOLD         = 160,
-    msgGATE_1_ACTIVE                  = 163,
-    msgGATE_1_RELEASE_BUTTON          = 164,
-    msgGATE_1_BUTTON_ACTIVE           = 165,
-    msgGATE_2_ACTIVE                  = 166,
-    msgGATE_2_RELEASE_BUTTON          = 167,
-    msgGATE_2_BUTTON_ACTIVE           = 168,
-    msgMOTOR_ERROR_STATUS             = 177,
-    msgDAMPING_FACTOR                 = 181,
-    msgEND_STOP_TORQUE_GAIN           = 184,
-    msgIMPULSE_AMPLITUDE              = 186, // Mark-space ratio impulse input.
-    msgIMPULSE_FREQUENCY              = 187, // Mark-space ratio impulse input.
-    msgMARK_SPACE_RATIO               = 188,
-    msgZERO_LEVEL_OFFSET              = 189  // Mark-space ratio impulse input offset.
-};
 
 enum class CLSStatusCode
 {
