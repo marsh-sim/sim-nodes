@@ -37,11 +37,14 @@ def main():
                         help='labjack channel to measure for MOTION_CUE_EXTRA acceleration Z', default=None)
     parser.add_argument('--send-voltage', action='store_true',
                         help='send voltage measured for collective in NAMED_VALUE_FLOAT')
+    parser.add_argument("--cyclic-port", type=int,
+                        help="override x and y fields with MANUAL_CONTROL received on this port")
     args = parser.parse_args()
     # assign to typed variables for convenience
     args_manager: str = args.manager
     args_extra_channel: str | None = args.extra_channel
     args_send_voltage: bool = args.send_voltage
+    args_cyclic_port: int | None = args.cyclic_port
     
     queue = Queue()
     extra_queue: Queue | None = None
@@ -51,7 +54,7 @@ def main():
     ljmr = LJMReader(queue, 1/LABJACK_SCAN_RATE,
                      (extra_queue, args_extra_channel) if args_extra_channel is not None else None,
                      aScanListNames=['AIN0', 'AIN4', 'AIN5', 'AIN6'])
-    node = ControlsNode(queue, args_manager, args_send_voltage)
+    node = ControlsNode(queue, args_manager, args_send_voltage, args_cyclic_port)
 
     extra_node: ExtraNode | None = None
     if args_extra_channel is not None:
@@ -205,12 +208,15 @@ class LJMReader(threading.Thread):
 
 
 class ControlsNode(threading.Thread):
-    def __init__(self, queue: Queue, manager_addr: str, send_voltage: bool, **kwargs):
+    def __init__(self, queue: Queue, manager_addr: str, send_voltage: bool, cyclic_port: int | None = None, **kwargs):
         super().__init__()
 
         self.queue = queue
         self.manager_addr = manager_addr
         self.send_voltage = send_voltage
+        self.cyclic_port = cyclic_port
+        self.override_x: int | None = None
+        self.override_y: int | None = None
         self.should_stop = threading.Event()
 
     def run(self):
@@ -220,6 +226,12 @@ class ControlsNode(threading.Thread):
         mav.srcSystem = 1  # default system
         mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_CONTROLS - mavlink.MARSH_TYPE_MANAGER)
         print(f'Sending to {connection_string}')
+
+        cyclic_mav: mavlink.MAVLink | None = None
+        if self.cyclic_port is not None:
+            connection_string = f'udpin:0.0.0.0:{self.cyclic_port}'
+            cyclic_mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
+            print(f'Listening to MANUAL_CONTROL on {connection_string}')
 
         # create parameters database, all parameters are float to simplify code
         # default values for inceptors on RPC platform
@@ -298,7 +310,10 @@ class ControlsNode(threading.Thread):
 
                     mav.manual_control_send(
                         mav.srcSystem,
-                        axes[0], axes[1], axes[2], axes[3],
+                        self.override_x if self.override_x is not None else axes[0],
+                        self.override_y if self.override_y is not None else axes[1],
+                        axes[2],
+                        axes[3],
                         buttons,
                     )
 
@@ -327,6 +342,19 @@ class ControlsNode(threading.Thread):
             except ConnectionResetError:
                 # thrown on Windows when there is no peer listening
                 pass
+
+            if cyclic_mav is not None:
+                # handle incoming messages
+                try:
+                    while (message := cyclic_mav.file.recv_msg()) is not None:
+                        message: mavlink.MAVLink_message
+                        if message.get_type() == 'MANUAL_CONTROL':
+                            control: mavlink.MAVLink_manual_control_message = message
+                            self.override_x = control.x
+                            self.override_y = control.y
+                except ConnectionResetError:
+                    # thrown on Windows when there is no peer listening
+                    pass
 
             if manager_connected and time.time() > manager_timeout:
                 manager_connected = False
