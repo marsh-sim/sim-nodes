@@ -126,7 +126,7 @@ CLSInterface::CLSInterface(const std::string &address, const unsigned int scm_po
     : cls_socket(-1),          // initialize socket to invalid
       scm_port(scm_port_in),   // assign provided SCM port
       rx_port(rx_port_in),     // assign provided RX port
-      cls_address(address)     // assign provided address
+      scm_address(address)     // assign provided SCM address
 {
 	initUDPSocket();
 }
@@ -270,7 +270,7 @@ int CLSInterface::initUDPSocket(void)
 	// tx settings
 	txpeer.sin_family = AF_INET;
 	txpeer.sin_port = htons(scm_port);
-	txpeer.sin_addr.s_addr = inet_addr(cls_address.c_str());
+	txpeer.sin_addr.s_addr = inet_addr(scm_address.c_str());
 
 	// udp_tx_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	

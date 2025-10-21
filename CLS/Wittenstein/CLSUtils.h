@@ -129,7 +129,7 @@ class CLSInterface
 		int cls_socket = -1;
 		unsigned int scm_port = DEFAULT_SCM_PORT;
 		unsigned int rx_port = DEFAULT_SCM_PORT;
-		std::string cls_address = DEFAULT_SCM_ADDRESS;
+		std::string scm_address = DEFAULT_SCM_ADDRESS;
 		unsigned int scm_node = DEFAULT_SCM_NODE;
 		struct sockaddr_in txpeer;
 		struct sockaddr_in rxpeer;
@@ -170,6 +170,11 @@ class CLSInterface
 		{
 			// minimal constructor
 		};
+
+		void setSCMPort(const unsigned int scm_port_in) {scm_port = scm_port_in;};
+		void setSCMAddress(const std::string& scm_address_in) {scm_address = scm_address_in;};
+		void setRXPort(const unsigned int rx_port_in) {rx_port = rx_port_in;};
+		void setSCMNode(const unsigned int scm_node_in) {scm_node = scm_node_in;};
 
 		bool initialize(void);
 		bool isInitialized() const { return socketInitialized; }
