@@ -1,5 +1,9 @@
 #include "CLSUtils.h"
+#include <asm-generic/socket.h>
+#include <cerrno>
+#include <cstring>
 #include <stdlib.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
 // #include <mutex>
@@ -122,15 +126,6 @@ bool CLSInterface::initialize(void) {
   return true;
 }
 
-CLSInterface::CLSInterface(const std::string &address, const unsigned int scm_port_in, const unsigned int rx_port_in)
-    : cls_socket(-1),          // initialize socket to invalid
-      scm_port(scm_port_in),   // assign provided SCM port
-      rx_port(rx_port_in),     // assign provided RX port
-      scm_address(address)     // assign provided SCM address
-{
-	initUDPSocket();
-}
-
 bool CLSInterface::extractDataValues(pdINT &numValues,
                                         std::array<float, MAX_AXES> &outBuffer,
                                         const char *cBuf)
@@ -224,14 +219,93 @@ bool CLSInterface::decodeDataParameters(const pdCHAR *cBuf,
   return true;
 }
 
+void CLSInterface::startCommsThread(void)
+{
+	if (threadRunning.load())
+	{
+		std::cerr << "Comms thread already running" << std::endl;
+		return;
+	}
+
+	if (!socketInitialized)
+	{
+		std::cerr << "Socket not initialized, cannot start thread" << std::endl;
+		return;
+	}
+
+	threadRunning.store(true);
+	commsThread = std::thread(&CLSInterface::CommsThread, this);
+}
+
+void CLSInterface::stopCommsThread(void)
+{
+	stopCommsThread();
+	closeSocket();
+}
+
 /* CLS interface utilities which set up connection + talk to the API functions */
 void CLSInterface::CommsThread(void) {
-	pdINT iMessageSize;
-	int axis;
-	int num_axes;
-	int data_code;
-	int tag;
-	int rxsize;
+
+	pdINT iMessageSize = -1;
+
+	while (threadRunning.load())
+	{
+
+	  // Check if we're paused
+	  if (paused.load())
+	  {
+	  	return;
+	  }
+
+		// set a timeout on recvfrom to allow checking threadRunning periodically
+		struct timeval tv;
+		tv.tv_sec = scm_socket_timeout;
+		tv.tv_usec = 0;
+
+		if (setsockopt(cls_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
+		{
+			std::cerr << "Failed to set socket timeout: " << strerror(errno) << std::endl;
+			break;
+		}
+
+		// receive the next message
+		iMessageSize = recvfrom(cls_socket, rxmsg, sizeof(rxmsg), 0, (struct sockaddr*)&rxpeer, &rxpeerlen);
+
+		if (iMessageSize > 0)
+		{
+			// Process the message
+			CLSmsg msg;
+			if (decodeDataParameters(rxmsg, DATA_MESSAGE, msg))
+			{
+				switch (msg.messageType)
+				{
+					case CLSMessageCode::POSITIONS:
+						usePositions(rxdata);
+						break;
+					case CLSMessageCode::FORCES:
+						useForces(rxdata);
+						break;
+					case CLSMessageCode::UNKNOWN:
+					default:
+						// ignore other message types
+						break;
+				}
+			}
+		}
+		else if (iMessageSize < 0)
+		{
+			// Check if it is just a timeout (EAGAIN/EWOULDBLOCK) or a real error
+			if (errno != EAGAIN && errno != EWOULDBLOCK)
+			{
+				std::cerr << "Error receiving UDP packet: " << strerror(errno) << std::endl;
+				break;
+			}
+			// otherwise, timeout is normal -- loop will continue and check threadRunning
+		}
+
+		std::cout << "Comms thread exiting" << std::endl;
+		
+	}
 
 	for( ;; )
 	{

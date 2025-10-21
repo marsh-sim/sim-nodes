@@ -5,6 +5,7 @@
 #include "cls_config.h"
 #include <chrono>
 #include <thread>
+#include <atomic>
 #include <array>
 #include <string>
 #include <cstring>
@@ -14,6 +15,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+extern std::atomic<bool> paused;
 
 enum class CLSStatus
 {
@@ -141,6 +143,9 @@ class CLSInterface
 		float txdata[MAX_AXES];
 		float rxdata[MAX_AXES];
 
+		std::thread commsThread;
+		std::atomic<bool> threadRunning;
+
 		bool socketInitialized;
 		std::string lastError;
 
@@ -165,11 +170,13 @@ class CLSInterface
 
   public:
 
-		CLSInterface()
-		:socketInitialized(false)
+		CLSInterface(void)
+		:threadRunning(false), socketInitialized(false)
 		{
 			// minimal constructor
 		};
+		
+		~CLSInterface(void);
 
 		void setSCMPort(const unsigned int scm_port_in) {scm_port = scm_port_in;};
 		void setSCMAddress(const std::string& scm_address_in) {scm_address = scm_address_in;};
@@ -177,13 +184,11 @@ class CLSInterface
 		void setSCMNode(const unsigned int scm_node_in) {scm_node = scm_node_in;};
 
 		bool initialize(void);
-		bool isInitialized() const { return socketInitialized; }
-    std::string getLastError() const { return lastError; }
-
-		CLSInterface(const std::string&, const unsigned int, const unsigned int);
+		bool isInitialized(void) const { return socketInitialized; }
+    std::string getLastError(void) const { return lastError; }
   	
   	void setSCMport(pdUINT);
-  	void setSCMaddress();
+  	void setSCMaddress(void);
 		void closeSocket(void);
 
 		void requestCLSStatus(void);
@@ -195,6 +200,9 @@ class CLSInterface
 
 		void request(CLSMessageCode msgcode);
     void setLowSwitchGradient(pdFLOAT *fData, pdINT iStartAxis, pdINT iNoOfAxes);
+
+		void startCommsThread(void);
+		void stopCommsThread(void);
 
 		void sleep(std::chrono::milliseconds sleep_time);
 };
