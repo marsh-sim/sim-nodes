@@ -13,31 +13,40 @@
 //
 // Author: Andrea Zanoni <andrea.zanoni@polimi.it>
 
-#include <iostream>
 #include "Wittenstein/CLSUtils.h"
-#include <chrono>
+#include <iostream>
 
 using namespace std::chrono_literals;
 
 int main(void)
 {
-	pdFLOAT fData[CLS_NO_AXES];
+	// initialize the interface
+	CLSInterface CLS;
 
-	// Initialize UDP connection
-	clsUDPInit();
+	// initialize the MARSH node handle
+	// CLSMarshNode MarshNode;
 
-	// Initialize and Activate the 2 axes
-	clsAllTraverse();
-	clsSleep(5000ms);
-	clsAllActive();
-	clsSleep(1000ms);
+	if (!CLS.initialize())
+	{
+		std::cerr << CLS.getLastError() << std::endl;
+		return 1;
+	}
+
+	// Traverse and activate all the axes
+	CLS.traverseAll();
+	CLS.sleep(5000ms);
+	CLS.activateAll();
+	CLS.sleep(1000ms);
 
 	// start the thread to deal with incoming messages
 	// TODO: POSIX-equivalent to _beginthread(clsCommsThread, 0, NULL)
+	// TODO: receive messages, encode them in MAVLINK, and send them to MARSH
+	// MarshNode.beginTread()
 
 	// send message to initiate async data transmission
 	// TODO: send Data Transfer message with data code msgESTABLISH_LINK_FOR_ASYCH_COMMS [53]
 	//       (see WAT-MAN-CPD-1i5.0[COmmunication Protocol].pdf -- Section 2.2.3)
+	// CLS.beginDataTransfer()
 
-	// TODO: receive messages, encode them in MAVLINK, and send them to MARSH
+	// M
 }
