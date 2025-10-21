@@ -22,11 +22,14 @@ parser.add_argument('-i', '--input-index', type=int,
                     help='index of input device to use', default=0)
 parser.add_argument('-m', '--manager',
                     help='MARSH Manager IP addr', default='127.0.0.1')
+parser.add_argument('-M', '--manager-port', type=int,
+                    help='MARSH Manager port', default=24400)
 parser.add_argument('-t', '--time-interval', type=float,
                     help='interval between sent messages, in seconds', default=0.02)
 args = parser.parse_args()
 # assign to typed variables for convenience
 args_manager: str = args.manager
+args_manager_port: int = args.manager_port
 args_input_index: int = args.input_index
 args_time_interval: float = args.time_interval
 
@@ -53,7 +56,7 @@ device = joystick.Joystick(args_input_index)
 device.init()
 
 # create MAVLink connection
-connection_string = f'udpout:{args_manager}:24400'
+connection_string = f'udpout:{args_manager}:{args_manager_port}'
 mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
 mav.srcSystem = 1  # default system
 mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_CONTROLS - mavlink.MARSH_TYPE_MANAGER)
