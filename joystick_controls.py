@@ -75,20 +75,20 @@ params['YAW_REVERSED'] = 0.0
 
 if 'hotas x' in device.get_name().lower():
     print('Loading parameters for Thrustmaster T-Flight HOTAS X with yaw on throttle')
-    params['ROLL_AXIS'] = 1.0
-    params['ROLL_REVERSED'] = 1.0
-    params['PTCH_AXIS'] = 0.0
-    params['PTCH_REVERSED'] = 0.0
+    params['PTCH_AXIS'] = 1.0
+    params['PTCH_REVERSED'] = 1.0
+    params['ROLL_AXIS'] = 0.0
+    params['ROLL_REVERSED'] = 0.0
     params['THR_AXIS'] = 2.0
     params['THR_REVERSED'] = 1.0
     params['YAW_AXIS'] = 4.0
     params['YAW_REVERSED'] = 0.0
 elif device.get_name() == 'Arduino Leonardo':
     print('Loading parameters for Arduino Leonardo in ATTILA simulator')
-    params['ROLL_AXIS'] = 2.0
-    params['ROLL_REVERSED'] = 1.0
-    params['PTCH_AXIS'] = 0.0
-    params['PTCH_REVERSED'] = 0.0
+    params['PTCH_AXIS'] = 2.0
+    params['PTCH_REVERSED'] = 1.0
+    params['ROLL_AXIS'] = 0.0
+    params['ROLL_REVERSED'] = 0.0
     params['THR_AXIS'] = 5.0
     params['THR_REVERSED'] = 0.0
     params['YAW_AXIS'] = 4.0
