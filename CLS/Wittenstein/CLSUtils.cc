@@ -142,7 +142,9 @@ bool CLSInterface::extractDataValues(pdINT &numValues,
 
     // Stop if end-of-transmission marker found
     if (cBuf[bufPos] == EOT)
+    {
       break;
+    }
 
     // Decode sign
     const int sign = (cBuf[bufPos] == '+') ? 1 : -1;
@@ -150,7 +152,9 @@ bool CLSInterface::extractDataValues(pdINT &numValues,
     // Decode float (skip sign char)
     float value = 0.0f;
     if (sscanf(cBuf + bufPos + 1, "%f", &value) != 1)
+    {
       return false; // malformed data
+    }
 
     outBuffer[channel] = value * sign;
     ++numValues;
@@ -159,7 +163,9 @@ bool CLSInterface::extractDataValues(pdINT &numValues,
   // Ensure we didn’t overflow our buffer
   // TODO: throw exception if we do?
   if (numValues >= MAX_AXES)
+  {
     return false;
+  }
 
   return true;
 }

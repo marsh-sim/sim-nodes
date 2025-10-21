@@ -47,6 +47,4 @@ int main(void)
 	// TODO: send Data Transfer message with data code msgESTABLISH_LINK_FOR_ASYCH_COMMS [53]
 	//       (see WAT-MAN-CPD-1i5.0[COmmunication Protocol].pdf -- Section 2.2.3)
 	// CLS.beginDataTransfer()
-
-	// M
 }
