@@ -101,16 +101,13 @@ bool CLSInterface::initialize(void) {
 
     switch (errno) {
     case EADDRINUSE:
-      oss << "\nAddress already in use. Another process may be using this "
-             "port.";
+      oss << "\nAddress already in use. Another process may be using this port.";
       break;
     case EACCES:
-      oss << "\nPermission denied. You may need elevated privileges (e.g., "
-             "sudo).";
+      oss << "\nPermission denied. You may need elevated privileges.";
       break;
     case EADDRNOTAVAIL:
-      oss << "\nCannot assign requested address. Check that the IP address is "
-             "valid.";
+      oss << "\nCannot assign requested address. Check that the IP address is valid.";
       break;
     case EINVAL:
       oss << "\nSocket is already bound to an address.";
@@ -189,6 +186,7 @@ bool CLSInterface::decodeDataParameters(const pdCHAR *cBuf,
   }
   else
   {
+
     msg.messageType = static_cast<CLSMessageCode>(tempMessageType);
   }
 
@@ -287,7 +285,7 @@ void CLSInterface::CommsThread(void) {
 						break;
 					case CLSMessageCode::UNKNOWN:
 					default:
-						// ignore other message types
+						DEBUG_COUT("Got message with code " << msg.messageType)
 						break;
 				}
 			}

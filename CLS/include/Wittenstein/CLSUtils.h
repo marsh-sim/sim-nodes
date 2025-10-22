@@ -3,6 +3,7 @@
 
 #include "WAS_Comms_Api.h"
 #include "cls_config.h"
+#include "../debug.h"
 #include <chrono>
 #include <thread>
 #include <atomic>
