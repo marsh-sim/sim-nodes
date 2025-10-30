@@ -11,10 +11,9 @@ public:
     ~Timer();
 
     // Set the callback function
-    void setCallback(std::function<void()> func);
-
+    void setCallback(std::function<void()> func) { callback = func; };
     // Set interval in milliseconds
-    void setInterval(int ms);
+    void setmsInterval(int ms) { intervalMs = ms; };
 
     // Set single shot mode (call once vs repeat)
     void setSingleShot(bool single);
@@ -23,13 +22,13 @@ public:
     void start();
 
     // Start with specific interval
-    void start(int ms);
+    void start(int msInterval);
 
     // Stop the timer
     void stop();
 
     // Check if timer is running
-    bool isActive() const;
+    bool isActive() const { return running; };
 
 private:
     std::function<void()> callback;

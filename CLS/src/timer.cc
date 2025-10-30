@@ -7,14 +7,6 @@ Timer::~Timer() {
     stop();
 }
 
-void Timer::setCallback(std::function<void()> func) {
-    callback = func;
-}
-
-void Timer::setInterval(int ms) {
-    intervalMs = ms;
-}
-
 void Timer::setSingleShot(bool single) {
     singleShot = single;
 }
@@ -42,8 +34,8 @@ void Timer::start() {
     });
 }
 
-void Timer::start(int ms) {
-    setInterval(ms);
+void Timer::start(int msInterval) {
+    setmsInterval(msInterval);
     start();
 }
 
@@ -54,8 +46,4 @@ void Timer::stop() {
             timerThread.join();
         }
     }
-}
-
-bool Timer::isActive() const {
-    return running;
 }
