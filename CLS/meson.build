@@ -11,6 +11,7 @@ project('CLS', 'cpp',
 inc_dirs = include_directories(
   'include',
   'include/Wittenstein',
+  'include/mavlink/c_library_v2',
   'src'
 )
 
