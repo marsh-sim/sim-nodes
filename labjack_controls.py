@@ -372,6 +372,7 @@ class ControlsNode(threading.Thread):
                     # we use thumbstick for collective on pedals channel
                     if self.collective_thumbstick:
                         axes[2] = axes[2] + round(params["THUMB_GAIN"] * axes[3])
+                        axes[2] = max(0, min(1000, axes[2]))  # keep the limits
                         axes[3] = 0x7FFF
 
                     # no buttons are used
