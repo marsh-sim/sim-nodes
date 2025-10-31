@@ -172,7 +172,8 @@ class CLSInterface
   public:
 
 		CLSInterface(void)
-		:threadRunning(false), socketInitialized(false)
+		: threadRunning(false),
+		socketInitialized(false)
 		{
 			// minimal constructor
 		};
