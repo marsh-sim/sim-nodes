@@ -5,6 +5,10 @@
 #include "mavlink/c_library_v2/mavlink_types.h"
 #include <atomic>
 #include <string>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 class MarshConnection
 {
@@ -18,8 +22,8 @@ class MarshConnection
     std::string managerAddress(void) const { return m_manager_address; }
     uint32_t managerPort(void) const {return m_manager_port; }
 
-    void setManagerAddress(const std::string address);
-    void setManagerPort(const std::string port);
+    inline void setManagerAddress(const std::string address) { m_manager_address = address; };
+    inline void setManagerPort(const std::string port) { m_manager_port = port: } ;
 
     void sendMessage(mavlink_message_t message);
     
@@ -27,12 +31,12 @@ class MarshConnection
     int m_marsh_socket;
     std::string m_manager_address;
     unsigned int m_manager_port;
+    struct sockaddr_in m_manager_peer;
     std::atomic<bool> m_manager_connected;
     unsigned int m_system_id;
     unsigned int m_component_id;
 
     void sendHeartbeat(void);
-    void readPendingDatagrams(void);
     void managerTimedOut(void);
 
     void receiveMessage(mavlink_message_t message);

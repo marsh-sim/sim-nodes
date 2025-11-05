@@ -1,6 +1,11 @@
 #include "marshconnection.h"
+#include "debug.h"
 #include "mavlink/c_library_v2/minimal/mavlink.h"
+#include "mavlink_helpers.h"
+#include "mavlink_types.h"
 #include "minimal/mavlink_msg_heartbeat.h"
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 MarshConnection::MarshConnection(void)
 : m_marsh_socket(-1),
@@ -10,14 +15,16 @@ MarshConnection::MarshConnection(void)
   m_system_id(0),
   m_component_id(0)
 {
-    // initialize socket for MARSH communication
+  // initialize UDP socket
+  m_manager_peer.sin_family = AF_INET;
+  m_manager_peer.sin_port = htons(m_manager_port);
+  m_manager_peer.sin_addr.s_addr = inet_addr(m_manager_address.c_str());
 
+  m_marsh_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+     
   // initialize timers for heartbeat and manager
-}
 
-void MarshConnection::setManagerAddress(const std::string address)
-{
-  m_manager_address = address;
+  
 }
 
 void MarshConnection::sendHeartbeat(void)
@@ -37,4 +44,24 @@ void MarshConnection::sendHeartbeat(void)
                                     &heartbeat);
 
   sendMessage(message);
+}
+
+void MarshConnection::managerTimedOut(void)
+{
+   m_manager_connected = false;
+
+   // FIXME: do we need this, without Qt?
+   // managerConnectedChanged(m_manager_connected);
+}
+
+void MarshConnection::sendMessage(mavlink_message_t message)
+{
+  uint8_t send_buffer[MAVLINK_MAX_PACKET_LEN];
+  const auto send_buffer_len = mavlink_msg_to_send_buffer(send_buffer, &message);
+  const auto sent = sendto(m_marsh_socket, send_buffer, send_buffer_len, 0, (struct sockaddr*)&m_manager_peer, sizeof(m_manager_peer));
+
+  if (sent < 0) {
+    DEBUG_CERR("Error sending MAVLink to " << m_manager_address << ":" << m_manager_port)
+  }
+   
 }
