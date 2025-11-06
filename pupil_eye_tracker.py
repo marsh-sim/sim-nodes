@@ -51,6 +51,7 @@ subscriber = ctx.socket(zmq.SUB)
 subscriber.connect(f"tcp://{args_pupil_remote}:{subscribe_port}")
 subscriber.subscribe("gaze.")
 subscriber.subscribe("surfaces.")
+subscriber.subscribe("pupil.")
 
 poller = zmq.Poller()
 poller.register(subscriber, zmq.POLLIN)
@@ -190,12 +191,16 @@ while True:
             send_gaze_data(sending_queue.popleft())
         sending_queue.append(data)
 
-    elif topic == "pupil.0":
+    elif topic == "pupil.0.3d":
+        # if args_verbose:
+        #     print("right diameter:", pupil_message["diameter_3d"])
         try:
             sending_queue[-1].diameter_right = pupil_message["diameter_3d"]
         except IndexError:
             pass  # empty queue
-    elif topic == "pupil.1":
+    elif topic == "pupil.1.3d":
+        # if args_verbose:
+        #     print("left diameter:", pupil_message["diameter_3d"])
         try:
             sending_queue[-1].diameter_left = pupil_message["diameter_3d"]
         except IndexError:
@@ -218,6 +223,9 @@ while True:
                         gaze_message["norm_pos"][0],
                         gaze_message["norm_pos"][1],
                     )
+    # else:
+    #     if args_verbose:
+    #         print("other topic:", topic)
 
     # handle incoming MAVLink messages
     try:
