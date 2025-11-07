@@ -1,11 +1,14 @@
 #include "marshconnection.h"
 #include "debug.h"
 #include "mavlink/c_library_v2/minimal/mavlink.h"
+#include "mavlink/c_library_v2/marsh/marsh.h"
 #include "mavlink_helpers.h"
 #include "mavlink_types.h"
+#include "marsh_config.h"
 #include "minimal/mavlink_msg_heartbeat.h"
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include "timer.h"
 
 MarshConnection::MarshConnection(void)
 : m_marsh_socket(-1),
@@ -23,14 +26,20 @@ MarshConnection::MarshConnection(void)
   m_marsh_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
      
   // initialize timers for heartbeat and manager
+  Timer heartbeatTimer;
+  heartbeatTimer.setmsInterval(DEFAULT_MARSH_HEARTBEAT_INTERVAL_MS);
+  heartbeatTimer.setCallback([this](){ this->sendHeartbeat(); });
 
+  Timer sendControlsTimer;
+  sendControlsTimer.setmsInterval(DEFAULT_MARSH_CONTROL_LOADING_INTERVAL_MS);
+  sendControlsTimer.setCallback([this](){ this->sendControlLoadingMessage(); });
   
 }
 
 void MarshConnection::sendHeartbeat(void)
 {
   mavlink_heartbeat_t heartbeat;
-  heartbeat.type = MAV_TYPE_GENERIC;
+  heartbeat.type = MARSH_TYPE_CONTROL_LOADING;
   heartbeat.autopilot = MAV_AUTOPILOT_INVALID;
   heartbeat.base_mode = 0; // no flags applicable
   heartbeat.custom_mode = 0;
