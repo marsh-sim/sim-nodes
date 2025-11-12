@@ -1,4 +1,5 @@
 #include "marshconnection.h"
+#include "controlloadingdata.h"
 #include "debug.h"
 #include "mavlink/c_library_v2/minimal/mavlink.h"
 #include "mavlink/c_library_v2/marsh/marsh.h"
