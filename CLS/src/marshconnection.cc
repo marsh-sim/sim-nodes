@@ -39,6 +39,15 @@ MarshConnection::MarshConnection(void)
 
 }
 
+MarshConnection::~MarshConnection(void)
+{
+  // Timers are stopped automatically by their destructors
+  if (m_marsh_socket >= 0)
+  {
+    close(m_marsh_socket);
+  }
+}
+
 void MarshConnection::sendHeartbeat(void)
 {
   mavlink_heartbeat_t heartbeat;
