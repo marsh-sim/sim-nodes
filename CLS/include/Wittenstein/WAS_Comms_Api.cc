@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 
+#include <cstdio>
 #include <string.h>
 #include "WAS_Comms_Api.h"
 
@@ -96,7 +97,7 @@ pdINT prvExtractDataValues( pdINT *iNumberOfDataValues, pdFLOAT *fBuffer, pdCHAR
 	/* We are looking for the first data value. The name iChannel is used instead of iAxis as the first data value is not necessarliy for axis 0. */
 	iChannel = 0;
 
-	/* The position within cBuffer that we are going to read the next string from. Start at the beginning – position 0. */
+	/* The position within cBuffer that we are going to read the next string from. Start at the beginning ï¿½ position 0. */
 	iBufPos = 0;
 
 	/* Make sure we do not go off the end of the array. */
