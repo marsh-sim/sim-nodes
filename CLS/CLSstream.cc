@@ -5,7 +5,7 @@
 // MARSH node providing basic interface to Wittenstein Control Loading System (CLS), by
 // reading Data Trasfer Messages set up as defined in
 //
-//   WAT-MAN-CPD-1i5.0[Communication Protocol].pdf 
+//   WAT-MAN-CPD-1i5.0[Communication Protocol].pdf
 //   -- Section 2.2.3 Repetitive Asynchronous Data Transmissions
 //
 // Makes extensive usage of (rewritten) libraries from PoliMiClsDemo, provided by
@@ -14,6 +14,8 @@
 // Author: Andrea Zanoni <andrea.zanoni@polimi.it>
 
 #include "Wittenstein/CLSUtils.h"
+#include "src/marshconnection.h"
+#include "src/controlloadingdata.h"
 #include <atomic>
 #include <cstdio>
 #include <iostream>
@@ -82,13 +84,19 @@ void setupSignalHandlers(void)
 
 int main(void)
 {
-	// initialize the interface
+	// Initialize the CLS interface
 	CLSInterface CLS;
+
+	// Initialize the MARSH connection
+	MarshConnection marshConnection;
 
 	setupSignalHandlers();
 
-	// initialize the MARSH node handle
-	// CLSMarshNode MarshNode;
+	// Initialize global control loading data with axis numbers
+	for (size_t i = 0; i < MAX_CONTROL_AXES; i++)
+	{
+		g_controlLoadingData[i].axis = static_cast<uint8_t>(i);
+	}
 
 	if (!CLS.initialize())
 	{
@@ -103,15 +111,12 @@ int main(void)
 	CLS.sleep(1000ms);
 
 	// start the thread to deal with incoming messages
-	// TODO: encode messages in MAVLINK, and send them to MARSH
 	CLS.startCommsThread();
 	std::cout << "Press Ctrl+C to exit, Ctrl+Z to pause, Ctrl+Q to resume" << std::endl;
 
-	// send message to initiate async data transmission
-	// TODO: send Data Transfer message with data code msgESTABLISH_LINK_FOR_ASYCH_COMMS [53]
-	//       (see WAT-MAN-CPD-1i5.0[COmmunication Protocol].pdf -- Section 2.2.3)
-	// CLS.beginDataTransfer()
-	//
+	// Send message to initiate async data transmission
+	// (see WAT-MAN-CPD-1i5.0[Communication Protocol].pdf -- Section 2.2.3)
+	CLS.beginDataTransfer();
 
 	// main loop: for now, we just wait for a signal
 	while (!signalReceived.load())
