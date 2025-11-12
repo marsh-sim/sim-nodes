@@ -2,6 +2,7 @@
 #define MARSHCONNECTION_H
 
 #include "marsh_config.h"
+#include "controlloadingdata.h"
 #include "mavlink/c_library_v2/mavlink_types.h"
 #include <atomic>
 #include <string>
@@ -26,6 +27,7 @@ class MarshConnection
     inline void setManagerPort(const std::string port) { m_manager_port = port: } ;
 
     void sendMessage(mavlink_message_t message);
+    void sendControlLoadingMessage(void);
     
   private:
     int m_marsh_socket;

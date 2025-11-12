@@ -6,8 +6,10 @@
 #include "mavlink_types.h"
 #include "marsh_config.h"
 #include "minimal/mavlink_msg_heartbeat.h"
+#include "marsh/mavlink_msg_control_loading_axis.h"
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <chrono>
 #include "timer.h"
 
 MarshConnection::MarshConnection(void)
@@ -72,5 +74,37 @@ void MarshConnection::sendMessage(mavlink_message_t message)
   if (sent < 0) {
     DEBUG_CERR("Error sending MAVLink to " << m_manager_address << ":" << m_manager_port)
   }
-   
+
+}
+
+void MarshConnection::sendControlLoadingMessage(void)
+{
+  // Get timestamp in milliseconds since epoch
+  auto now = std::chrono::system_clock::now();
+  auto duration = now.time_since_epoch();
+  auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+  uint32_t time_boot_ms = static_cast<uint32_t>(millis);
+
+  // Send control loading message for each axis
+  for (size_t i = 0; i < MAX_CONTROL_AXES; i++)
+  {
+    // Create and populate the control loading axis message
+    mavlink_control_loading_axis_t control_loading_msg;
+    control_loading_msg.time_boot_ms = time_boot_ms;
+    control_loading_msg.axis = g_controlLoadingData[i].axis;
+    control_loading_msg.position = g_controlLoadingData[i].position;
+    control_loading_msg.velocity = g_controlLoadingData[i].velocity;
+    control_loading_msg.force = g_controlLoadingData[i].force;
+
+    // Encode the message
+    mavlink_message_t message;
+    mavlink_msg_control_loading_axis_encode_chan(m_system_id,
+                                                 m_component_id,
+                                                 MAVLINK_COMM_0,
+                                                 &message,
+                                                 &control_loading_msg);
+
+    // Send the message
+    sendMessage(message);
+  }
 }
