@@ -1,4 +1,5 @@
 #include "CLSUtils.h"
+#include "../../src/controlloadingdata.h"
 #include <asm-generic/socket.h>
 #include <cerrno>
 #include <cstring>
@@ -6,9 +7,14 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
+#include <chrono>
 // #include <mutex>
 
 using namespace std::chrono_literals;
+
+// Previous positions for velocity calculation
+static std::array<float, MAX_CONTROL_AXES> previous_positions = {0.0f};
+static std::chrono::steady_clock::time_point last_position_time = std::chrono::steady_clock::now();
 
 bool isValidMessageCode(const int code)
 {
@@ -278,10 +284,10 @@ void CLSInterface::CommsThread(void) {
 				switch (msg.messageType)
 				{
 					case CLSMessageCode::POSITIONS:
-						usePositions(rxdata);
+						usePositions(msg.data.data());
 						break;
 					case CLSMessageCode::FORCES:
-						useForces(rxdata);
+						useForces(msg.data.data());
 						break;
 					case CLSMessageCode::UNKNOWN:
 					default:
@@ -318,19 +324,19 @@ void CLSInterface::CommsThread(void) {
 			switch(msg.messageType)
 			{
 				case CLSMessageCode::FORCES:
-					useForces(rxdata);
+					useForces(msg.data.data());
 					break;
 				case CLSMessageCode::POSITIONS:
-					usePositions(rxdata);
+					usePositions(msg.data.data());
 					break;
 				case CLSMessageCode::STATUS:
-					useStatus(rxdata);
+					useStatus(msg.data.data());
 					break;
 				case CLSMessageCode::LOW_SWITCH_GRADIENT:
-					useLowSwitchGradient(rxdata);
+					useLowSwitchGradient(msg.data.data());
 					break;
 				case CLSMessageCode::CAN_IO_MESSAGE:
-					useIO(rxdata, tag);
+					useIO(msg.data.data(), msg.tag);
 					break;
 				default:
 				  // Just ignore unknown message types
@@ -567,9 +573,25 @@ void CLSInterface::activateAll(void)
 void CLSInterface::deactivateAll(void)
 {
 	//send go passive message
-	msgSize = iCreateDataTransferString(scm_node, CLS_START_AXIS, CLS_NO_AXES, static_cast<int>(CLSMessageCode::GO_PASSIVE), 0, txdata, txmsg, sizeof(txdata)); 
+	msgSize = iCreateDataTransferString(scm_node, CLS_START_AXIS, CLS_NO_AXES, static_cast<int>(CLSMessageCode::GO_PASSIVE), 0, txdata, txmsg, sizeof(txdata));
 	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*)&txpeer, sizeof(txpeer));
 	return;
+}
+
+/* Begin asynchronous data transfer - establishes link for async comms */
+void CLSInterface::beginDataTransfer(void)
+{
+	// Set data value to 1.0 to enable async communication
+	txdata[0] = 1.0F;
+
+	// Create and send ESTABLISH_LINK_FOR_ASYCH_COMMS message
+	msgSize = createDataTransferString(scm_node, CLS_START_AXIS, 1,
+	                                    static_cast<int>(CLSMessageCode::ESTABLISH_LINK_FOR_ASYCH_COMMS),
+	                                    0, txdata, txmsg, sizeof(txdata));
+
+	sendto(cls_socket, txmsg, msgSize, 0, (struct sockaddr*)&txpeer, sizeof(txpeer));
+
+	std::cout << "Asynchronous data transfer link established" << std::endl;
 }
 
 /* Generate the Reload command String + send */
@@ -596,21 +618,45 @@ void CLSInterface::useStatus(const pdFLOAT *fData)
 /* Do something with a position response */
 void CLSInterface::usePositions(const pdFLOAT *fData)
 {
+	// Get current time for velocity calculation
+	auto current_time = std::chrono::steady_clock::now();
+	auto time_delta = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_position_time).count();
+	float time_delta_sec = time_delta / 1000.0f;
+
 	printf("Positions :");
-	for(int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++)
+	for(int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES && iLoop < static_cast<int>(MAX_CONTROL_AXES) ; iLoop++)
 	{
 		printf("\tAxis %d: %f", iLoop, fData[iLoop]);
+
+		// Update global control loading data
+		g_controlLoadingData[iLoop].axis = static_cast<uint8_t>(iLoop);
+		g_controlLoadingData[iLoop].position = fData[iLoop];
+
+		// Calculate velocity (deg/s) from position change
+		if (time_delta_sec > 0.001f) // Avoid division by very small numbers
+		{
+			g_controlLoadingData[iLoop].velocity = (fData[iLoop] - previous_positions[iLoop]) / time_delta_sec;
+		}
+
+		// Store current position for next iteration
+		previous_positions[iLoop] = fData[iLoop];
 	}
 	printf("\r\n");
+
+	// Update timestamp for next velocity calculation
+	last_position_time = current_time;
 }
 
 /* Do something with a force response */
 void CLSInterface::useForces(const pdFLOAT *fData)
 {
 	printf("Forces :");
-	for(int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES ; iLoop++)
+	for(int iLoop = CLS_START_AXIS ; iLoop < CLS_NO_AXES && iLoop < static_cast<int>(MAX_CONTROL_AXES) ; iLoop++)
 	{
 		printf("\tAxis %d: %f", iLoop, fData[iLoop]);
+
+		// Update global control loading data with force
+		g_controlLoadingData[iLoop].force = fData[iLoop];
 	}
 	printf("\r\n");
 }

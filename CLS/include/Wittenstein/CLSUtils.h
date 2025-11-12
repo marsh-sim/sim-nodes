@@ -202,6 +202,7 @@ class CLSInterface
 
 		void request(CLSMessageCode msgcode);
     void setLowSwitchGradient(pdFLOAT *fData, pdINT iStartAxis, pdINT iNoOfAxes);
+		void beginDataTransfer(void);
 
 		void startCommsThread(void);
 		void stopCommsThread(void);
