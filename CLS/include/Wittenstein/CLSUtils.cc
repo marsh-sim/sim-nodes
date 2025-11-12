@@ -395,9 +395,10 @@ void CLSInterface::closeSocket(void)
     cls_socket = -1;
 }
 
-unsigned pdSHORT generateCRC(const pdCHAR * cBuf, pdINT iSize)
+// Free function for CRC generation (used internally)
+static unsigned pdSHORT prvGenerateCRC_internal(const pdCHAR * cBuf, pdINT iSize)
 {
-	unsigned pdSHORT usCRC;
+	unsigned pdSHORT usCRC = 0;
 
 	// for each Byte
 	for (int i = 0; i < iSize; i++)
@@ -418,6 +419,12 @@ unsigned pdSHORT generateCRC(const pdCHAR * cBuf, pdINT iSize)
 		}
 	}
 	return usCRC;
+}
+
+// Member function wrapper
+unsigned pdSHORT CLSInterface::generateCRC(const pdCHAR* cBuf, pdINT iSize)
+{
+	return prvGenerateCRC_internal(cBuf, iSize);
 }
 
 pdINT CLSInterface::generateQuery(pdCHAR *cBuf, 
