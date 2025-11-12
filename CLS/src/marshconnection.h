@@ -25,7 +25,7 @@ class MarshConnection
     uint32_t managerPort(void) const {return m_manager_port; }
 
     inline void setManagerAddress(const std::string address) { m_manager_address = address; };
-    inline void setManagerPort(const std::string port) { m_manager_port = port; } ;
+    inline void setManagerPort(const unsigned int port) { m_manager_port = port; } ;
 
     void sendMessage(mavlink_message_t message);
     void sendControlLoadingMessage(void);
