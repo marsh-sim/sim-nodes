@@ -11,7 +11,6 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <chrono>
-#include "timer.h"
 
 MarshConnection::MarshConnection(void)
 : m_marsh_socket(-1),
@@ -27,16 +26,17 @@ MarshConnection::MarshConnection(void)
   m_manager_peer.sin_addr.s_addr = inet_addr(m_manager_address.c_str());
 
   m_marsh_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-     
-  // initialize timers for heartbeat and manager
-  Timer heartbeatTimer;
-  heartbeatTimer.setmsInterval(DEFAULT_MARSH_HEARTBEAT_INTERVAL_MS);
-  heartbeatTimer.setCallback([this](){ this->sendHeartbeat(); });
 
-  Timer sendControlsTimer;
-  sendControlsTimer.setmsInterval(DEFAULT_MARSH_CONTROL_LOADING_INTERVAL_MS);
-  sendControlsTimer.setCallback([this](){ this->sendControlLoadingMessage(); });
-  
+  // Initialize and start heartbeat timer
+  m_heartbeat_timer.setmsInterval(DEFAULT_MARSH_HEARTBEAT_INTERVAL_MS);
+  m_heartbeat_timer.setCallback([this](){ this->sendHeartbeat(); });
+  m_heartbeat_timer.start();
+
+  // Initialize and start control loading timer
+  m_control_loading_timer.setmsInterval(DEFAULT_MARSH_CONTROL_LOADING_INTERVAL_MS);
+  m_control_loading_timer.setCallback([this](){ this->sendControlLoadingMessage(); });
+  m_control_loading_timer.start();
+
 }
 
 void MarshConnection::sendHeartbeat(void)

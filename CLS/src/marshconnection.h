@@ -3,6 +3,7 @@
 
 #include "marsh_config.h"
 #include "controlloadingdata.h"
+#include "timer.h"
 #include "mavlink/c_library_v2/mavlink_types.h"
 #include <atomic>
 #include <string>
@@ -37,6 +38,9 @@ class MarshConnection
     std::atomic<bool> m_manager_connected;
     unsigned int m_system_id;
     unsigned int m_component_id;
+
+    Timer m_heartbeat_timer;
+    Timer m_control_loading_timer;
 
     void sendHeartbeat(void);
     void managerTimedOut(void);
