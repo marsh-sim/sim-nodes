@@ -25,6 +25,7 @@ using namespace std::chrono_literals;
 
 // Global flags for signal handling
 std::atomic<bool> signalReceived(false);
+std::atomic<bool> paused(false);
 
 void signalHandler(int signal)
 {
