@@ -678,7 +678,7 @@ void CLSInterface::useLowSwitchGradient(const pdFLOAT *fData)
 }
 
 /* Do something with a CAN IO response */
-void useIO(const pdFLOAT *fData,const pdINT iBus)
+void CLSInterface::useIO(const pdFLOAT *fData,const pdINT iBus)
 {
 	printf("CAN_IO :\tCARD %x\t%x %x %x %x %x\r\n", (pdINT)fData[0], (pdINT)fData[1], (pdINT)fData[2], (pdINT)fData[3], (pdINT)fData[4], (pdINT)fData[5]);
 }
