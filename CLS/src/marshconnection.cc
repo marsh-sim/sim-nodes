@@ -10,6 +10,7 @@
 #include "marsh/mavlink_msg_control_loading_axis.h"
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #include <chrono>
 
 MarshConnection::MarshConnection(void)
