@@ -15,5 +15,8 @@
 
 // indices for axes locations
 #define CLS_START_AXIS			0
-#define CLS_NO_AXES			    1 
+#define CLS_NO_AXES			    1
+
+// Socket timeout in seconds for recvfrom
+#define scm_socket_timeout		1
 
