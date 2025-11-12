@@ -97,6 +97,11 @@ bool isValidMessageCode(const int code)
 	}
 }
 
+CLSInterface::~CLSInterface(void)
+{
+  stopCommsThread();
+}
+
 bool CLSInterface::initialize(void) {
   int bindResult = initUDPSocket();
 
