@@ -2,6 +2,7 @@
 #define CONTROLLOADINGDATA_H
 
 #include <cstdint>
+#include <cstddef>
 #include <array>
 
 // Maximum number of control axes
