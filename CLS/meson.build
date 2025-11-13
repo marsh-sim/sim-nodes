@@ -7,6 +7,12 @@ project('CLS', 'cpp',
   ]
 )
 
+# Add DEBUG define for debug builds
+add_project_arguments(
+  get_option('buildtype') == 'debug' ? '-DDEBUG' : [],
+  language: 'cpp'
+)
+
 # Include directories
 inc_dirs = include_directories(
   'include',
@@ -27,6 +33,11 @@ marsh_sources = files(
   'src/timer.cc'
 )
 
+# CLS data sources
+cls_data_sources = files(
+  'src/controlloadingdata.cc'
+)
+
 # Create Wittenstein static library
 wittenstein_lib = static_library('wittenstein',
   wittenstein_sources,
@@ -39,10 +50,16 @@ marsh_lib = static_library('marsh',
   include_directories: inc_dirs
 )
 
+# Create CLS data static library
+cls_data_lib = static_library('cls',
+  cls_data_sources,
+  include_directories: inc_dirs
+)
+
 # Main executable
 clsstream_exe = executable('clsstream',
   'CLSstream.cc',
   include_directories: inc_dirs,
-  link_with: [wittenstein_lib, marsh_lib],
+  link_with: [wittenstein_lib, marsh_lib, cls_data_lib],
   install: true
 )
