@@ -1,5 +1,6 @@
 #include "CLSUtils.h"
 #include "../../src/controlloadingdata.h"
+#include "debug.h"
 #include <asm-generic/socket.h>
 #include <cerrno>
 #include <cstring>
@@ -131,6 +132,7 @@ bool CLSInterface::initialize(void) {
   }
 
   socketInitialized = true;
+  DEBUG_COUT("CLSInitialize(): socket bound to address " << scm_address << ":" << scm_port)
   return true;
 }
 
@@ -248,7 +250,6 @@ void CLSInterface::startCommsThread(void)
 
 void CLSInterface::stopCommsThread(void)
 {
-	stopCommsThread();
 	closeSocket();
 }
 
