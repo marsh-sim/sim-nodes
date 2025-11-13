@@ -25,7 +25,7 @@
  
 #define DEBUG_HEX(var) \
   do { \
-      std::cout << "[DEBUG] " << #var << " = 0x" \ 
+      std::cout << "[DEBUG] " << #var << " = 0x" \
       << std::hex << var << std::dec << std::endl; \
   } while(0)
  
