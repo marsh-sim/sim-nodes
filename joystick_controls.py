@@ -5,6 +5,8 @@ Node providing MANUAL_CONTROL messages based on USB HID Joystick device.
 
 Axis assignment and reversal can be configured in runtime with parameters.
 
+When TRIM_BUTTON (1-indexed) is held, sends MANUAL_SETPOINT with trim instead.
+
 Default parameters are for Thrustmaster T-Flight HOTAS X with yaw on throttle.
 (see https://www.thrustmaster.com/products/t-flight-hotas-x/)
 """
@@ -83,6 +85,7 @@ params["THR_AXIS"] = 2.0
 params["THR_REVERSED"] = 0.0
 params["YAW_AXIS"] = 3.0
 params["YAW_REVERSED"] = 0.0
+params["TRIM_BUTTON"] = 8.0
 
 
 if "hotas x" in device.get_name().lower():
@@ -108,6 +111,8 @@ elif "Arduino Leonardo" in device.get_name():
 else:
     print("Using device", device.get_name(), "with default settings")
 
+
+start_time = time()
 
 # controlling when messages should be sent
 heartbeat_next = 0.0
@@ -159,14 +164,27 @@ while True:
             if device.get_button(button):
                 buttons += 1 << button
 
-        mav.manual_control_send(
-            mav.srcSystem,
-            axes[0],
-            axes[1],
-            axes[2],
-            axes[3],
-            buttons,
-        )
+        trim_mask = 1 << max(0, round(params["TRIM_BUTTON"] - 1))
+
+        if buttons & trim_mask == 0:
+            mav.manual_control_send(
+                mav.srcSystem,
+                axes[0],
+                axes[1],
+                axes[2],
+                axes[3],
+                buttons,
+            )
+        else:
+            mav.manual_setpoint_send(
+                round((time() - start_time) * 1000),
+                axes[1] / 1000.0,
+                -axes[0] / 1000.0,
+                axes[3] / 1000.0,
+                axes[2] / 1000.0,
+                mavlink.MARSH_MANUAL_SETPOINT_MODE_TRIM,
+                0,
+            )
         control_next = time() + control_interval
 
     # handle incoming messages
