@@ -290,9 +290,9 @@ class ControlsNode(threading.Thread):
         params["PTCH_V_MAX"] = 0.4502
         params["ROLL_V_MIN"] = 1.3800
         params["ROLL_V_MAX"] = 0.9000
-        # Temporarily swap voltages for measuring control loading lever with external sensor
-        params["THR_V_MIN"] = 3.500
-        params["THR_V_MAX"] = 0.800
+        # Passive lever with glued sensor and marked magnet
+        params["THR_V_MIN"] = 0.300
+        params["THR_V_MAX"] = 3.200
         params["YAW_V_MIN"] = 0.896
         params["YAW_V_MAX"] = 1.941
         params["THUMB_V_MIN"] = 0.615
