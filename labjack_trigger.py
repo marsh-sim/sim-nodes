@@ -21,7 +21,7 @@ from utils import NodeFormatter
 
 
 # MAVLink command for experiment control trigger
-MAV_CMD_DO_EXPERIMENT_CONTROL = 42500
+MAV_CMD_DO_EXPERIMENT_CONTROL = 52500
 
 
 def main():
