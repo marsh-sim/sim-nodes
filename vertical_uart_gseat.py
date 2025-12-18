@@ -22,12 +22,13 @@ from utils.param_dict import ParamDict
 from utils.model_utils import STD_G
 
 parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
-parser.add_argument('device',
-                    help='serial device to open (e.g. COM5 on Windows)')
-parser.add_argument('-m', '--manager',
-                    help='MARSH Manager IP addr', default='127.0.0.1')
-parser.add_argument('--interval', type=float,
-                    help='time between messages, in seconds', default=0.05)
+parser.add_argument("device", help="serial device to open (e.g. COM5 on Windows)")
+parser.add_argument(
+    "-m", "--manager", help="MARSH Manager IP addr", default="127.0.0.1"
+)
+parser.add_argument(
+    "--interval", type=float, help="time between messages, in seconds", default=0.05
+)
 args = parser.parse_args()
 # assign to typed variables for convenience
 args_device: str = args.device
@@ -36,39 +37,45 @@ args_interval: float = args.interval
 
 
 # create MAVLink connection
-connection_string = f'udpout:{args_manager}:24400'
-mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
+connection_string = f"udpout:{args_manager}:24400"
+mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string, dialect="all"))
 mav.srcSystem = 1  # default system
-mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_GSEAT - mavlink.MARSH_TYPE_MANAGER)
-print(f'Sending to {connection_string}')
+mav.srcComponent = (
+    mavlink.MAV_COMP_ID_USER1
+    + (mavlink.MARSH_TYPE_GSEAT - mavlink.MARSH_TYPE_MANAGER)
+    + 10
+)
+print(f"Sending to {connection_string}")
 
 # create parameters database, all parameters are float to simplify code
 params = ParamDict()
-params['ACCEL_Z_MIN'] = 0.8 * STD_G
-params['ACCEL_Z_MAX'] = 1.2 * STD_G
-params['OUT_MIN'] = 0.4
-params['OUT_MAX'] = 0.9
+params["ACCEL_Z_MIN"] = 0.8 * STD_G
+params["ACCEL_Z_MAX"] = 1.2 * STD_G
+params["OUT_MIN"] = 0.4
+params["OUT_MAX"] = 0.9
 
 
 def vertical_output(zacc: float) -> float:
-    zmin = params['ACCEL_Z_MIN']
-    zmax = params['ACCEL_Z_MAX']
-    out_min = params['OUT_MIN']
-    out_max = params['OUT_MAX']
+    zmin = params["ACCEL_Z_MIN"]
+    zmax = params["ACCEL_Z_MAX"]
+    out_min = params["OUT_MIN"]
+    out_max = params["OUT_MAX"]
     if zmin == zmax:
-        print('ERROR: Parameters ACCEL_Z_MIN and ACCEL_Z_MAX have same value')
+        print("ERROR: Parameters ACCEL_Z_MIN and ACCEL_Z_MAX have same value")
         return 0.5
     if out_min == out_max:
-        print('ERROR: Parameters OUT_MIN and OUT_MAX have same value')
+        print("ERROR: Parameters OUT_MIN and OUT_MAX have same value")
         return 0.5
 
     # zacc is negative for stationary vehicle, flip to do all math on positive values
-    raw_value = max(0, min(1, (-zacc - zmin)/(zmax - zmin)))
+    raw_value = max(0, min(1, (-zacc - zmin) / (zmax - zmin)))
     return out_min + raw_value * (out_max - out_min)
 
 
 last_state = mavlink.MAVLink_sim_state_message(
-    1, 0, 0, 0, 0, 0, 0, 0, 0, -STD_G, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    1, 0, 0, 0, 0, 0, 0, 0, 0, -STD_G, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+)
+last_extra = mavlink.MAVLink_motion_cue_extra_message(0, 0, 0, 0, 0, 0, 0)
 
 # controlling when messages should be sent
 heartbeat_next = 0.0
@@ -82,14 +89,14 @@ manager_timeout = 0.0
 manager_connected = False
 
 with serial.Serial(args_device, 57600, timeout=0.01) as ser:
-    print('Opened {} with baud {}'.format(ser.name, ser.baudrate))
+    print("Opened {} with baud {}".format(ser.name, ser.baudrate))
 
     # the loop goes as fast as it can, relying on the variables above for timing
     while True:
-        line = ser.readline().decode('ascii')
+        line = ser.readline().decode("ascii")
         if len(line) > 0:
-            print('RX:\t', end='')
-            print(line, end='')
+            print("RX:\t", end="")
+            print(line, end="")
 
         if time() >= heartbeat_next:
             mav.heartbeat_send(
@@ -97,29 +104,31 @@ with serial.Serial(args_device, 57600, timeout=0.01) as ser:
                 mavlink.MAV_AUTOPILOT_INVALID,
                 mavlink.MAV_MODE_FLAG_TEST_ENABLED,
                 0,
-                mavlink.MAV_STATE_ACTIVE
+                mavlink.MAV_STATE_ACTIVE,
             )
             heartbeat_next = time() + heartbeat_interval
 
         if time() >= control_next:
-            text = '{:.4f}'.format(vertical_output(last_state.zacc))
-            ser.write((text + '\n').encode('ascii'))
+            text = "{:.4f}".format(vertical_output(last_state.zacc + last_extra.acc_z))
+            ser.write((text + "\n").encode("ascii"))
             control_next = time() + control_interval
 
         # handle incoming messages
         try:
             while (message := mav.file.recv_msg()) is not None:
                 # pyright couldn't handle this annotation without quoting
-                message: 'mavlink.MAVLink_message'
-                if message.get_type() == 'HEARTBEAT':
+                message: "mavlink.MAVLink_message"
+                if message.get_type() == "HEARTBEAT":
                     heartbeat: mavlink.MAVLink_heartbeat_message = message
                     if heartbeat.type == mavlink.MARSH_TYPE_MANAGER:
                         if not manager_connected:
-                            print('Connected to simulation manager')
+                            print("Connected to simulation manager")
                         manager_connected = True
                         manager_timeout = time() + timeout_interval
-                elif message.get_type() == 'SIM_STATE':
+                elif message.get_type() == "SIM_STATE":
                     last_state = message
+                elif message.get_type() == "MOTION_CUE_EXTRA":
+                    last_extra = message
                 elif params.should_handle_message(message):
                     params.handle_message(mav, message)
         except ConnectionResetError:
@@ -128,4 +137,4 @@ with serial.Serial(args_device, 57600, timeout=0.01) as ser:
 
         if manager_connected and time() > manager_timeout:
             manager_connected = False
-            print('Lost connection to simulation manager')
+            print("Lost connection to simulation manager")

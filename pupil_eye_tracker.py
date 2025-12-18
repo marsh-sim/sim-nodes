@@ -22,6 +22,7 @@ import mavlink_all as mavlink
 from utils import NodeFormatter
 
 parser = ArgumentParser(formatter_class=NodeFormatter, description=__doc__)
+# fmt: off
 parser.add_argument('-m', '--manager',
                     help='MARSH Manager IP addr', default='127.0.0.1')
 parser.add_argument('-r', '--pupil-remote',
@@ -30,6 +31,7 @@ parser.add_argument('-p', '--pupil-port', type=int,
                     help='Pupil Remote port', default=50020)
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='print sent data')
+# fmt: on
 args = parser.parse_args()
 # assign to typed variables for convenience
 args_manager: str = args.manager
@@ -39,26 +41,29 @@ args_verbose: bool = args.verbose
 
 ctx = zmq.Context()
 pupil_remote = zmq.Socket(ctx, zmq.REQ)
-pupil_remote.connect(f'tcp://{args_pupil_remote}:{args_pupil_port}')
+pupil_remote.connect(f"tcp://{args_pupil_remote}:{args_pupil_port}")
 
 # Request 'SUB_PORT' for reading data
-pupil_remote.send_string('SUB_PORT')
+pupil_remote.send_string("SUB_PORT")
 subscribe_port = pupil_remote.recv_string()
 
 subscriber = ctx.socket(zmq.SUB)
-subscriber.connect(f'tcp://{args_pupil_remote}:{subscribe_port}')
-subscriber.subscribe('gaze.')
-subscriber.subscribe('surfaces.')
+subscriber.connect(f"tcp://{args_pupil_remote}:{subscribe_port}")
+subscriber.subscribe("gaze.")
+subscriber.subscribe("surfaces.")
+subscriber.subscribe("pupil.")
 
 poller = zmq.Poller()
 poller.register(subscriber, zmq.POLLIN)
 
 # create MAVLink connection
-connection_string = f'udpout:{args_manager}:24400'
+connection_string = f"udpout:{args_manager}:24400"
 mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
 mav.srcSystem = 1  # default system
-mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_EYE_TRACKER - mavlink.MARSH_TYPE_MANAGER)
-print(f'Sending to {connection_string}')
+mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (
+    mavlink.MARSH_TYPE_EYE_TRACKER - mavlink.MARSH_TYPE_MANAGER
+)
+print(f"Sending to {connection_string}")
 
 
 # see https://marsh-sim.github.io/nodes/eye-tracking/#defined-screens
@@ -71,10 +76,10 @@ class DefinedSurface(Enum):
 
 
 surface_names = {
-    'Instruments': DefinedSurface.INSTRUMENTS,
-    'Outside view': DefinedSurface.OUTSIDE_VIEW,
-    'Inceptors': DefinedSurface.INCEPTORS,
-    'Drone control': DefinedSurface.DRONE_CONTROL,
+    "Instruments": DefinedSurface.INSTRUMENTS,
+    "Outside view": DefinedSurface.OUTSIDE_VIEW,
+    "Inceptors": DefinedSurface.INCEPTORS,
+    "Drone control": DefinedSurface.DRONE_CONTROL,
 }
 
 
@@ -84,6 +89,8 @@ class GazeData:
     direction: Tuple[float, float, float]
     video: Tuple[float, float]
     surface: Optional[Tuple[DefinedSurface, float, float]] = None
+    diameter_left: Optional[float] = None
+    diameter_right: Optional[float] = None
 
 
 start_time = time()
@@ -95,10 +102,24 @@ This buffer keeps the last 10 gaze data messages to add surface data to them bef
 
 
 def send_gaze_data(data: GazeData):
+    offset = pupil_time_offset if pupil_time_offset is not None else 0.0
+    time = round((data.timestamp + offset) * 1e6)
+
+    # Pupil Core and MARSH both use mm
+    diameter = nan
+    if data.diameter_left is not None and data.diameter_right is not None:
+        diameter = (data.diameter_left + data.diameter_right) / 2.0
+    if data.diameter_left is not None:
+        diameter = data.diameter_left
+    if data.diameter_right is not None:
+        diameter = data.diameter_right
+
     mav.eye_tracking_data_send(
-        round((data.timestamp + pupil_time_offset) * 1e6),
+        time,
         0,  # default instance
-        nan, nan, nan,  # no info about head position
+        nan,
+        nan,
+        nan,  # no info about head position
         # direction vector normalized to unit length
         data.direction[0],
         data.direction[1],
@@ -110,6 +131,7 @@ def send_gaze_data(data: GazeData):
         data.surface[0].value if data.surface is not None else 0,
         data.surface[1] if data.surface is not None else nan,
         data.surface[2] if data.surface is not None else nan,
+        diameter,
     )
     if args_verbose:
         print(data)
@@ -127,16 +149,16 @@ manager_connected = False
 while True:
     if time() >= heartbeat_next:
         mav.heartbeat_send(
-            mavlink.MAV_TYPE_EYE_TRACKER,
+            mavlink.MARSH_TYPE_EYE_TRACKER,
             mavlink.MAV_AUTOPILOT_INVALID,
             mavlink.MAV_MODE_FLAG_TEST_ENABLED,
             0,
-            mavlink.MAV_STATE_ACTIVE
+            mavlink.MAV_STATE_ACTIVE,
         )
         heartbeat_next = time() + heartbeat_interval
 
     # Receive one eye tracking message in non-blocking mode
-    topic = ''
+    topic = ""
     pupil_message: Optional[Dict[str, Any]] = None
     evts = dict(poller.poll())
     if subscriber in evts:
@@ -145,23 +167,22 @@ while True:
         pupil_message = msgpack.loads(payload)
 
         if pupil_time_offset is None:
-            pupil_time_offset = (time() - start_time) - \
-                pupil_message['timestamp']
+            pupil_time_offset = (time() - start_time) - pupil_message["timestamp"]
 
-    if topic == 'gaze.3d.01.':
+    if topic == "gaze.3d.01.":
         # point magnitude for normalization
-        point_mag = sqrt(sum([p**2 for p in pupil_message['gaze_point_3d']]))
+        point_mag = sqrt(sum([p**2 for p in pupil_message["gaze_point_3d"]]))
 
         data = GazeData(
-            timestamp=pupil_message['timestamp'],
+            timestamp=pupil_message["timestamp"],
             direction=(
-                pupil_message['gaze_point_3d'][0] / point_mag,
-                pupil_message['gaze_point_3d'][1] / point_mag,
-                pupil_message['gaze_point_3d'][2] / point_mag,
+                pupil_message["gaze_point_3d"][0] / point_mag,
+                pupil_message["gaze_point_3d"][1] / point_mag,
+                pupil_message["gaze_point_3d"][2] / point_mag,
             ),
             video=(
-                pupil_message['norm_pos'][0],
-                pupil_message['norm_pos'][1],
+                pupil_message["norm_pos"][0],
+                pupil_message["norm_pos"][1],
             ),
         )
 
@@ -170,30 +191,51 @@ while True:
             send_gaze_data(sending_queue.popleft())
         sending_queue.append(data)
 
+    elif topic == "pupil.0.3d":
+        # if args_verbose:
+        #     print("right diameter:", pupil_message["diameter_3d"])
+        try:
+            sending_queue[-1].diameter_right = pupil_message["diameter_3d"]
+        except IndexError:
+            pass  # empty queue
+    elif topic == "pupil.1.3d":
+        # if args_verbose:
+        #     print("left diameter:", pupil_message["diameter_3d"])
+        try:
+            sending_queue[-1].diameter_left = pupil_message["diameter_3d"]
+        except IndexError:
+            pass  # empty queue
+
     elif topic.startswith("surface"):
-        for gaze_message in pupil_message['gaze_on_surfaces']:
+        for gaze_message in pupil_message["gaze_on_surfaces"]:
             # assign to corresponding data waiting to be sent
             for data in sending_queue:
                 # make sure the timestamp matches and gaze is in the surface
-                if data.timestamp == gaze_message['base_data'][1] \
-                        and 0.0 <= gaze_message['norm_pos'][0] <= 1.0 \
-                        and 0.0 <= gaze_message['norm_pos'][1] <= 1.0:
+                if (
+                    data.timestamp == gaze_message["base_data"][1]
+                    and 0.0 <= gaze_message["norm_pos"][0] <= 1.0
+                    and 0.0 <= gaze_message["norm_pos"][1] <= 1.0
+                ):
                     data.surface = (
                         surface_names.get(
-                            pupil_message['name'], DefinedSurface.UNRECOGNIZED),
-                        gaze_message['norm_pos'][0],
-                        gaze_message['norm_pos'][1],
+                            pupil_message["name"], DefinedSurface.UNRECOGNIZED
+                        ),
+                        gaze_message["norm_pos"][0],
+                        gaze_message["norm_pos"][1],
                     )
+    # else:
+    #     if args_verbose:
+    #         print("other topic:", topic)
 
     # handle incoming MAVLink messages
     try:
         while (message := mav.file.recv_msg()) is not None:
             message: mavlink.MAVLink_message
-            if message.get_type() == 'HEARTBEAT':
+            if message.get_type() == "HEARTBEAT":
                 heartbeat: mavlink.MAVLink_heartbeat_message = message
                 if heartbeat.type == mavlink.MARSH_TYPE_MANAGER:
                     if not manager_connected:
-                        print('Connected to simulation manager')
+                        print("Connected to simulation manager")
                     manager_connected = True
                     manager_timeout = time() + timeout_interval
     except ConnectionResetError:
@@ -202,4 +244,4 @@ while True:
 
     if manager_connected and time() > manager_timeout:
         manager_connected = False
-        print('Lost connection to simulation manager')
+        print("Lost connection to simulation manager")
