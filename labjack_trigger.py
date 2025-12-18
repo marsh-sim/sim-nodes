@@ -98,7 +98,7 @@ class TriggerNode(threading.Thread):
         self.target_voltage = self.acquisition_stop_voltage  # Initially at stop level
 
         # Open LabJack T7 connection
-        self.LJhandle = ljm.openS('T7', 'ETHERNET', 'ANY')
+        self.LJhandle = ljm.openS('T7', 'USB', 'ANY')
         if self.LJhandle:
             info = ljm.getHandleInfo(self.LJhandle)
             print('TriggerNode: Found LabJack with Device type: {}, Connection type: {},'.format(
@@ -119,10 +119,10 @@ class TriggerNode(threading.Thread):
 
     def run(self):
         # create MAVLink connection to receive commands
-        connection_string = f'udpin:0.0.0.0:24400'
+        connection_string = f'udpout:0.0.0.0:24400'
         mav = mavlink.MAVLink(mavutil.mavlink_connection(connection_string))
         mav.srcSystem = 1  # default system
-        mav.srcComponent = mavlink.MAV_COMP_ID_USER1 + (mavlink.MARSH_TYPE_CONTROLS - mavlink.MARSH_TYPE_MANAGER)
+        mav.srcComponent = mavlink.MAV_COMP_ID_USER1
         print(f'TriggerNode: Listening for COMMAND_LONG on {connection_string}')
         print(f'TriggerNode: Will control {self.dac_channel}:')
         print(f'  Acquisition START (param1=1): {self.acquisition_start_voltage}V ({self.start_level})')
