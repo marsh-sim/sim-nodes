@@ -53,6 +53,10 @@ subscriber.subscribe("gaze.")
 subscriber.subscribe("surfaces.")
 subscriber.subscribe("pupil.")
 
+# per fixation and blink
+subscriber.subscribe("fixation")
+subscriber.subscribe("blink")
+
 poller = zmq.Poller()
 poller.register(subscriber, zmq.POLLIN)
 
@@ -103,7 +107,7 @@ This buffer keeps the last 10 gaze data messages to add surface data to them bef
 
 def send_gaze_data(data: GazeData):
     offset = pupil_time_offset if pupil_time_offset is not None else 0.0
-    time = round((data.timestamp + offset) * 1e6)
+    time_usec = max(0, round((data.timestamp + offset) * 1e6))
 
     # Pupil Core and MARSH both use mm
     diameter = nan
@@ -114,8 +118,11 @@ def send_gaze_data(data: GazeData):
     if data.diameter_right is not None:
         diameter = data.diameter_right
 
+    if args_verbose:
+        print(data)
+
     mav.eye_tracking_data_send(
-        time,
+        time_usec,
         0,  # default instance
         nan,
         nan,
@@ -133,9 +140,8 @@ def send_gaze_data(data: GazeData):
         data.surface[2] if data.surface is not None else nan,
         diameter,
     )
-    if args_verbose:
-        print(data)
-
+    
+last_blink_onset: Optional[int] = None
 
 # controlling when messages should be sent
 heartbeat_next = 0.0
@@ -223,6 +229,44 @@ while True:
                         gaze_message["norm_pos"][0],
                         gaze_message["norm_pos"][1],
                     )
+                    #test for blink and fixation
+    elif topic.startswith("fixation"):
+        offset = pupil_time_offset if pupil_time_offset is not None else 0.0
+        time_usec = max(0, round((pupil_message["timestamp"] + offset) * 1e6))
+
+        if args_verbose:
+            print("FIXATION:", time_usec, pupil_message["duration"] * 1000.0, pupil_message["confidence"], pupil_message["dispersion"])
+
+        mav.eye_tracking_event_send(
+            time_usec,
+            0,
+            mavlink.EYE_TRACKING_EVENT_TYPE_FIXATION,
+            round(pupil_message["duration"] * 1000.0),
+            pupil_message["confidence"],
+            pupil_message["dispersion"],
+        )
+
+    elif topic.startswith("blink"):
+        offset = pupil_time_offset if pupil_time_offset is not None else 0.0
+        time_usec = max(0, round((pupil_message["timestamp"] + offset) * 1e6))
+
+        if pupil_message["type"] == "onset":
+            last_blink_onset = time_usec
+        elif pupil_message["type"] == "offset" and last_blink_onset is not None:
+
+            if args_verbose:
+                print("BLINK:", time_usec, time_usec - last_blink_onset, pupil_message["confidence"])
+
+            mav.eye_tracking_event_send(
+                time_usec,
+                0,
+                mavlink.EYE_TRACKING_EVENT_TYPE_BLINK,
+                time_usec - last_blink_onset,
+                pupil_message["confidence"],
+                nan,
+            )
+            last_blink_onset = None
+
     # else:
     #     if args_verbose:
     #         print("other topic:", topic)
